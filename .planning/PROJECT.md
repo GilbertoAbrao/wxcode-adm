@@ -59,7 +59,7 @@ Controlar acesso seguro a plataforma WXCODE com identidade, permissoes por tenan
 
 ## Constraints
 
-- **Tech stack**: Python 3.11+ / FastAPI / Beanie ODM / MongoDB — consistencia com wxcode
+- **Tech stack**: Python 3.11+ / FastAPI / SQLAlchemy 2.0 / PostgreSQL — database relacional para SaaS admin
 - **Auth**: JWT auto-contido (RS256 com par de chaves) para que wxcode valide sem chamar wxcode-adm
 - **Payments**: Stripe (checkout, billing, metered billing, customer portal, webhooks)
 - **Cache/Sessions**: Redis para rate limiting, blacklist de tokens, sessoes
@@ -76,7 +76,9 @@ Controlar acesso seguro a plataforma WXCODE com identidade, permissoes por tenan
 | Subdomains por servico | Facilita deploy independente, SSL por servico, separacao clara | — Pending |
 | Super-admin gerencia planos (CRUD) | Planos nao sao hardcoded, flexibilidade para ajustar ofertas | — Pending |
 | Usuario isolado a um tenant | Simplicidade, sem complexidade de multi-tenant switching | — Pending |
-| Mesma stack Python/FastAPI/Beanie | Consistencia com wxcode, reuso de conhecimento e patterns | — Pending |
+| PostgreSQL + SQLAlchemy (nao MongoDB) | wxcode-adm e SaaS admin com schema relacional; wxcode usa MongoDB por tenant | — Pending |
+| Monorepo backend + frontend | Um repo, deploy independente, backend em /backend, frontend em /frontend | — Pending |
+| Alembic para migrations | Schema versionado, auto-generate | — Pending |
 
 ---
-*Last updated: 2026-02-22 after initialization*
+*Last updated: 2026-02-22 after phase 1 context gathering*
