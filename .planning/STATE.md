@@ -5,33 +5,33 @@
 See: .planning/PROJECT.md (updated 2026-02-22)
 
 **Core value:** Controlar acesso seguro a plataforma WXCODE com identidade, permissoes por tenant e cobranca recorrente — sem executar nenhuma operacao do wxcode engine.
-**Current focus:** Phase 1 — Foundation
+**Current focus:** Phase 2 — Identity (next phase)
 
 ## Current Position
 
-Phase: 1 of 8 (Foundation)
-Plan: 2 of 3 in current phase
-Status: In progress
-Last activity: 2026-02-22 — Plan 01-02 complete: FastAPI app factory, health endpoint, Redis client, arq worker
+Phase: 1 of 8 (Foundation) — COMPLETE
+Plan: 3 of 3 in current phase (all plans complete)
+Status: Phase complete — ready to begin Phase 2
+Last activity: 2026-02-22 — Plan 01-03 complete: Dockerfile, docker-compose.yml, full stack verified
 
-Progress: [██░░░░░░░░] 8%
+Progress: [███░░░░░░░] 12%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 2
-- Average duration: 3 min
-- Total execution time: 0.1 hours
+- Total plans completed: 3
+- Average duration: 7 min
+- Total execution time: 0.35 hours
 
 **By Phase:**
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
-| 01-foundation | 2/3 | 6 min | 3 min |
+| 01-foundation | 3/3 | 21 min | 7 min |
 
 **Recent Trend:**
-- Last 5 plans: 4 min, 2 min
-- Trend: Faster
+- Last 5 plans: 4 min, 2 min, 15 min
+- Trend: Stable
 
 *Updated after each plan completion*
 
@@ -53,6 +53,10 @@ Recent decisions affecting current work:
 - [01-02]: arq worker NOT started from lifespan — separate process for independent scaling; use arq wxcode_adm.tasks.worker.WorkerSettings
 - [01-02]: redis_client is module-level singleton (not per-request) — pool managed by redis.asyncio, closed via aclose() in lifespan shutdown
 - [01-02]: get_session uses explicit try/yield/commit/except/rollback pattern for precise commit timing relative to response
+- [01-03]: python:3.11-slim (not alpine) — asyncpg requires gcc for compiling C extensions; alpine adds too much build complexity
+- [01-03]: alembic upgrade head runs in api container entrypoint — simpler for dev; healthchecks serialize postgres readiness
+- [01-03]: DATABASE_URL and REDIS_URL overridden in environment block (not env_file) — Docker hostnames take precedence over .env localhost values with no .env modification needed
+- [01-03]: Worker uses same Dockerfile as api (build: context: ./backend) — command override runs arq instead of uvicorn; avoids second Dockerfile
 
 ### Pending Todos
 
@@ -67,5 +71,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-22
-Stopped at: Completed 01-02-PLAN.md — FastAPI app factory, health endpoint, Redis client, arq worker with WorkerSettings
+Stopped at: Completed 01-03-PLAN.md — Dockerfile, docker-compose.yml, full stack verified (all 4 services healthy, health endpoint 200)
 Resume file: None
