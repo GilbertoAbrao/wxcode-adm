@@ -33,12 +33,13 @@ Decimal phases appear between their surrounding integers in numeric order.
   3. pydantic-settings loads all environment variables with SecretStr for credentials and raises a clear error on missing required config at startup
   4. Docker Compose brings up the full stack (FastAPI, PostgreSQL, Redis) with a single command
   5. arq worker starts and processes a test job, confirming the async task queue is operational before any email or webhook work begins
-**Plans**: 3 plans
+**Plans**: 4 plans
 
 Plans:
 - [x] 01-01-PLAN.md — Project skeleton, pyproject.toml, pydantic-settings config, SQLAlchemy engine, TenantModel, Alembic async init
 - [x] 01-02-PLAN.md — FastAPI app factory with lifespan, Redis client, health endpoint, arq worker with test job
-- [ ] 01-03-PLAN.md — Dockerfile, docker-compose.yml, full stack verification
+- [x] 01-03-PLAN.md — Dockerfile, docker-compose.yml, full stack verification
+- [ ] 01-04-PLAN.md — Gap closure: upgrade tenant guard from WARNING to TenantIsolationError raise
 
 ### Phase 2: Auth Core
 **Goal**: Users can securely create accounts, verify their identity, recover access, and receive a JWT RS256 token that wxcode can validate locally without calling wxcode-adm
@@ -182,7 +183,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Foundation | 2/3 | In progress | - |
+| 1. Foundation | 3/4 | In progress | - |
 | 2. Auth Core | 0/5 | Not started | - |
 | 3. Multi-Tenancy and RBAC | 0/5 | Not started | - |
 | 4. Billing Core | 0/6 | Not started | - |
