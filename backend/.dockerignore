@@ -1,0 +1,46 @@
+# backend/.dockerignore
+# Excludes files from Docker build context to reduce image size and prevent
+# secrets or build artifacts from leaking into the image.
+
+# Python bytecode
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+
+# Test caches
+.pytest_cache
+.coverage
+htmlcov/
+
+# Version control
+.git
+.gitignore
+
+# Local environment and secrets — NEVER include in Docker image
+.env
+
+# Python packaging artifacts
+*.egg-info
+*.egg
+dist/
+build/
+
+# Virtual environments
+.venv
+venv/
+env/
+
+# Node (in case frontend tooling bleeds in)
+node_modules/
+
+# Type checking caches
+.mypy_cache
+.ruff_cache
+
+# IDE files
+.vscode/
+.idea/
+
+# macOS metadata
+.DS_Store

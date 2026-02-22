@@ -1,0 +1,101 @@
+# docker-compose.yml — wxcode-adm full development stack
+#
+# Services:
+#   postgres  — PostgreSQL 17 (database)
+#   redis     — Redis 7 (cache + arq queue backend)
+#   api       — FastAPI backend (uvicorn with hot-reload + alembic on startup)
+#   worker    — arq job processor (separate process from api)
+#
+# Usage:
+#   docker compose up --build       # start full stack (rebuilds images if needed)
+#   docker compose up -d --build    # start in background
+#   docker compose logs -f api      # follow api logs
+#   docker compose down -v          # stop and remove volumes
+
+services:
+
+  # ---------------------------------------------------------------------------
+  # PostgreSQL 17
+  # ---------------------------------------------------------------------------
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: wxcode
+      POSTGRES_PASSWORD: wxcode_dev
+      POSTGRES_DB: wxcode_adm
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U wxcode -d wxcode_adm"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+
+  # ---------------------------------------------------------------------------
+  # Redis 7
+  # ---------------------------------------------------------------------------
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  # ---------------------------------------------------------------------------
+  # FastAPI API (uvicorn with hot-reload)
+  # ---------------------------------------------------------------------------
+  api:
+    build:
+      context: ./backend
+    command: >
+      sh -c "alembic upgrade head &&
+             uvicorn wxcode_adm.main:app --host 0.0.0.0 --port 8060 --reload"
+    ports:
+      - "8060:8060"
+    env_file:
+      - ./backend/.env
+    environment:
+      # Override DATABASE_URL and REDIS_URL for Docker networking.
+      # Uses container hostnames (postgres, redis) instead of localhost.
+      # These take precedence over the values in backend/.env.
+      DATABASE_URL: postgresql+asyncpg://wxcode:wxcode_dev@postgres:5432/wxcode_adm
+      REDIS_URL: redis://redis:6379/0
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      # Hot-reload: source code changes on host are reflected immediately in container.
+      - ./backend/src:/app/src
+
+  # ---------------------------------------------------------------------------
+  # arq Worker (separate process — independent scaling from api)
+  # ---------------------------------------------------------------------------
+  worker:
+    build:
+      context: ./backend
+    command: arq wxcode_adm.tasks.worker.WorkerSettings
+    env_file:
+      - ./backend/.env
+    environment:
+      # Override DATABASE_URL and REDIS_URL for Docker networking.
+      DATABASE_URL: postgresql+asyncpg://wxcode:wxcode_dev@postgres:5432/wxcode_adm
+      REDIS_URL: redis://redis:6379/0
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+# ---------------------------------------------------------------------------
+# Named volumes
+# ---------------------------------------------------------------------------
+volumes:
+  postgres_data:
