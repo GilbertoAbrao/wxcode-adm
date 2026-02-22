@@ -37,7 +37,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 
 Plans:
 - [x] 01-01-PLAN.md — Project skeleton, pyproject.toml, pydantic-settings config, SQLAlchemy engine, TenantModel, Alembic async init
-- [ ] 01-02-PLAN.md — FastAPI app factory with lifespan, Redis client, health endpoint, arq worker with test job
+- [x] 01-02-PLAN.md — FastAPI app factory with lifespan, Redis client, health endpoint, arq worker with test job
 - [ ] 01-03-PLAN.md — Dockerfile, docker-compose.yml, full stack verification
 
 ### Phase 2: Auth Core
@@ -182,7 +182,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Foundation | 1/3 | In progress | - |
+| 1. Foundation | 2/3 | In progress | - |
 | 2. Auth Core | 0/5 | Not started | - |
 | 3. Multi-Tenancy and RBAC | 0/5 | Not started | - |
 | 4. Billing Core | 0/6 | Not started | - |

@@ -10,28 +10,28 @@ See: .planning/PROJECT.md (updated 2026-02-22)
 ## Current Position
 
 Phase: 1 of 8 (Foundation)
-Plan: 1 of 3 in current phase
+Plan: 2 of 3 in current phase
 Status: In progress
-Last activity: 2026-02-22 — Plan 01-01 complete: monorepo skeleton, SQLAlchemy async engine, TenantModel, Alembic
+Last activity: 2026-02-22 — Plan 01-02 complete: FastAPI app factory, health endpoint, Redis client, arq worker
 
-Progress: [█░░░░░░░░░] 4%
+Progress: [██░░░░░░░░] 8%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 1
-- Average duration: 4 min
-- Total execution time: 0.07 hours
+- Total plans completed: 2
+- Average duration: 3 min
+- Total execution time: 0.1 hours
 
 **By Phase:**
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
-| 01-foundation | 1/3 | 4 min | 4 min |
+| 01-foundation | 2/3 | 6 min | 3 min |
 
 **Recent Trend:**
-- Last 5 plans: 4 min
-- Trend: —
+- Last 5 plans: 4 min, 2 min
+- Trend: Faster
 
 *Updated after each plan completion*
 
@@ -50,6 +50,9 @@ Recent decisions affecting current work:
 - [01-01]: redis==5.3.1 not 7.2.0 — redis-py client library is at 5.x; 7.x is the Redis server version; arq 0.27.0 requires redis<6
 - [01-01]: TenantModel guard uses logged WARNING in Phase 1 (not hard raise) — avoids breaking health checks and seed functions; upgrades to RuntimeError in Phase 3
 - [01-01]: Domain exceptions are NOT HTTPException subclasses — caught by FastAPI handler in Plan 02
+- [01-02]: arq worker NOT started from lifespan — separate process for independent scaling; use arq wxcode_adm.tasks.worker.WorkerSettings
+- [01-02]: redis_client is module-level singleton (not per-request) — pool managed by redis.asyncio, closed via aclose() in lifespan shutdown
+- [01-02]: get_session uses explicit try/yield/commit/except/rollback pattern for precise commit timing relative to response
 
 ### Pending Todos
 
@@ -64,5 +67,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-22
-Stopped at: Completed 01-01-PLAN.md — monorepo skeleton, pydantic-settings, SQLAlchemy async engine, TenantModel, Alembic
+Stopped at: Completed 01-02-PLAN.md — FastAPI app factory, health endpoint, Redis client, arq worker with WorkerSettings
 Resume file: None
