@@ -62,7 +62,7 @@ def install_tenant_guard(session_factory) -> None:
         install_tenant_guard(async_session_maker)
     """
 
-    @event.listens_for(session_factory.class_, "do_orm_execute")
+    @event.listens_for(session_factory.class_.sync_session_class, "do_orm_execute")
     def _enforce_tenant_id(orm_execute_state) -> None:
         if not orm_execute_state.is_select:
             return

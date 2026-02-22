@@ -18,6 +18,7 @@ dev = [
     "pytest",
     "pytest-asyncio",
     "httpx",
+    "aiosqlite",
 ]
 
 [tool.pytest.ini_options]
