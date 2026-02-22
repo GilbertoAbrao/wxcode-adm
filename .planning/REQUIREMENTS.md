@@ -121,52 +121,52 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| AUTH-01 | — | Pending |
-| AUTH-02 | — | Pending |
-| AUTH-03 | — | Pending |
-| AUTH-04 | — | Pending |
-| AUTH-05 | — | Pending |
-| AUTH-06 | — | Pending |
-| AUTH-07 | — | Pending |
-| AUTH-08 | — | Pending |
-| AUTH-09 | — | Pending |
-| AUTH-10 | — | Pending |
-| AUTH-11 | — | Pending |
-| AUTH-12 | — | Pending |
-| AUTH-13 | — | Pending |
-| TNNT-01 | — | Pending |
-| TNNT-02 | — | Pending |
-| TNNT-03 | — | Pending |
-| TNNT-04 | — | Pending |
-| TNNT-05 | — | Pending |
-| RBAC-01 | — | Pending |
-| RBAC-02 | — | Pending |
-| RBAC-03 | — | Pending |
-| BILL-01 | — | Pending |
-| BILL-02 | — | Pending |
-| BILL-03 | — | Pending |
-| BILL-04 | — | Pending |
-| BILL-05 | — | Pending |
-| PLAT-01 | — | Pending |
-| PLAT-02 | — | Pending |
-| PLAT-03 | — | Pending |
-| PLAT-04 | — | Pending |
-| PLAT-05 | — | Pending |
-| SADM-01 | — | Pending |
-| SADM-02 | — | Pending |
-| SADM-03 | — | Pending |
-| SADM-04 | — | Pending |
-| SADM-05 | — | Pending |
-| USER-01 | — | Pending |
-| USER-02 | — | Pending |
-| USER-03 | — | Pending |
-| USER-04 | — | Pending |
+| AUTH-01 | Phase 2 | Pending |
+| AUTH-02 | Phase 2 | Pending |
+| AUTH-03 | Phase 2 | Pending |
+| AUTH-04 | Phase 2 | Pending |
+| AUTH-05 | Phase 2 | Pending |
+| AUTH-06 | Phase 2 | Pending |
+| AUTH-07 | Phase 2 | Pending |
+| AUTH-08 | Phase 6 | Pending |
+| AUTH-09 | Phase 6 | Pending |
+| AUTH-10 | Phase 6 | Pending |
+| AUTH-11 | Phase 6 | Pending |
+| AUTH-12 | Phase 6 | Pending |
+| AUTH-13 | Phase 6 | Pending |
+| TNNT-01 | Phase 3 | Pending |
+| TNNT-02 | Phase 3 | Pending |
+| TNNT-03 | Phase 3 | Pending |
+| TNNT-04 | Phase 3 | Pending |
+| TNNT-05 | Phase 3 | Pending |
+| RBAC-01 | Phase 3 | Pending |
+| RBAC-02 | Phase 3 | Pending |
+| RBAC-03 | Phase 3 | Pending |
+| BILL-01 | Phase 4 | Pending |
+| BILL-02 | Phase 4 | Pending |
+| BILL-03 | Phase 4 | Pending |
+| BILL-04 | Phase 4 | Pending |
+| BILL-05 | Phase 4 | Pending |
+| PLAT-01 | Phase 5 | Pending |
+| PLAT-02 | Phase 5 | Pending |
+| PLAT-03 | Phase 5 | Pending |
+| PLAT-04 | Phase 5 | Pending |
+| PLAT-05 | Phase 5 | Pending |
+| SADM-01 | Phase 8 | Pending |
+| SADM-02 | Phase 8 | Pending |
+| SADM-03 | Phase 8 | Pending |
+| SADM-04 | Phase 8 | Pending |
+| SADM-05 | Phase 8 | Pending |
+| USER-01 | Phase 7 | Pending |
+| USER-02 | Phase 7 | Pending |
+| USER-03 | Phase 7 | Pending |
+| USER-04 | Phase 7 | Pending |
 
 **Coverage:**
 - v1 requirements: 40 total
-- Mapped to phases: 0
-- Unmapped: 40
+- Mapped to phases: 40
+- Unmapped: 0
 
 ---
 *Requirements defined: 2026-02-22*
-*Last updated: 2026-02-22 after initial definition*
+*Last updated: 2026-02-22 after roadmap creation — all 40 requirements mapped*
