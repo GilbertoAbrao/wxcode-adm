@@ -10,27 +10,27 @@ See: .planning/PROJECT.md (updated 2026-02-22)
 ## Current Position
 
 Phase: 1 of 8 (Foundation) — COMPLETE
-Plan: 3 of 3 in current phase (all plans complete)
+Plan: 4 of 4 in current phase (all plans complete, including gap closure)
 Status: Phase complete — ready to begin Phase 2
-Last activity: 2026-02-22 — Plan 01-03 complete: Dockerfile, docker-compose.yml, full stack verified
+Last activity: 2026-02-22 — Plan 01-04 complete: tenant guard upgraded to hard TenantIsolationError raise, 3 passing tests
 
-Progress: [███░░░░░░░] 12%
+Progress: [███░░░░░░░] 13%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 3
-- Average duration: 7 min
-- Total execution time: 0.35 hours
+- Total plans completed: 4
+- Average duration: 5 min
+- Total execution time: 0.37 hours
 
 **By Phase:**
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
-| 01-foundation | 3/3 | 21 min | 7 min |
+| 01-foundation | 4/4 | 23 min | 6 min |
 
 **Recent Trend:**
-- Last 5 plans: 4 min, 2 min, 15 min
+- Last 5 plans: 4 min, 2 min, 15 min, 2 min
 - Trend: Stable
 
 *Updated after each plan completion*
@@ -57,6 +57,9 @@ Recent decisions affecting current work:
 - [01-03]: alembic upgrade head runs in api container entrypoint — simpler for dev; healthchecks serialize postgres readiness
 - [01-03]: DATABASE_URL and REDIS_URL overridden in environment block (not env_file) — Docker hostnames take precedence over .env localhost values with no .env modification needed
 - [01-03]: Worker uses same Dockerfile as api (build: context: ./backend) — command override runs arq instead of uvicorn; avoids second Dockerfile
+- [01-04]: do_orm_execute event registered on Session (sync_session_class) not AsyncSession — AsyncSession does not support that event; guard was non-functional before this fix
+- [01-04]: TenantIsolationError raised on unguarded ORM SELECT immediately (ROADMAP SC#2 gap closed) — no Phase 3 deferral needed
+- [01-04]: aiosqlite used for in-memory SQLite async testing — no Docker/PostgreSQL needed in test suite
 
 ### Pending Todos
 
@@ -71,5 +74,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-22
-Stopped at: Completed 01-03-PLAN.md — Dockerfile, docker-compose.yml, full stack verified (all 4 services healthy, health endpoint 200)
+Stopped at: Completed 01-04-PLAN.md — tenant guard upgraded to TenantIsolationError raise; ROADMAP SC#2 closed; 3 tests passing
 Resume file: None
