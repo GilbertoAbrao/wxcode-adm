@@ -28,17 +28,17 @@ Decimal phases appear between their surrounding integers in numeric order.
 **Depends on**: Nothing (first phase)
 **Requirements**: (No direct v1 requirements — enabler for all 40)
 **Success Criteria** (what must be TRUE):
-  1. FastAPI application starts, health endpoint returns 200, and all infrastructure connections (MongoDB, Redis) are verified live
-  2. Beanie ODM is initialized with the TenantDocument base class that structurally injects tenant_id into all find/update/delete queries — a query without tenant_id is a compile-time or runtime error, not a silent bug
+  1. FastAPI application starts, health endpoint returns 200, and all infrastructure connections (PostgreSQL, Redis) are verified live
+  2. SQLAlchemy 2.0 async is initialized with a TenantModel base class that structurally injects tenant_id into queries — a query without tenant_id is a runtime error, not a silent bug
   3. pydantic-settings loads all environment variables with SecretStr for credentials and raises a clear error on missing required config at startup
-  4. Docker Compose brings up the full stack (FastAPI, MongoDB patched for CVE-2025-14847, Redis) with a single command
+  4. Docker Compose brings up the full stack (FastAPI, PostgreSQL, Redis) with a single command
   5. arq worker starts and processes a test job, confirming the async task queue is operational before any email or webhook work begins
-**Plans**: TBD
+**Plans**: 3 plans
 
 Plans:
-- [ ] 01-01: FastAPI app factory, Beanie init, Redis pool, health endpoint
-- [ ] 01-02: TenantDocument base class, shared exceptions, pydantic-settings config
-- [ ] 01-03: Docker Compose stack, arq worker setup, CI scaffolding
+- [ ] 01-01-PLAN.md — Project skeleton, pyproject.toml, pydantic-settings config, SQLAlchemy engine, TenantModel, Alembic async init
+- [ ] 01-02-PLAN.md — FastAPI app factory with lifespan, Redis client, health endpoint, arq worker with test job
+- [ ] 01-03-PLAN.md — Dockerfile, docker-compose.yml, full stack verification
 
 ### Phase 2: Auth Core
 **Goal**: Users can securely create accounts, verify their identity, recover access, and receive a JWT RS256 token that wxcode can validate locally without calling wxcode-adm
@@ -71,7 +71,7 @@ Plans:
   3. The 5 RBAC roles (Owner, Admin, Developer, Viewer, Billing) are enforced on every API endpoint — a Viewer cannot perform an Admin action and receives a 403 response
   4. Owner or Admin can change any member's role or remove them from the tenant
   5. Tenant Owner can transfer ownership to another member; the previous owner's role is downgraded to Admin
-  6. Every MongoDB query in the system includes tenant_id as the leftmost filter; a cross-tenant isolation test suite confirms zero data leakage between tenants
+  6. Every database query in the system includes tenant_id; a cross-tenant isolation test suite confirms zero data leakage between tenants
 **Plans**: TBD
 
 Plans:
@@ -88,13 +88,13 @@ Plans:
 **Success Criteria** (what must be TRUE):
   1. Super-admin can create, update, and delete billing plans with limits; each plan is synced to a Stripe Price and the catalog is the single source of truth for plan definitions
   2. User can subscribe to a plan by clicking through Stripe Checkout and arriving back at the app with an active subscription reflected immediately
-  3. When Stripe delivers a webhook event (subscription.updated, invoice.paid, invoice.payment_failed, subscription.deleted), the subscription state in MongoDB is updated correctly within one webhook delivery — no polling required
+  3. When Stripe delivers a webhook event (subscription.updated, invoice.paid, invoice.payment_failed, subscription.deleted), the subscription state in the database is updated correctly within one webhook delivery — no polling required
   4. User can open the Stripe Customer Portal from within the app and manage their subscription, payment method, and invoices without contacting support
   5. When a tenant exceeds their plan's limits, the API returns HTTP 402 with a clear message before passing the request to the wxcode engine — no wxcode engine operation runs over-limit
 **Plans**: TBD
 
 Plans:
-- [ ] 04-01: Plan model (MongoDB), plan CRUD API (super-admin only), Stripe Price sync
+- [ ] 04-01: Plan model, plan CRUD API (super-admin only), Stripe Price sync
 - [ ] 04-02: Stripe Customer creation on tenant sign-up, Stripe Checkout session endpoint
 - [ ] 04-03: Webhook ingestion (raw body, signature verify, idempotency, arq enqueue)
 - [ ] 04-04: Webhook processors (subscription state machine, invoice events, payment_failed)
@@ -182,7 +182,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Foundation | 0/3 | Not started | - |
+| 1. Foundation | 0/3 | Planning complete | - |
 | 2. Auth Core | 0/5 | Not started | - |
 | 3. Multi-Tenancy and RBAC | 0/5 | Not started | - |
 | 4. Billing Core | 0/6 | Not started | - |
