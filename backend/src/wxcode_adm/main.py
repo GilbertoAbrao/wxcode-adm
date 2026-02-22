@@ -1,0 +1,145 @@
+"""
+FastAPI application factory for wxcode-adm.
+
+Responsibilities:
+- App factory (create_app) with lifespan context manager
+- Lifespan: verifies PostgreSQL and Redis connectivity on startup
+- Lifespan: installs tenant isolation guard on session factory
+- Lifespan: graceful shutdown (disposes engine, closes Redis pool)
+- CORS middleware with configured allowed origins
+- AppError exception handler that translates domain errors to JSON responses
+- Module-level app instance for uvicorn: `uvicorn wxcode_adm.main:app`
+
+Do NOT use @app.on_event("startup"/"shutdown") — deprecated in FastAPI >= 0.93.
+Do NOT start the arq worker here — it must run as a separate process:
+    arq wxcode_adm.tasks.worker.WorkerSettings
+"""
+
+import logging
+from contextlib import asynccontextmanager
+
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
+from sqlalchemy import text
+
+from wxcode_adm.common.exceptions import AppError
+from wxcode_adm.common.redis_client import redis_client
+from wxcode_adm.config import settings
+from wxcode_adm.db.engine import engine, async_session_maker
+from wxcode_adm.db.tenant import install_tenant_guard
+
+logger = logging.getLogger(__name__)
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """
+    Application lifespan context manager.
+
+    Startup sequence:
+    1. Verify PostgreSQL connectivity (fail fast if DB is unreachable)
+    2. Install tenant isolation guard on session factory
+    3. Verify Redis connectivity (fail fast if Redis is unreachable)
+    4. [Phase 2 stub] Seed super-admin user if not exists
+    5. Yield control to FastAPI (app is now running)
+
+    Shutdown sequence:
+    6. Dispose SQLAlchemy engine (closes all pool connections)
+    7. Close Redis connection pool
+    """
+    # --- Startup ---
+
+    # 1. Verify PostgreSQL connectivity
+    logger.info("Verifying PostgreSQL connectivity...")
+    async with engine.begin() as conn:
+        await conn.execute(text("SELECT 1"))
+    logger.info("PostgreSQL connection verified.")
+
+    # 2. Install tenant isolation guard on session factory
+    install_tenant_guard(async_session_maker)
+    logger.info("Tenant isolation guard installed.")
+
+    # 3. Verify Redis connectivity
+    logger.info("Verifying Redis connectivity...")
+    await redis_client.ping()
+    logger.info("Redis connection verified.")
+
+    # 4. [Phase 2 stub] Seed super-admin user
+    # TODO(Phase 2): Uncomment when auth module is ready
+    # from wxcode_adm.auth.seed import seed_super_admin
+    # await seed_super_admin(async_session_maker, settings)
+
+    yield
+
+    # --- Shutdown ---
+
+    # 5. Dispose SQLAlchemy engine (gracefully close all pool connections)
+    logger.info("Disposing SQLAlchemy engine...")
+    await engine.dispose()
+    logger.info("SQLAlchemy engine disposed.")
+
+    # 6. Close Redis connection pool
+    logger.info("Closing Redis connection pool...")
+    await redis_client.aclose()
+    logger.info("Redis connection pool closed.")
+
+
+def create_app() -> FastAPI:
+    """
+    Create and configure the FastAPI application instance.
+
+    Returns a fully configured FastAPI app with:
+    - Lifespan for startup/shutdown infrastructure checks
+    - Common router with health endpoint
+    - CORS middleware for configured origins
+    - AppError exception handler for domain-to-HTTP error translation
+    """
+    app = FastAPI(
+        title="wxcode-adm",
+        version="0.1.0",
+        lifespan=lifespan,
+        openapi_url=f"{settings.API_V1_PREFIX}/openapi.json",
+        docs_url=f"{settings.API_V1_PREFIX}/docs",
+        redoc_url=f"{settings.API_V1_PREFIX}/redoc",
+    )
+
+    # --- CORS Middleware ---
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=settings.ALLOWED_ORIGINS,
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
+
+    # --- Exception Handlers ---
+    @app.exception_handler(AppError)
+    async def app_error_handler(request, exc: AppError) -> JSONResponse:
+        """
+        Translate domain AppError exceptions to structured JSON responses.
+
+        All domain errors (NotFoundError, ForbiddenError, ConflictError, etc.)
+        inherit from AppError and carry error_code, message, and status_code.
+        This handler converts them to the standard error response format.
+        """
+        return JSONResponse(
+            status_code=exc.status_code,
+            content={
+                "error_code": exc.error_code,
+                "message": exc.message,
+            },
+        )
+
+    # --- Routers ---
+    # Import here to avoid circular imports at module load time
+    from wxcode_adm.common.router import router as common_router  # noqa: PLC0415
+
+    app.include_router(common_router, prefix=settings.API_V1_PREFIX)
+
+    return app
+
+
+# Module-level app instance for uvicorn:
+#   uvicorn wxcode_adm.main:app --host 0.0.0.0 --port 8060
+app = create_app()
