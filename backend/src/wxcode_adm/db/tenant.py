@@ -6,6 +6,7 @@ from typing import Optional
 from sqlalchemy import DateTime, event
 from sqlalchemy.orm import Mapped, mapped_column
 
+from wxcode_adm.common.exceptions import TenantIsolationError
 from wxcode_adm.db.base import Base, TimestampMixin
 
 logger = logging.getLogger(__name__)
@@ -15,14 +16,8 @@ class TenantModel(TimestampMixin, Base):
     """
     Abstract base for all tenant-scoped tables.
 
-    Any ORM SELECT on a TenantModel subclass that does NOT include
-    a _tenant_enforced execution option logs a WARNING in Phase 1.
-
-    NOTE: This guard will be upgraded to a hard RuntimeError raise in Phase 3
-    when request.state.tenant_id middleware is in place and tenant context
-    is available on every request. The logged warning is intentional for
-    Phase 1 to avoid breaking health checks and seed functions that
-    legitimately query without tenant context.
+    Any ORM SELECT on a TenantModel subclass that does NOT set the
+    `_tenant_enforced` execution option raises `TenantIsolationError`.
 
     Platform-wide data (plans, settings) uses tenant_id = NULL (None).
     """
@@ -61,8 +56,7 @@ def install_tenant_guard(session_factory) -> None:
     Register the do_orm_execute event on the session class.
     Call once during app startup after async_session_maker is created.
 
-    Phase 1: Logs WARNING on unguarded queries (does not raise).
-    Phase 3: Upgrade to RuntimeError when tenant middleware is wired.
+    Raises TenantIsolationError on unguarded queries against TenantModel subclasses.
 
     Usage:
         install_tenant_guard(async_session_maker)
@@ -81,12 +75,9 @@ def install_tenant_guard(session_factory) -> None:
                 # Check that a tenant_id filter was signalled via execution option
                 # Set via: stmt.execution_options(_tenant_enforced=True)
                 if not orm_execute_state.execution_options.get("_tenant_enforced"):
-                    logger.warning(
-                        "[TENANT GUARD] Unguarded query on TenantModel subclass '%s' "
-                        "executed without tenant_id context. "
-                        "Pass execution_options(_tenant_enforced=True) or use the "
-                        "TenantSession helper. "
-                        "This will raise RuntimeError in Phase 3.",
-                        mapper.class_.__name__,
+                    raise TenantIsolationError(
+                        f"Unguarded query on TenantModel subclass '{mapper.class_.__name__}'. "
+                        "All queries on tenant-scoped models must include tenant_id context. "
+                        "Pass execution_options(_tenant_enforced=True) or use the TenantSession helper."
                     )
                 break
