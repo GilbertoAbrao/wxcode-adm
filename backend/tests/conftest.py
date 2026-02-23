@@ -83,6 +83,7 @@ def _build_sqlite_metadata() -> MetaData:
     # We need to import the models to ensure they are registered in Base.metadata
     import wxcode_adm.auth.models  # noqa: F401
     import wxcode_adm.tenants.models  # noqa: F401
+    import wxcode_adm.billing.models  # noqa: F401
 
     sqlite_meta = MetaData()
     for table in Base.metadata.sorted_tables:
@@ -110,6 +111,7 @@ async def test_db():
     # Ensure models are registered
     import wxcode_adm.auth.models  # noqa: F401
     import wxcode_adm.tenants.models  # noqa: F401
+    import wxcode_adm.billing.models  # noqa: F401
 
     engine = create_async_engine("sqlite+aiosqlite://", echo=False)
 
@@ -117,6 +119,22 @@ async def test_db():
         await conn.run_sync(Base.metadata.create_all)
 
     session_maker = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
+
+    # Seed the free plan required by bootstrap_free_subscription (called at workspace creation).
+    # All tests that create a workspace need at least one active free plan in the DB.
+    from wxcode_adm.billing.models import Plan
+    async with session_maker() as session:
+        free_plan = Plan(
+            name="Free",
+            slug="free",
+            monthly_fee_cents=0,
+            token_quota=10000,
+            overage_rate_cents_per_token=0,
+            member_cap=3,
+            is_active=True,
+        )
+        session.add(free_plan)
+        await session.commit()
 
     yield session_maker
 
@@ -203,6 +221,99 @@ async def client(test_db, test_redis, rsa_keys, monkeypatch):
 
     monkeypatch.setattr(auth_service_module, "get_arq_pool", mock_get_arq_pool)
     monkeypatch.setattr(tenant_service_module, "get_arq_pool", mock_get_arq_pool)
+
+    # Mock arq pool in billing modules too
+    # webhook_router imports get_arq_pool at module level — patch as attribute
+    import wxcode_adm.billing.webhook_router as webhook_router_module
+    monkeypatch.setattr(webhook_router_module, "get_arq_pool", mock_get_arq_pool)
+
+    # billing service uses lazy import (from wxcode_adm.tasks.worker import get_arq_pool)
+    # inside _handle_payment_failed — patch at source module so re-imports get the mock
+    import wxcode_adm.tasks.worker as tasks_worker_module
+    monkeypatch.setattr(tasks_worker_module, "get_arq_pool", mock_get_arq_pool)
+
+    # Mock Stripe client to avoid real API calls in tests
+    import wxcode_adm.billing.stripe_client as stripe_client_module
+
+    class _FakeStripeCustomer:
+        id = "cus_test_123"
+
+    class _FakeStripeProduct:
+        id = "prod_test_123"
+
+    class _FakeStripePrice:
+        id = "price_test_123"
+
+    class _FakeStripeMeter:
+        id = "mtr_test_123"
+
+    class _FakeStripeCheckoutSession:
+        url = "https://checkout.stripe.com/test"
+        id = "cs_test_123"
+
+    class _FakeStripePortalSession:
+        url = "https://billing.stripe.com/test"
+
+    class _FakeStripeCustomers:
+        async def create_async(self, **kwargs):
+            return _FakeStripeCustomer()
+
+    class _FakeStripeProducts:
+        async def create_async(self, **kwargs):
+            return _FakeStripeProduct()
+
+        async def update_async(self, product_id, **kwargs):
+            return _FakeStripeProduct()
+
+    class _FakeStripePrices:
+        async def create_async(self, **kwargs):
+            return _FakeStripePrice()
+
+        async def update_async(self, price_id, **kwargs):
+            return _FakeStripePrice()
+
+    class _FakeStripeBillingMeters:
+        async def create_async(self, **kwargs):
+            return _FakeStripeMeter()
+
+    class _FakeStripeBilling:
+        meters = _FakeStripeBillingMeters()
+
+    class _FakeStripeCheckoutSessions:
+        async def create_async(self, **kwargs):
+            return _FakeStripeCheckoutSession()
+
+    class _FakeStripeCheckout:
+        sessions = _FakeStripeCheckoutSessions()
+
+    class _FakeStripeBillingPortalSessions:
+        async def create_async(self, **kwargs):
+            return _FakeStripePortalSession()
+
+    class _FakeStripeBillingPortal:
+        sessions = _FakeStripeBillingPortalSessions()
+
+    class _FakeStripeClient:
+        customers = _FakeStripeCustomers()
+        products = _FakeStripeProducts()
+        prices = _FakeStripePrices()
+        billing = _FakeStripeBilling()
+        checkout = _FakeStripeCheckout()
+        billing_portal = _FakeStripeBillingPortal()
+
+    fake_stripe = _FakeStripeClient()
+    monkeypatch.setattr(stripe_client_module, "stripe_client", fake_stripe)
+
+    # Also patch in service module (from wxcode_adm.billing.stripe_client import stripe_client
+    # creates a module-level binding in service.py that must be patched separately)
+    import wxcode_adm.billing.service as billing_service_module
+    monkeypatch.setattr(billing_service_module, "stripe_client", fake_stripe)
+
+    # Patch Stripe config settings so config.py doesn't fail validation
+    monkeypatch.setattr(config_module.settings, "STRIPE_SECRET_KEY", SecretStr("sk_test_fake"))
+    monkeypatch.setattr(config_module.settings, "STRIPE_WEBHOOK_SECRET", SecretStr("whsec_fake"))
+    monkeypatch.setattr(config_module.settings, "STRIPE_PUBLISHABLE_KEY", "pk_test_fake")
+    monkeypatch.setattr(config_module.settings, "FRONTEND_URL", "http://localhost:3060")
 
     # Build the FastAPI app and override dependencies
     from wxcode_adm.main import create_app
