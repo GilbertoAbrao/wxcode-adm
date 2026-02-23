@@ -154,6 +154,13 @@ def create_app() -> FastAPI:
     # Invitation acceptance router: /api/v1/invitations/accept (no tenant context needed)
     app.include_router(invitation_router, prefix=settings.API_V1_PREFIX)
 
+    # Billing routers (Phase 4):
+    # - billing_admin_router: super-admin plan CRUD at /api/v1/admin/billing/plans
+    # - billing_router: public plan catalog at /api/v1/billing/plans
+    from wxcode_adm.billing.router import billing_admin_router, billing_router  # noqa: PLC0415
+    app.include_router(billing_admin_router, prefix=settings.API_V1_PREFIX)
+    app.include_router(billing_router, prefix=settings.API_V1_PREFIX)
+
     return app
 
 
