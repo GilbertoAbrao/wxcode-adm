@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-02-22)
 ## Current Position
 
 Phase: 3 of 8 (Multi-Tenancy and RBAC) — IN PROGRESS
-Plan: 2 of 5 in current phase (03-02 complete — tenant operations, RBAC enforcement, router wiring done)
-Status: Plan 03-02 complete — get_tenant_context, require_role, workspace creation, 5 tenant endpoints, conftest and alembic updated
-Last activity: 2026-02-23 — Plan 03-02 complete: dependency chain, service layer, tenant router, main.py wiring, 21 tests passing
+Plan: 4 of 5 in current phase (03-04 complete — member management, ownership transfer, 6 new endpoints)
+Status: Plan 03-04 complete — change_role, remove_member, leave_tenant, initiate_transfer, accept_transfer, get_pending_transfer; 6 endpoints; 21 tests passing
+Last activity: 2026-02-23 — Plan 03-04 complete: member management service functions and router endpoints for RBAC administrative surface
 
-Progress: [████████░░] 45%
+Progress: [█████████░] 55%
 
 ## Performance Metrics
 
@@ -29,7 +29,7 @@ Progress: [████████░░] 45%
 |-------|-------|-------|----------|
 | 01-foundation | 4/4 | 23 min | 6 min |
 | 02-auth-core | 5/5 | 20 min | 4 min |
-| 03-multi-tenancy-and-rbac | 2/5 | 8 min | 4 min |
+| 03-multi-tenancy-and-rbac | 4/5 | 16 min | 4 min |
 
 **Recent Trend:**
 - Last 5 plans: 3 min, 3 min, 2 min, 6 min, 4 min
@@ -43,6 +43,7 @@ Progress: [████████░░] 45%
 | Phase 02-auth-core P05 | 6 | 2 tasks | 9 files |
 | Phase 03-multi-tenancy-and-rbac P01 | 4 | 3 tasks | 6 files |
 | Phase 03 P02 | 4 | 2 tasks | 6 files |
+| Phase 03 P04 | 4 | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -94,6 +95,10 @@ Recent decisions affecting current work:
 - [Phase 03]: UpdateTenantRequest defined in router.py (not schemas.py) — keeps schemas.py clean for Plan 03-03 invitation/transfer additions
 - [Phase 03]: list_members returns list[dict] (not list[MembershipResponse]) — email comes from User relationship, not TenantMembership ORM column; dict avoids from_attributes mismatch
 - [Phase 03]: invitation_serializer pre-wired in service.py in Plan 03-02 — avoids touching service.py again in Plan 03-03; tests monkeypatch via client fixture
+- [03-04]: from __future__ import annotations added to service.py — Python 3.9.6 runtime does not support bool | None union syntax; matches pattern in models.py
+- [03-04]: change_role guard order: owner self-demotion check FIRST before privilege-level guard — avoids false InsufficientRoleError when Owner acts on own membership
+- [03-04]: TokenExpiredError reused for expired ownership transfers — semantically matches token expiry; no new exception class needed
+- [03-04]: Router queries User email separately after change_role — service returns pure membership; router handles response shaping with User join
 
 ### Pending Todos
 
@@ -108,5 +113,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-23
-Stopped at: Completed 03-02-PLAN.md — Tenant operations (dependency chain, workspace creation, RBAC enforcement, router wiring)
-Resume file: .planning/phases/03-multi-tenancy-and-rbac/03-03-PLAN.md
+Stopped at: Completed 03-04-PLAN.md — Member management (change role, remove, leave) and ownership transfer (initiate, accept, status)
+Resume file: .planning/phases/03-multi-tenancy-and-rbac/03-05-PLAN.md

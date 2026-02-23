@@ -25,17 +25,17 @@ Requirements for initial release. Each maps to roadmap phases.
 
 ### Multi-Tenancy
 
-- [ ] **TNNT-01**: Tenant auto-created on user sign-up
-- [ ] **TNNT-02**: Tenant has human-readable slug identifier
+- [x] **TNNT-01**: Tenant auto-created on user sign-up
+- [x] **TNNT-02**: Tenant has human-readable slug identifier
 - [ ] **TNNT-03**: User invitation by email with 7-day expiry token
-- [ ] **TNNT-04**: Invited user belongs exclusively to the inviting tenant
-- [ ] **TNNT-05**: Owner can transfer ownership to another member
+- [x] **TNNT-04**: Invited user belongs exclusively to the inviting tenant
+- [x] **TNNT-05**: Owner can transfer ownership to another member
 
 ### RBAC
 
-- [ ] **RBAC-01**: 5 roles enforced: Owner, Admin, Developer, Viewer, Billing
-- [ ] **RBAC-02**: Owner/Admin can change member roles
-- [ ] **RBAC-03**: Owner/Admin can remove members from tenant
+- [x] **RBAC-01**: 5 roles enforced: Owner, Admin, Developer, Viewer, Billing
+- [x] **RBAC-02**: Owner/Admin can change member roles
+- [x] **RBAC-03**: Owner/Admin can remove members from tenant
 
 ### Billing
 
@@ -134,14 +134,14 @@ Which phases cover which requirements. Updated during roadmap creation.
 | AUTH-11 | Phase 6 | Pending |
 | AUTH-12 | Phase 6 | Pending |
 | AUTH-13 | Phase 6 | Pending |
-| TNNT-01 | Phase 3 | Pending |
-| TNNT-02 | Phase 3 | Pending |
+| TNNT-01 | Phase 3 | Complete |
+| TNNT-02 | Phase 3 | Complete |
 | TNNT-03 | Phase 3 | Pending |
-| TNNT-04 | Phase 3 | Pending |
-| TNNT-05 | Phase 3 | Pending |
-| RBAC-01 | Phase 3 | Pending |
-| RBAC-02 | Phase 3 | Pending |
-| RBAC-03 | Phase 3 | Pending |
+| TNNT-04 | Phase 3 | Complete |
+| TNNT-05 | Phase 3 | Complete |
+| RBAC-01 | Phase 3 | Complete |
+| RBAC-02 | Phase 3 | Complete |
+| RBAC-03 | Phase 3 | Complete |
 | BILL-01 | Phase 4 | Pending |
 | BILL-02 | Phase 4 | Pending |
 | BILL-03 | Phase 4 | Pending |
