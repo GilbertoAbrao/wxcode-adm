@@ -9,19 +9,19 @@ See: .planning/PROJECT.md (updated 2026-02-22)
 
 ## Current Position
 
-Phase: 3 of 8 (Multi-Tenancy and RBAC) — IN PROGRESS
-Plan: 4 of 5 in current phase (03-04 complete — member management, ownership transfer, 6 new endpoints)
-Status: Plan 03-04 complete — change_role, remove_member, leave_tenant, initiate_transfer, accept_transfer, get_pending_transfer; 6 endpoints; 21 tests passing
-Last activity: 2026-02-23 — Plan 03-04 complete: member management service functions and router endpoints for RBAC administrative surface
+Phase: 3 of 8 (Multi-Tenancy and RBAC) — COMPLETE
+Plan: 5 of 5 in current phase (03-05 complete — migration 002, 33 integration tests covering all 6 Phase 3 success criteria)
+Status: Plan 03-05 complete — Alembic migration 002 (4 tables), 33 integration tests, 54 total tests passing (auth + tenants), Phase 3 COMPLETE
+Last activity: 2026-02-23 — Plan 03-05 complete: migration 002 and full integration test suite for all Phase 3 success criteria
 
-Progress: [█████████░] 55%
+Progress: [██████████] 62%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 10
+- Total plans completed: 11
 - Average duration: 5 min
-- Total execution time: 0.77 hours
+- Total execution time: 0.87 hours
 
 **By Phase:**
 
@@ -29,10 +29,10 @@ Progress: [█████████░] 55%
 |-------|-------|-------|----------|
 | 01-foundation | 4/4 | 23 min | 6 min |
 | 02-auth-core | 5/5 | 20 min | 4 min |
-| 03-multi-tenancy-and-rbac | 4/5 | 16 min | 4 min |
+| 03-multi-tenancy-and-rbac | 5/5 | 22 min | 4 min |
 
 **Recent Trend:**
-- Last 5 plans: 3 min, 3 min, 2 min, 6 min, 4 min
+- Last 5 plans: 3 min, 2 min, 6 min, 4 min, 6 min
 - Trend: Stable
 
 *Updated after each plan completion*
@@ -45,6 +45,7 @@ Progress: [█████████░] 55%
 | Phase 03 P02 | 4 | 2 tasks | 6 files |
 | Phase 03 P03 | 7 | 2 tasks | 6 files |
 | Phase 03 P04 | 4 | 2 tasks | 2 files |
+| Phase 03-multi-tenancy-and-rbac P05 | 6 | 2 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -103,6 +104,9 @@ Recent decisions affecting current work:
 - [03-04]: change_role guard order: owner self-demotion check FIRST before privilege-level guard — avoids false InsufficientRoleError when Owner acts on own membership
 - [03-04]: TokenExpiredError reused for expired ownership transfers — semantically matches token expiry; no new exception class needed
 - [03-04]: Router queries User email separately after change_role — service returns pure membership; router handles response shaping with User join
+- [Phase 03]: conftest.py must patch tenant_service_module.get_arq_pool alongside auth_service — invite_user calls get_arq_pool for email jobs
+- [Phase 03]: _signup_verify_login tracks pre-signup OTP keys in Redis to correctly identify new user's OTP key when multiple users exist in test DB
+- [Phase 03]: Alembic migration 002 uses String(20) for role columns (not native ENUM) matching native_enum=False decision from Plan 03-01
 
 ### Pending Todos
 
@@ -117,5 +121,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-23
-Stopped at: Completed 03-04-PLAN.md — Member management (change role, remove, leave) and ownership transfer (initiate, accept, status)
-Resume file: .planning/phases/03-multi-tenancy-and-rbac/03-05-PLAN.md
+Stopped at: Completed 03-05-PLAN.md — Migration 002 (4 tenant tables) and 33 integration tests covering all 6 Phase 3 success criteria. Phase 3 COMPLETE.
+Resume file: .planning/phases/04-billing/04-01-PLAN.md (next phase)
