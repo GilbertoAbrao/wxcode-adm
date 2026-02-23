@@ -14,7 +14,7 @@ from wxcode_adm.db.base import Base
 # Import model modules here as they are created in future phases so that
 # Base.metadata is populated for autogenerate support.
 from wxcode_adm.auth import models as _auth_models  # noqa: F401
-# from wxcode_adm.tenants import models as _  # noqa
+from wxcode_adm.tenants import models as _tenant_models  # noqa: F401
 # from wxcode_adm.users import models as _  # noqa
 # from wxcode_adm.billing import models as _  # noqa
 

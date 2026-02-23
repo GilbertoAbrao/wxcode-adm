@@ -82,6 +82,7 @@ def _build_sqlite_metadata() -> MetaData:
     """
     # We need to import the models to ensure they are registered in Base.metadata
     import wxcode_adm.auth.models  # noqa: F401
+    import wxcode_adm.tenants.models  # noqa: F401
 
     sqlite_meta = MetaData()
     for table in Base.metadata.sorted_tables:
@@ -108,6 +109,7 @@ async def test_db():
     """
     # Ensure models are registered
     import wxcode_adm.auth.models  # noqa: F401
+    import wxcode_adm.tenants.models  # noqa: F401
 
     engine = create_async_engine("sqlite+aiosqlite://", echo=False)
 
@@ -175,6 +177,14 @@ async def client(test_db, test_redis, rsa_keys, monkeypatch):
         auth_service_module,
         "reset_serializer",
         URLSafeTimedSerializer(private_pem, salt="password-reset"),
+    )
+
+    # Patch invitation_serializer in tenant service module (same pattern as above)
+    import wxcode_adm.tenants.service as tenant_service_module
+    monkeypatch.setattr(
+        tenant_service_module,
+        "invitation_serializer",
+        URLSafeTimedSerializer(private_pem, salt="tenant-invitation"),
     )
 
     # Mock arq pool to avoid real Redis connections during email enqueueing
