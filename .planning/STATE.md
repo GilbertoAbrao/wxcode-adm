@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-02-22)
 ## Current Position
 
 Phase: 2 of 8 (Auth Core) — IN PROGRESS
-Plan: 1 of 5 in current phase (02-01 complete)
-Status: Plan 02-01 complete — RSA/JWT/JWKS/User model/auth exceptions/password hashing ready
-Last activity: 2026-02-23 — Plan 02-01 complete: RS256 JWT, JWKS endpoint, User model, Argon2 password hashing
+Plan: 2 of 5 in current phase (02-02 complete)
+Status: Plan 02-02 complete — Signup/verify-email/resend-verification endpoints, Redis OTP, arq email jobs, super-admin seed
+Last activity: 2026-02-23 — Plan 02-02 complete: signup flow, Redis OTP with 3-attempt lockout, arq email jobs, super-admin seed
 
-Progress: [████░░░░░░] 16%
+Progress: [████░░░░░░] 20%
 
 ## Performance Metrics
 
@@ -35,6 +35,7 @@ Progress: [████░░░░░░] 16%
 
 *Updated after each plan completion*
 | Phase 02-auth-core P01 | 4 | 2 tasks | 9 files |
+| Phase 02-auth-core P02 | 3 | 2 tasks | 7 files |
 
 ## Accumulated Context
 
@@ -64,6 +65,11 @@ Recent decisions affecting current work:
 - [Phase 02-auth-core]: JWT kid set in JOSE header via jwt.encode headers param (not payload) — enables correct JWKS kid matching per RFC 7517
 - [Phase 02-auth-core]: User model inherits Base+TimestampMixin (not TenantModel) — auth is platform-level, users span multiple tenants
 - [Phase 02-auth-core]: JWKS endpoint root-mounted without API prefix — RFC 5785 requires /.well-known/ at domain root
+- [02-02]: arq pool created per enqueue call (not singleton) — avoids connection leaks in service layer
+- [02-02]: verify_otp_code checks code BEFORE incrementing counter — correct code on 3rd attempt still succeeds
+- [02-02]: resend_verification returns silently on unknown email — prevents user enumeration
+- [02-02]: send_reset_email stub defined in Plan 02 to avoid touching worker.py again in Plan 04
+- [02-02]: seed_super_admin uses local import in lifespan to avoid circular import at module load
 
 ### Pending Todos
 
@@ -78,5 +84,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-23
-Stopped at: Completed 02-01-PLAN.md — RS256 JWT/JWKS/User model/auth exceptions/password hashing; 2 tasks, 9 files
+Stopped at: Completed 02-02-PLAN.md — signup/verify-email/resend-verification, Redis OTP, arq email jobs, super-admin seed; 2 tasks, 7 files
 Resume file: None

@@ -9,9 +9,9 @@ Requirements for initial release. Each maps to roadmap phases.
 
 ### Authentication
 
-- [ ] **AUTH-01**: User can sign up with email and password
-- [ ] **AUTH-02**: User receives 6-digit verification code by email after signup
-- [ ] **AUTH-03**: User can verify email entering the 6-digit code
+- [x] **AUTH-01**: User can sign up with email and password
+- [x] **AUTH-02**: User receives 6-digit verification code by email after signup
+- [x] **AUTH-03**: User can verify email entering the 6-digit code
 - [ ] **AUTH-04**: User can reset password via email link
 - [x] **AUTH-05**: User receives JWT RS256 access token + refresh token on login
 - [ ] **AUTH-06**: Refresh token rotation with revocation on logout
@@ -121,9 +121,9 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| AUTH-01 | Phase 2 | Pending |
-| AUTH-02 | Phase 2 | Pending |
-| AUTH-03 | Phase 2 | Pending |
+| AUTH-01 | Phase 2 | Complete |
+| AUTH-02 | Phase 2 | Complete |
+| AUTH-03 | Phase 2 | Complete |
 | AUTH-04 | Phase 2 | Pending |
 | AUTH-05 | Phase 2 | Complete |
 | AUTH-06 | Phase 2 | Pending |
