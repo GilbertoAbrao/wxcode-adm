@@ -13,9 +13,9 @@ Requirements for initial release. Each maps to roadmap phases.
 - [ ] **AUTH-02**: User receives 6-digit verification code by email after signup
 - [ ] **AUTH-03**: User can verify email entering the 6-digit code
 - [ ] **AUTH-04**: User can reset password via email link
-- [ ] **AUTH-05**: User receives JWT RS256 access token + refresh token on login
+- [x] **AUTH-05**: User receives JWT RS256 access token + refresh token on login
 - [ ] **AUTH-06**: Refresh token rotation with revocation on logout
-- [ ] **AUTH-07**: JWKS endpoint exposes public key for wxcode to validate tokens locally
+- [x] **AUTH-07**: JWKS endpoint exposes public key for wxcode to validate tokens locally
 - [ ] **AUTH-08**: User can sign in with Google via OAuth 2.0 (PKCE)
 - [ ] **AUTH-09**: User can sign in with GitHub via OAuth 2.0 (PKCE)
 - [ ] **AUTH-10**: User can enable MFA via TOTP (QR code setup + backup codes)
@@ -125,9 +125,9 @@ Which phases cover which requirements. Updated during roadmap creation.
 | AUTH-02 | Phase 2 | Pending |
 | AUTH-03 | Phase 2 | Pending |
 | AUTH-04 | Phase 2 | Pending |
-| AUTH-05 | Phase 2 | Pending |
+| AUTH-05 | Phase 2 | Complete |
 | AUTH-06 | Phase 2 | Pending |
-| AUTH-07 | Phase 2 | Pending |
+| AUTH-07 | Phase 2 | Complete |
 | AUTH-08 | Phase 6 | Pending |
 | AUTH-09 | Phase 6 | Pending |
 | AUTH-10 | Phase 6 | Pending |

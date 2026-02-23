@@ -9,12 +9,12 @@ See: .planning/PROJECT.md (updated 2026-02-22)
 
 ## Current Position
 
-Phase: 1 of 8 (Foundation) — COMPLETE
-Plan: 4 of 4 in current phase (all plans complete, including gap closure)
-Status: Phase complete — ready to begin Phase 2
-Last activity: 2026-02-22 — Plan 01-04 complete: tenant guard upgraded to hard TenantIsolationError raise, 3 passing tests
+Phase: 2 of 8 (Auth Core) — IN PROGRESS
+Plan: 1 of 5 in current phase (02-01 complete)
+Status: Plan 02-01 complete — RSA/JWT/JWKS/User model/auth exceptions/password hashing ready
+Last activity: 2026-02-23 — Plan 02-01 complete: RS256 JWT, JWKS endpoint, User model, Argon2 password hashing
 
-Progress: [███░░░░░░░] 13%
+Progress: [████░░░░░░] 16%
 
 ## Performance Metrics
 
@@ -34,6 +34,7 @@ Progress: [███░░░░░░░] 13%
 - Trend: Stable
 
 *Updated after each plan completion*
+| Phase 02-auth-core P01 | 4 | 2 tasks | 9 files |
 
 ## Accumulated Context
 
@@ -60,6 +61,9 @@ Recent decisions affecting current work:
 - [01-04]: do_orm_execute event registered on Session (sync_session_class) not AsyncSession — AsyncSession does not support that event; guard was non-functional before this fix
 - [01-04]: TenantIsolationError raised on unguarded ORM SELECT immediately (ROADMAP SC#2 gap closed) — no Phase 3 deferral needed
 - [01-04]: aiosqlite used for in-memory SQLite async testing — no Docker/PostgreSQL needed in test suite
+- [Phase 02-auth-core]: JWT kid set in JOSE header via jwt.encode headers param (not payload) — enables correct JWKS kid matching per RFC 7517
+- [Phase 02-auth-core]: User model inherits Base+TimestampMixin (not TenantModel) — auth is platform-level, users span multiple tenants
+- [Phase 02-auth-core]: JWKS endpoint root-mounted without API prefix — RFC 5785 requires /.well-known/ at domain root
 
 ### Pending Todos
 
@@ -73,6 +77,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-02-22
-Stopped at: Completed 01-04-PLAN.md — tenant guard upgraded to TenantIsolationError raise; ROADMAP SC#2 closed; 3 tests passing
+Last session: 2026-02-23
+Stopped at: Completed 02-01-PLAN.md — RS256 JWT/JWKS/User model/auth exceptions/password hashing; 2 tasks, 9 files
 Resume file: None
