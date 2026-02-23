@@ -172,6 +172,21 @@ async def create_workspace(
     db.add(membership)
     await db.flush()
 
+    # Bootstrap billing: Stripe Customer (best-effort) + free plan subscription.
+    # Lazy import avoids circular import at module load time (same pattern as
+    # auto_join_pending_invitations which lazily imports auth.service).
+    from wxcode_adm.billing.service import (  # noqa: PLC0415
+        bootstrap_free_subscription,
+        create_stripe_customer,
+    )
+
+    stripe_customer_id = await create_stripe_customer(
+        tenant_name=name,
+        owner_email=user.email,
+        tenant_id=tenant.id,
+    )
+    await bootstrap_free_subscription(db, tenant.id, stripe_customer_id)
+
     return tenant, membership
 
 
