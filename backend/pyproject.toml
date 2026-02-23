@@ -19,6 +19,8 @@ dependencies = [
     "fastapi-mail==1.6.2",
     # Phase 3 -- Multi-tenancy
     "python-slugify==8.0.4",
+    # Phase 4 -- Billing
+    "stripe[async]==14.3.0",
 ]
 
 [project.optional-dependencies]

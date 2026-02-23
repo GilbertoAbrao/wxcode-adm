@@ -46,6 +46,14 @@ class Settings(BaseSettings):
     # --- CORS ---
     ALLOWED_ORIGINS: list[str] = ["http://localhost:3060"]
 
+    # --- Stripe (Phase 4 -- Billing) ---
+    STRIPE_SECRET_KEY: SecretStr
+    STRIPE_PUBLISHABLE_KEY: str
+    STRIPE_WEBHOOK_SECRET: SecretStr
+
+    # --- Frontend ---
+    FRONTEND_URL: str = "http://localhost:3060"
+
 
 # Module-level singleton — raises ValidationError at import if env vars missing
 settings = Settings()
