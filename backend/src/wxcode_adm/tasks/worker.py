@@ -19,6 +19,7 @@ from arq import create_pool
 from arq.connections import RedisSettings
 from sqlalchemy import text
 
+from wxcode_adm.auth.email import send_reset_email, send_verification_email
 from wxcode_adm.config import settings
 from wxcode_adm.db.engine import async_session_maker, engine
 
@@ -93,7 +94,7 @@ class WorkerSettings:
         arq wxcode_adm.tasks.worker.WorkerSettings
     """
 
-    functions = [test_job]
+    functions = [test_job, send_verification_email, send_reset_email]
     on_startup = startup
     on_shutdown = shutdown
     redis_settings = RedisSettings.from_dsn(settings.REDIS_URL)

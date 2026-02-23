@@ -41,7 +41,7 @@ async def lifespan(app: FastAPI):
     1. Verify PostgreSQL connectivity (fail fast if DB is unreachable)
     2. Install tenant isolation guard on session factory
     3. Verify Redis connectivity (fail fast if Redis is unreachable)
-    4. [Phase 2 stub] Seed super-admin user if not exists
+    4. Seed super-admin user if not exists
     5. Yield control to FastAPI (app is now running)
 
     Shutdown sequence:
@@ -65,10 +65,9 @@ async def lifespan(app: FastAPI):
     await redis_client.ping()
     logger.info("Redis connection verified.")
 
-    # 4. [Phase 2 stub] Seed super-admin user
-    # TODO(Phase 2): Uncomment when auth module is ready
-    # from wxcode_adm.auth.seed import seed_super_admin
-    # await seed_super_admin(async_session_maker, settings)
+    # 4. Seed super-admin user if not exists
+    from wxcode_adm.auth.seed import seed_super_admin  # noqa: PLC0415
+    await seed_super_admin(async_session_maker, settings)
 
     yield
 
@@ -135,13 +134,15 @@ def create_app() -> FastAPI:
     # Import here to avoid circular imports at module load time
     from wxcode_adm.common.router import router as common_router  # noqa: PLC0415
     from wxcode_adm.auth.router import router as auth_router  # noqa: PLC0415
+    from wxcode_adm.auth.router import auth_api_router  # noqa: PLC0415
 
     app.include_router(common_router, prefix=settings.API_V1_PREFIX)
 
-    # Auth router is mounted WITHOUT prefix — /.well-known/jwks.json must be at root.
-    # Future auth endpoints (login, signup, etc.) will be added in Plan 02 with
-    # prefix=settings.API_V1_PREFIX + "/auth".
+    # JWKS router: mounted WITHOUT prefix — /.well-known/jwks.json must be at root.
     app.include_router(auth_router)
+
+    # Auth API router: signup, verify-email, resend-verification under /api/v1/auth
+    app.include_router(auth_api_router, prefix=settings.API_V1_PREFIX)
 
     return app
 
