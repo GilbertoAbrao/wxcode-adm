@@ -115,14 +115,15 @@ Plans:
   3. Login, sign-up, and password reset endpoints reject requests over their rate limits (Redis sliding window) with a 429 response; limits persist across restarts because they live in Redis
   4. Every sensitive action (login, role change, invitation, API key creation/revocation, billing change, admin action) is written to an append-only audit log that cannot be modified or deleted by tenant users
   5. Users receive well-formatted HTML email for each transactional event: email verification, password reset, member invitation, and payment failure notification
-**Plans**: TBD
+**Plans**: 4 plans
+
+NOTE: PLAT-01 and PLAT-02 (API key management) are DEFERRED to a future phase per user decision.
 
 Plans:
-- [ ] 05-01: API key model, key generation (wxk_live_/wxk_test_ prefix, HMAC hash), scope enforcement
-- [ ] 05-02: API key revocation, rotation, listing endpoints
-- [ ] 05-03: Rate limiting middleware (slowapi, Redis sliding window) on all sensitive endpoints
-- [ ] 05-04: Audit log model (append-only), audit log writer, audit log query API (tenant-scoped)
-- [ ] 05-05: Transactional email templates (Jinja2 HTML): verify, reset, invite, payment_failed
+- [ ] 05-01-PLAN.md — Rate limiting middleware (slowapi, Redis sliding window) on auth + all authenticated endpoints
+- [ ] 05-02-PLAN.md — Audit log model (append-only), write_audit helper, super-admin query API, arq cron retention purge
+- [ ] 05-03-PLAN.md — Transactional email templates (Jinja2 HTML + plain-text): verify, reset, invite, payment_failed; shared FastMail singleton
+- [ ] 05-04-PLAN.md — Alembic migration 004, integration tests for PLAT-03, PLAT-04, PLAT-05
 
 ### Phase 6: OAuth and MFA
 **Goal**: Users can authenticate with Google or GitHub without creating a password, and tenants can require two-factor authentication for all members
@@ -190,7 +191,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8
 | 2. Auth Core | 5/5 | Complete   | 2026-02-23 |
 | 3. Multi-Tenancy and RBAC | 5/5 | Complete    | 2026-02-23 |
 | 4. Billing Core | 4/5 | In Progress|  |
-| 5. Platform Security | 0/5 | Not started | - |
+| 5. Platform Security | 0/4 | Not started | - |
 | 6. OAuth and MFA | 0/5 | Not started | - |
 | 7. User Account | 0/4 | Not started | - |
 | 8. Super-Admin | 0/4 | Not started | - |
