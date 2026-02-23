@@ -5,29 +5,53 @@ Contains business logic for:
 - signup: create user account and send verification email
 - verify_email: verify OTP code and mark email as verified
 - resend_verification: resend OTP with cooldown enforcement
+- login: authenticate user and issue access + refresh tokens
+- refresh: rotate refresh token and issue new access token
+- logout: invalidate refresh token and blacklist access token in Redis
 
 Redis OTP key pattern:
   auth:otp:{user_id}          — the 6-digit code (TTL 600s)
   auth:otp:attempts:{user_id} — failed attempt counter (TTL 600s)
   auth:otp:cooldown:{user_id} — cooldown flag (TTL 60s)
+
+Redis blacklist/replay key patterns:
+  auth:blacklist:jti:{jti}    — blacklisted access token jti (TTL = remaining token lifetime)
+  auth:replay:{sha256}        — shadow key mapping consumed refresh token hash to user_id
 """
 
+import hashlib
 import logging
 import secrets
+import uuid
+from datetime import datetime, timedelta, timezone
 
+import jwt as pyjwt
 from redis.asyncio import Redis
-from sqlalchemy import select
+from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from wxcode_adm.auth.exceptions import EmailAlreadyExistsError, InvalidCredentialsError
-from wxcode_adm.auth.models import User
-from wxcode_adm.auth.password import hash_password
+from wxcode_adm.auth.exceptions import (
+    EmailAlreadyExistsError,
+    EmailNotVerifiedError,
+    InvalidCredentialsError,
+    InvalidTokenError,
+    ReplayDetectedError,
+    TokenExpiredError,
+)
+from wxcode_adm.auth.jwt import create_access_token
+from wxcode_adm.auth.models import RefreshToken, User
+from wxcode_adm.auth.password import hash_password, verify_password
 from wxcode_adm.auth.schemas import (
+    LoginRequest,
+    LogoutRequest,
+    RefreshRequest,
     ResendVerificationRequest,
     SignupRequest,
+    TokenResponse,
     VerifyEmailRequest,
 )
 from wxcode_adm.common.exceptions import AppError
+from wxcode_adm.config import settings
 from wxcode_adm.tasks.worker import get_arq_pool
 
 logger = logging.getLogger(__name__)
@@ -234,3 +258,229 @@ async def resend_verification(
         await pool.aclose()
 
     logger.info(f"Verification code resent for: {user.email} (id={user.id})")
+
+
+# ---------------------------------------------------------------------------
+# Access token blacklist helpers
+# ---------------------------------------------------------------------------
+
+
+async def blacklist_access_token(redis: Redis, token: str) -> None:
+    """
+    Blacklist an access token by storing its jti in Redis with a TTL equal
+    to the token's remaining lifetime.
+
+    Uses verify_exp=False so we can extract the jti even if the token has
+    already expired (e.g., on logout of a nearly-expired token).
+    """
+    try:
+        payload = pyjwt.decode(
+            token,
+            settings.JWT_PUBLIC_KEY.get_secret_value(),
+            algorithms=["RS256"],
+            options={"verify_exp": False},
+        )
+    except pyjwt.InvalidTokenError:
+        # Malformed token — nothing to blacklist
+        return
+
+    jti = payload.get("jti")
+    exp = payload.get("exp")
+    if not jti or not exp:
+        return
+
+    remaining = int(exp - datetime.now(timezone.utc).timestamp())
+    if remaining > 0:
+        await redis.set(f"auth:blacklist:jti:{jti}", "1", ex=remaining)
+
+
+async def is_token_blacklisted(redis: Redis, jti: str) -> bool:
+    """Return True if the given jti has been blacklisted in Redis."""
+    return await redis.exists(f"auth:blacklist:jti:{jti}") > 0
+
+
+# ---------------------------------------------------------------------------
+# Replay detection shadow key helpers
+# ---------------------------------------------------------------------------
+
+
+def _shadow_key(token: str) -> str:
+    """Return the Redis key for the replay-detection shadow entry for a token."""
+    return f"auth:replay:{hashlib.sha256(token.encode()).hexdigest()}"
+
+
+async def _write_shadow_key(redis: Redis, token: str, user_id: str) -> None:
+    """
+    Store a shadow key mapping the SHA-256 of a consumed refresh token to the
+    user_id. TTL equals the refresh token lifetime so the key auto-expires.
+    """
+    ttl = settings.REFRESH_TOKEN_TTL_DAYS * 86400
+    await redis.set(_shadow_key(token), user_id, ex=ttl)
+
+
+async def _write_shadow_keys_bulk(redis: Redis, tokens: list[str], user_id: str) -> None:
+    """
+    Store shadow keys for a batch of tokens using a Redis pipeline for
+    efficiency.
+    """
+    pipe = redis.pipeline()
+    ttl = settings.REFRESH_TOKEN_TTL_DAYS * 86400
+    for t in tokens:
+        pipe.set(_shadow_key(t), user_id, ex=ttl)
+    await pipe.execute()
+
+
+async def _check_replay_and_logout(
+    db: AsyncSession, redis: Redis, token: str
+) -> None:
+    """
+    Check whether a token is a replay of a previously consumed token.
+
+    If the shadow key exists the token was legitimately consumed before —
+    this is a replay attack. Perform full logout (delete ALL refresh tokens
+    for the user) and raise ReplayDetectedError.
+
+    If no shadow key exists the token was never valid (or the shadow key has
+    already expired), so raise InvalidTokenError.
+    """
+    user_id = await redis.get(_shadow_key(token))
+    if user_id is not None:
+        # Replay detected — full logout
+        uid = uuid.UUID(user_id if isinstance(user_id, str) else user_id.decode())
+        await db.execute(delete(RefreshToken).where(RefreshToken.user_id == uid))
+        raise ReplayDetectedError()
+
+    # Shadow key not found — token was never valid
+    raise InvalidTokenError()
+
+
+# ---------------------------------------------------------------------------
+# Login / refresh / logout service functions
+# ---------------------------------------------------------------------------
+
+
+async def login(
+    db: AsyncSession, redis: Redis, body: LoginRequest
+) -> TokenResponse:
+    """
+    Authenticate a user and issue a new access + refresh token pair.
+
+    - Returns 401 if email not found, account inactive, or password wrong.
+    - Returns 403 if email is not verified.
+    - Enforces single-session policy: all previous refresh tokens for this
+      user are revoked (shadow keys written for replay detection).
+    """
+    # Look up user by email
+    result = await db.execute(select(User).where(User.email == body.email))
+    user = result.scalar_one_or_none()
+    if user is None:
+        raise InvalidCredentialsError()
+
+    if not user.is_active:
+        raise InvalidCredentialsError()
+
+    # Verify password
+    if not verify_password(body.password, user.password_hash):
+        raise InvalidCredentialsError()
+
+    # Require email verification
+    if not user.email_verified:
+        raise EmailNotVerifiedError(
+            error_code="EMAIL_NOT_VERIFIED",
+            message="Please verify your email before logging in",
+        )
+
+    # Single-session enforcement — revoke all existing refresh tokens
+    existing_result = await db.execute(
+        select(RefreshToken.token).where(RefreshToken.user_id == user.id)
+    )
+    old_tokens = [row[0] for row in existing_result.all()]
+    if old_tokens:
+        await _write_shadow_keys_bulk(redis, old_tokens, str(user.id))
+    await db.execute(delete(RefreshToken).where(RefreshToken.user_id == user.id))
+
+    # Issue new tokens
+    access_token = create_access_token(str(user.id))
+    refresh_token_str = secrets.token_urlsafe(32)
+    db.add(
+        RefreshToken(
+            token=refresh_token_str,
+            user_id=user.id,
+            expires_at=datetime.now(timezone.utc)
+            + timedelta(days=settings.REFRESH_TOKEN_TTL_DAYS),
+        )
+    )
+
+    logger.info(f"User logged in: {user.email} (id={user.id})")
+    return TokenResponse(access_token=access_token, refresh_token=refresh_token_str)
+
+
+async def refresh(
+    db: AsyncSession, redis: Redis, body: RefreshRequest
+) -> TokenResponse:
+    """
+    Rotate a refresh token: consume the old one and issue a new access +
+    refresh token pair.
+
+    - Replay detection: if the token was already consumed (shadow key exists),
+      perform full logout and raise ReplayDetectedError.
+    - Expiry check: delete the row and raise TokenExpiredError if expired.
+    """
+    result = await db.execute(
+        select(RefreshToken).where(RefreshToken.token == body.refresh_token)
+    )
+    row = result.scalar_one_or_none()
+
+    if row is None:
+        # Token not in DB — check if it was ever valid (shadow key lookup)
+        await _check_replay_and_logout(db, redis, body.refresh_token)
+        # _check_replay_and_logout always raises; this line is unreachable
+        raise InvalidTokenError()
+
+    # Check expiry
+    if row.expires_at < datetime.now(timezone.utc):
+        await db.delete(row)
+        raise TokenExpiredError()
+
+    # Write shadow key for the consumed token before deleting it
+    await _write_shadow_key(redis, row.token, str(row.user_id))
+
+    # Rotation: delete old row and create new one
+    user_id = row.user_id
+    await db.delete(row)
+    new_token_str = secrets.token_urlsafe(32)
+    db.add(
+        RefreshToken(
+            token=new_token_str,
+            user_id=user_id,
+            expires_at=datetime.now(timezone.utc)
+            + timedelta(days=settings.REFRESH_TOKEN_TTL_DAYS),
+        )
+    )
+
+    # Issue new access token
+    access_token = create_access_token(str(user_id))
+
+    logger.info(f"Token refreshed for user_id={user_id}")
+    return TokenResponse(access_token=access_token, refresh_token=new_token_str)
+
+
+async def logout(
+    db: AsyncSession, redis: Redis, refresh_token: str, access_token: str
+) -> None:
+    """
+    Log out a user by:
+    1. Deleting the refresh token row (idempotent — ignore if not found).
+    2. Blacklisting the access token jti in Redis for its remaining lifetime.
+    """
+    result = await db.execute(
+        select(RefreshToken).where(RefreshToken.token == refresh_token)
+    )
+    row = result.scalar_one_or_none()
+    if row is not None:
+        await db.delete(row)
+
+    if access_token:
+        await blacklist_access_token(redis, access_token)
+
+    logger.info("User logged out")

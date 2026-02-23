@@ -72,14 +72,15 @@ class InvalidTokenError(AuthError):
 
 class ReplayDetectedError(AuthError):
     """
-    Raised when a JWT jti has already been used (replay attack detected)
-    or the session has been invalidated (e.g., password reset, logout-all).
+    Raised when a consumed refresh token is replayed (replay attack detected).
+
+    Triggers full logout — all sessions for the user are revoked.
     """
 
     def __init__(self) -> None:
         super().__init__(
-            error_code="AUTH_REPLAY_DETECTED",
-            message="Session invalidated \u2014 please log in again",
+            error_code="REPLAY_DETECTED",
+            message="Session compromised \u2014 all sessions revoked. Please log in again.",
             status_code=401,
         )
 
@@ -90,11 +91,16 @@ class EmailNotVerifiedError(AppError):
     HTTP 403 — user is authenticated but not yet authorized.
     """
 
-    def __init__(self) -> None:
+    def __init__(
+        self,
+        error_code: str = "EMAIL_NOT_VERIFIED",
+        message: str = "Email address not verified",
+        status_code: int = 403,
+    ) -> None:
         super().__init__(
-            error_code="EMAIL_NOT_VERIFIED",
-            message="Email address not verified",
-            status_code=403,
+            error_code=error_code,
+            message=message,
+            status_code=status_code,
         )
 
 

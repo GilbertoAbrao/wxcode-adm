@@ -1,13 +1,16 @@
 """
-User SQLAlchemy model for wxcode-adm.
+SQLAlchemy models for wxcode-adm auth domain.
 
-The User model is platform-level (not tenant-scoped). It intentionally
-inherits from Base + TimestampMixin rather than TenantModel, because
-authentication is a cross-cutting concern that must work before a tenant
-context is established (e.g., at login time).
+The User and RefreshToken models are platform-level (not tenant-scoped).
+They intentionally inherit from Base + TimestampMixin rather than TenantModel,
+because authentication is a cross-cutting concern that must work before a
+tenant context is established (e.g., at login time).
 """
 
-from sqlalchemy import Boolean, String
+import uuid
+from datetime import datetime
+
+from sqlalchemy import Boolean, DateTime, ForeignKey, String
 from sqlalchemy.orm import Mapped, mapped_column
 
 from wxcode_adm.db.base import Base, TimestampMixin
@@ -52,3 +55,38 @@ class User(TimestampMixin, Base):
 
     def __repr__(self) -> str:
         return f"User(id={self.id!r}, email={self.email!r})"
+
+
+class RefreshToken(TimestampMixin, Base):
+    """
+    Platform-level refresh token for JWT token rotation.
+
+    NOT tenant-scoped — refresh tokens belong to users, which are
+    platform-level entities. Each row represents an active refresh token
+    that can be exchanged for a new access+refresh token pair.
+
+    Single-session policy: all existing rows for a user are deleted on new
+    login. Replay detection: consumed tokens' SHA-256 hashes are stored in
+    Redis shadow keys; replaying a consumed token triggers full logout.
+    """
+
+    __tablename__ = "refresh_tokens"
+
+    token: Mapped[str] = mapped_column(
+        String(255),
+        unique=True,
+        index=True,
+        nullable=False,
+    )
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    expires_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+    )
+
+    def __repr__(self) -> str:
+        return f"RefreshToken(id={self.id!r}, user_id={self.user_id!r})"

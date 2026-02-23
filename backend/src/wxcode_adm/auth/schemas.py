@@ -51,3 +51,30 @@ class MessageResponse(BaseModel):
     """Generic reusable message response."""
 
     message: str
+
+
+class LoginRequest(BaseModel):
+    """Request body for POST /api/v1/auth/login."""
+
+    email: EmailStr
+    password: str
+
+
+class TokenResponse(BaseModel):
+    """Response body for POST /api/v1/auth/login and POST /api/v1/auth/refresh."""
+
+    access_token: str
+    refresh_token: str
+    token_type: str = "bearer"
+
+
+class RefreshRequest(BaseModel):
+    """Request body for POST /api/v1/auth/refresh."""
+
+    refresh_token: str
+
+
+class LogoutRequest(BaseModel):
+    """Request body for POST /api/v1/auth/logout."""
+
+    refresh_token: str
