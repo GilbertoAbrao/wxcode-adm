@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-02-22)
 ## Current Position
 
 Phase: 4 of 8 (Billing Core) — IN PROGRESS
-Plan: 1 of 5 in current phase (04-01 complete — billing foundation: Stripe SDK, Plan/TenantSubscription/WebhookEvent models, plan CRUD API with Stripe sync)
-Status: Plan 04-01 complete — stripe[async]==14.3.0 integrated, billing models, 5 super-admin plan CRUD endpoints, public plan catalog endpoint
-Last activity: 2026-02-23 — Plan 04-01 complete: billing domain foundation with Stripe synchronization
+Plan: 2 of 5 in current phase (04-02 complete — Stripe Customer + free plan bootstrap at workspace onboarding, checkout session endpoint)
+Status: Plan 04-02 complete — create_workspace bootstraps Stripe Customer + TenantSubscription(FREE), POST /billing/checkout returns Stripe-hosted payment URL
+Last activity: 2026-02-23 — Plan 04-02 complete: workspace onboarding billing bootstrap + Stripe Checkout session endpoint
 
-Progress: [████████████] 65%
+Progress: [████████████] 67%
 
 ## Performance Metrics
 
@@ -30,7 +30,7 @@ Progress: [████████████] 65%
 | 01-foundation | 4/4 | 23 min | 6 min |
 | 02-auth-core | 5/5 | 20 min | 4 min |
 | 03-multi-tenancy-and-rbac | 5/5 | 22 min | 4 min |
-| 04-billing-core | 1/5 | 3 min | 3 min |
+| 04-billing-core | 2/5 | 6 min | 3 min |
 
 **Recent Trend:**
 - Last 5 plans: 2 min, 6 min, 4 min, 6 min, 3 min
@@ -48,6 +48,7 @@ Progress: [████████████] 65%
 | Phase 03 P04 | 4 | 2 tasks | 2 files |
 | Phase 03-multi-tenancy-and-rbac P05 | 6 | 2 tasks | 3 files |
 | Phase 04-billing-core P01 | 3 | 2 tasks | 9 files |
+| Phase 04-billing-core P02 | 3 | 2 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -115,6 +116,10 @@ Recent decisions affecting current work:
 - [04-01]: overage_rate_cents_per_token stored as integer hundredths of a cent (e.g., 4 = $0.00004/token) — avoids float precision issues
 - [04-01]: member_cap=-1 convention means unlimited members on a plan
 - [04-01]: Stripe IDs excluded from PlanResponse — internal implementation detail not needed by API consumers
+- [04-02]: create_workspace uses lazy import for billing bootstrap — avoids circular import billing.service -> tenants.models at module load; matches auto_join_pending_invitations pattern
+- [04-02]: create_stripe_customer is best-effort — Stripe failure logs WARNING, returns None; checkout creates customer lazily if needed
+- [04-02]: bootstrap_free_subscription raises RuntimeError if no free plan exists — free plan is a hard system requirement (must be seeded)
+- [04-02]: require_billing_access: Owner always has implicit billing access; other roles need explicit billing_access=True toggle
 
 ### Pending Todos
 
@@ -129,5 +134,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-23
-Stopped at: Completed 04-01-PLAN.md — billing foundation complete, Plan 1 of 5 in Phase 4
-Resume file: .planning/phases/04-billing-core/04-02-PLAN.md
+Stopped at: Completed 04-02-PLAN.md — workspace onboarding billing bootstrap + checkout session endpoint, Plan 2 of 5 in Phase 4
+Resume file: .planning/phases/04-billing-core/04-03-PLAN.md
