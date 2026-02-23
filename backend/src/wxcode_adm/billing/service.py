@@ -27,12 +27,13 @@ from __future__ import annotations
 
 import logging
 import uuid
+from datetime import datetime, timezone
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from wxcode_adm.billing.exceptions import PaymentRequiredError
-from wxcode_adm.billing.models import Plan, SubscriptionStatus, TenantSubscription
+from wxcode_adm.billing.models import Plan, SubscriptionStatus, TenantSubscription, WebhookEvent
 from wxcode_adm.billing.schemas import CreatePlanRequest, UpdatePlanRequest
 from wxcode_adm.billing.stripe_client import stripe_client
 from wxcode_adm.common.exceptions import ConflictError, NotFoundError
@@ -620,3 +621,298 @@ async def get_subscription_status(
             message="No subscription found for this tenant",
         )
     return subscription
+
+
+# ---------------------------------------------------------------------------
+# Webhook event processors (arq jobs)
+# ---------------------------------------------------------------------------
+
+
+async def process_stripe_event(ctx: dict, event_id: str, event_type: str, data_object: dict):
+    """
+    arq job: process one Stripe webhook event. Idempotent via DB check.
+
+    Two-layer deduplication:
+    - arq _job_id = Stripe event ID (prevents re-enqueue while job is running/queued)
+    - WebhookEvent table (permanent DB record — outlasts arq result TTL)
+
+    Raises on unhandled exception so arq will retry the job.
+    """
+    session_maker = ctx["session_maker"]
+
+    async with session_maker() as db:
+        try:
+            # DB-level idempotency check (outlasts arq result TTL)
+            existing = await db.execute(
+                select(WebhookEvent).where(WebhookEvent.stripe_event_id == event_id)
+            )
+            if existing.scalar_one_or_none():
+                logger.info(f"Webhook {event_id} already processed, skipping")
+                return
+
+            # Route to handler
+            if event_type == "checkout.session.completed":
+                await _handle_checkout_completed(db, data_object)
+            elif event_type == "customer.subscription.updated":
+                await _handle_subscription_updated(db, data_object)
+            elif event_type == "customer.subscription.deleted":
+                await _handle_subscription_deleted(db, data_object)
+            elif event_type == "invoice.paid":
+                await _handle_invoice_paid(db, data_object)
+            elif event_type == "invoice.payment_failed":
+                await _handle_payment_failed(db, data_object)
+            else:
+                logger.info(f"Unhandled webhook event type: {event_type}")
+
+            # Record processed event
+            db.add(WebhookEvent(
+                stripe_event_id=event_id,
+                event_type=event_type,
+                processed_at=datetime.now(timezone.utc),
+            ))
+            await db.commit()
+
+        except Exception:
+            await db.rollback()
+            logger.exception(f"Failed to process webhook {event_id} ({event_type})")
+            raise  # Let arq retry
+
+
+async def _handle_checkout_completed(db: AsyncSession, data_object: dict) -> None:
+    """
+    Handle checkout.session.completed: activate the TenantSubscription.
+
+    Extracts tenant_id and plan_id from metadata, sets stripe_subscription_id
+    and status=ACTIVE.
+    """
+    metadata = data_object.get("metadata", {})
+    tenant_id_str = metadata.get("tenant_id")
+    plan_id_str = metadata.get("plan_id")
+
+    if not tenant_id_str or not plan_id_str:
+        logger.warning(
+            "checkout.session.completed missing metadata tenant_id/plan_id — skipping"
+        )
+        return
+
+    tenant_id = uuid.UUID(tenant_id_str)
+    plan_id = uuid.UUID(plan_id_str)
+
+    result = await db.execute(
+        select(TenantSubscription).where(TenantSubscription.tenant_id == tenant_id)
+    )
+    subscription = result.scalar_one_or_none()
+    if subscription is None:
+        logger.warning(f"checkout.session.completed: no subscription for tenant {tenant_id}")
+        return
+
+    subscription.stripe_subscription_id = data_object.get("subscription")
+    subscription.plan_id = plan_id
+    subscription.status = SubscriptionStatus.ACTIVE
+
+    logger.info(f"Checkout completed for tenant {tenant_id}, plan {plan_id}")
+
+
+async def _handle_subscription_updated(db: AsyncSession, data_object: dict) -> None:
+    """
+    Handle customer.subscription.updated: sync status and billing period.
+
+    Maps Stripe status to SubscriptionStatus. Resets tokens_used_this_period
+    on period rollover (new period_start differs from existing).
+    """
+    stripe_subscription_id = data_object.get("id")
+    if not stripe_subscription_id:
+        return
+
+    result = await db.execute(
+        select(TenantSubscription).where(
+            TenantSubscription.stripe_subscription_id == stripe_subscription_id
+        )
+    )
+    subscription = result.scalar_one_or_none()
+    if subscription is None:
+        logger.warning(
+            f"customer.subscription.updated: no subscription found for {stripe_subscription_id}"
+        )
+        return
+
+    # Map Stripe status to SubscriptionStatus
+    stripe_status = data_object.get("status", "")
+    if stripe_status in ("active", "trialing"):
+        subscription.status = SubscriptionStatus.ACTIVE
+    elif stripe_status == "past_due":
+        subscription.status = SubscriptionStatus.PAST_DUE
+    elif stripe_status in ("canceled", "incomplete_expired"):
+        subscription.status = SubscriptionStatus.CANCELED
+    else:
+        logger.info(
+            f"customer.subscription.updated: unhandled Stripe status '{stripe_status}' "
+            f"for subscription {stripe_subscription_id} — keeping current status"
+        )
+
+    # Sync billing period from Unix timestamps
+    new_period_start_ts = data_object.get("current_period_start")
+    new_period_end_ts = data_object.get("current_period_end")
+
+    if new_period_start_ts is not None:
+        new_period_start = datetime.fromtimestamp(new_period_start_ts, tz=timezone.utc)
+
+        # Reset token counter if period rolled over
+        if (
+            subscription.current_period_start is None
+            or subscription.current_period_start != new_period_start
+        ):
+            subscription.tokens_used_this_period = 0
+
+        subscription.current_period_start = new_period_start
+
+    if new_period_end_ts is not None:
+        subscription.current_period_end = datetime.fromtimestamp(
+            new_period_end_ts, tz=timezone.utc
+        )
+
+
+async def _handle_subscription_deleted(db: AsyncSession, data_object: dict) -> None:
+    """
+    Handle customer.subscription.deleted: cancel the TenantSubscription.
+    """
+    stripe_subscription_id = data_object.get("id")
+    if not stripe_subscription_id:
+        return
+
+    result = await db.execute(
+        select(TenantSubscription).where(
+            TenantSubscription.stripe_subscription_id == stripe_subscription_id
+        )
+    )
+    subscription = result.scalar_one_or_none()
+    if subscription is None:
+        logger.warning(
+            f"customer.subscription.deleted: no subscription found for {stripe_subscription_id}"
+        )
+        return
+
+    subscription.status = SubscriptionStatus.CANCELED
+    logger.info(f"Subscription deleted for tenant {subscription.tenant_id}")
+
+
+async def _handle_invoice_paid(db: AsyncSession, data_object: dict) -> None:
+    """
+    Handle invoice.paid: restore subscription to ACTIVE if it was PAST_DUE.
+
+    Per CONTEXT: automatic restoration on invoice.paid, no manual intervention.
+    """
+    stripe_subscription_id = data_object.get("subscription")
+    if stripe_subscription_id is None:
+        # One-off invoice (not subscription-related)
+        return
+
+    result = await db.execute(
+        select(TenantSubscription).where(
+            TenantSubscription.stripe_subscription_id == stripe_subscription_id
+        )
+    )
+    subscription = result.scalar_one_or_none()
+    if subscription is None:
+        return
+
+    if subscription.status == SubscriptionStatus.PAST_DUE:
+        subscription.status = SubscriptionStatus.ACTIVE
+        logger.info(f"Subscription restored for tenant {subscription.tenant_id}")
+
+
+async def _handle_payment_failed(db: AsyncSession, data_object: dict) -> None:
+    """
+    Handle invoice.payment_failed: set past_due, revoke JWT tokens, enqueue email.
+
+    Per CONTEXT locked decision: JWT tokens are revoked on payment failure.
+    All refresh tokens for all tenant members are deleted and their JTIs are
+    blacklisted in Redis with ACCESS_TOKEN_TTL_HOURS TTL.
+    """
+    # Lazy imports to avoid circular dependencies at module load
+    from wxcode_adm.auth.models import RefreshToken  # noqa: PLC0415
+    from wxcode_adm.tenants.models import TenantMembership, MemberRole  # noqa: PLC0415
+    from wxcode_adm.common.redis_client import redis_client  # noqa: PLC0415
+    from wxcode_adm.config import settings as _settings  # noqa: PLC0415
+    from wxcode_adm.tasks.worker import get_arq_pool  # noqa: PLC0415
+    from wxcode_adm.auth.models import User  # noqa: PLC0415
+
+    stripe_subscription_id = data_object.get("subscription")
+    if stripe_subscription_id is None:
+        return
+
+    result = await db.execute(
+        select(TenantSubscription).where(
+            TenantSubscription.stripe_subscription_id == stripe_subscription_id
+        )
+    )
+    subscription = result.scalar_one_or_none()
+    if subscription is None:
+        return
+
+    subscription.status = SubscriptionStatus.PAST_DUE
+
+    tenant_id = subscription.tenant_id
+
+    # --- Revoke JWT tokens for all tenant members ---
+
+    # a. Get all user_ids for this tenant
+    membership_result = await db.execute(
+        select(TenantMembership.user_id).where(TenantMembership.tenant_id == tenant_id)
+    )
+    user_ids = [row[0] for row in membership_result.fetchall()]
+
+    if user_ids:
+        # b. Get all refresh tokens for these users
+        tokens_result = await db.execute(
+            select(RefreshToken).where(RefreshToken.user_id.in_(user_ids))
+        )
+        refresh_tokens = list(tokens_result.scalars().all())
+
+        # c. Blacklist each JTI in Redis with ACCESS_TOKEN_TTL_HOURS TTL
+        ttl_seconds = _settings.ACCESS_TOKEN_TTL_HOURS * 3600
+        for token in refresh_tokens:
+            await redis_client.setex(
+                f"auth:blacklist:jti:{token.token}",
+                ttl_seconds,
+                "revoked",
+            )
+
+        # d. Delete all refresh tokens for these users
+        for token in refresh_tokens:
+            await db.delete(token)
+
+        logger.info(
+            f"Revoked tokens for {len(user_ids)} members of tenant {tenant_id}"
+        )
+
+    # --- Enqueue payment failure email to owner + admins with billing_access ---
+
+    # Get tenant name from the loaded relationship
+    tenant_name = str(tenant_id)  # fallback
+    if subscription.tenant is not None:
+        tenant_name = subscription.tenant.name
+
+    # Query memberships for owner or billing_access members, join with User for email
+    billing_members_result = await db.execute(
+        select(TenantMembership, User)
+        .join(User, TenantMembership.user_id == User.id)
+        .where(TenantMembership.tenant_id == tenant_id)
+        .where(
+            (TenantMembership.role == MemberRole.OWNER)
+            | (TenantMembership.billing_access.is_(True))
+        )
+    )
+    billing_members = billing_members_result.fetchall()
+
+    if billing_members:
+        pool = await get_arq_pool()
+        try:
+            for membership, user in billing_members:
+                await pool.enqueue_job(
+                    "send_payment_failed_email",
+                    user.email,
+                    tenant_name,
+                )
+        finally:
+            await pool.aclose()
