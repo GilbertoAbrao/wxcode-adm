@@ -43,6 +43,7 @@ Progress: [█████████░] 55%
 | Phase 02-auth-core P05 | 6 | 2 tasks | 9 files |
 | Phase 03-multi-tenancy-and-rbac P01 | 4 | 3 tasks | 6 files |
 | Phase 03 P02 | 4 | 2 tasks | 6 files |
+| Phase 03 P03 | 7 | 2 tasks | 6 files |
 | Phase 03 P04 | 4 | 2 tasks | 2 files |
 
 ## Accumulated Context
@@ -95,6 +96,9 @@ Recent decisions affecting current work:
 - [Phase 03]: UpdateTenantRequest defined in router.py (not schemas.py) — keeps schemas.py clean for Plan 03-03 invitation/transfer additions
 - [Phase 03]: list_members returns list[dict] (not list[MembershipResponse]) — email comes from User relationship, not TenantMembership ORM column; dict avoids from_attributes mismatch
 - [Phase 03]: invitation_serializer pre-wired in service.py in Plan 03-02 — avoids touching service.py again in Plan 03-03; tests monkeypatch via client fixture
+- [03-03]: auto_join_pending_invitations uses lazy import inside verify_email to avoid circular import (auth.service -> tenants.service -> auth.models)
+- [03-03]: invitation_router mounted separately (not under /tenants/current) — accepting user may have no existing tenant membership
+- [03-03]: auto_join_pending_invitations is fault-tolerant — individual failures wrapped in try/except, logged as warnings, skipped; email verification always succeeds
 - [03-04]: from __future__ import annotations added to service.py — Python 3.9.6 runtime does not support bool | None union syntax; matches pattern in models.py
 - [03-04]: change_role guard order: owner self-demotion check FIRST before privilege-level guard — avoids false InsufficientRoleError when Owner acts on own membership
 - [03-04]: TokenExpiredError reused for expired ownership transfers — semantically matches token expiry; no new exception class needed
