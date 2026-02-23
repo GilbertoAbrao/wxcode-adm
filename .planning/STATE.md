@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-02-22)
 ## Current Position
 
 Phase: 2 of 8 (Auth Core) — IN PROGRESS
-Plan: 2 of 5 in current phase (02-02 complete)
-Status: Plan 02-02 complete — Signup/verify-email/resend-verification endpoints, Redis OTP, arq email jobs, super-admin seed
-Last activity: 2026-02-23 — Plan 02-02 complete: signup flow, Redis OTP with 3-attempt lockout, arq email jobs, super-admin seed
+Plan: 3 of 5 in current phase (02-03 complete)
+Status: Plan 02-03 complete — Login/refresh/logout endpoints, RefreshToken model, access token blacklist, replay detection
+Last activity: 2026-02-23 — Plan 02-03 complete: login/refresh/logout, RefreshToken, Redis jti blacklist, shadow key replay detection
 
-Progress: [████░░░░░░] 20%
+Progress: [█████░░░░░] 30%
 
 ## Performance Metrics
 
@@ -36,6 +36,7 @@ Progress: [████░░░░░░] 20%
 *Updated after each plan completion*
 | Phase 02-auth-core P01 | 4 | 2 tasks | 9 files |
 | Phase 02-auth-core P02 | 3 | 2 tasks | 7 files |
+| Phase 02-auth-core P03 | 3 | 2 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -70,6 +71,10 @@ Recent decisions affecting current work:
 - [02-02]: resend_verification returns silently on unknown email — prevents user enumeration
 - [02-02]: send_reset_email stub defined in Plan 02 to avoid touching worker.py again in Plan 04
 - [02-02]: seed_super_admin uses local import in lifespan to avoid circular import at module load
+- [02-03]: EmailNotVerifiedError updated to accept optional error_code/message kwargs — backward-compatible with existing no-arg callers
+- [02-03]: ReplayDetectedError error_code changed to REPLAY_DETECTED (from AUTH_REPLAY_DETECTED) per plan spec; triggers full session revocation
+- [02-03]: blacklist_access_token uses jwt.decode with verify_exp=False — allows blacklisting nearly-expired tokens on logout
+- [02-03]: Shadow key pattern auth:replay:{sha256} maps consumed refresh token hash to user_id for replay detection across DB row deletion
 
 ### Pending Todos
 
@@ -84,5 +89,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-23
-Stopped at: Completed 02-02-PLAN.md — signup/verify-email/resend-verification, Redis OTP, arq email jobs, super-admin seed; 2 tasks, 7 files
+Stopped at: Completed 02-03-PLAN.md — login/refresh/logout endpoints, RefreshToken model, Redis jti blacklist, shadow key replay detection; 2 tasks, 5 files
 Resume file: None
