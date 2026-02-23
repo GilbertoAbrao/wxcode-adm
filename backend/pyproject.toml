@@ -25,6 +25,7 @@ dev = [
     "pytest-asyncio",
     "httpx",
     "aiosqlite",
+    "fakeredis==2.26.2",
 ]
 
 [tool.pytest.ini_options]

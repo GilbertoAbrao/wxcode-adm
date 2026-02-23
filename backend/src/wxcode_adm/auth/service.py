@@ -454,8 +454,12 @@ async def refresh(
         # _check_replay_and_logout always raises; this line is unreachable
         raise InvalidTokenError()
 
-    # Check expiry
-    if row.expires_at < datetime.now(timezone.utc):
+    # Check expiry — handle both timezone-aware (PostgreSQL) and timezone-naive
+    # (SQLite test DB) datetimes for cross-DB compatibility.
+    expires_at = row.expires_at
+    if expires_at.tzinfo is None:
+        expires_at = expires_at.replace(tzinfo=timezone.utc)
+    if expires_at < datetime.now(timezone.utc):
         await db.delete(row)
         raise TokenExpiredError()
 
