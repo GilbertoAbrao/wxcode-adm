@@ -134,8 +134,14 @@ def create_app() -> FastAPI:
     # --- Routers ---
     # Import here to avoid circular imports at module load time
     from wxcode_adm.common.router import router as common_router  # noqa: PLC0415
+    from wxcode_adm.auth.router import router as auth_router  # noqa: PLC0415
 
     app.include_router(common_router, prefix=settings.API_V1_PREFIX)
+
+    # Auth router is mounted WITHOUT prefix — /.well-known/jwks.json must be at root.
+    # Future auth endpoints (login, signup, etc.) will be added in Plan 02 with
+    # prefix=settings.API_V1_PREFIX + "/auth".
+    app.include_router(auth_router)
 
     return app
 
