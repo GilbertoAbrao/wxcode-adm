@@ -232,6 +232,13 @@ async def client(test_db, test_redis, rsa_keys, monkeypatch):
     import wxcode_adm.tasks.worker as tasks_worker_module
     monkeypatch.setattr(tasks_worker_module, "get_arq_pool", mock_get_arq_pool)
 
+    # Mock redis_client used in _handle_payment_failed for token blacklisting.
+    # The service lazily imports it from wxcode_adm.common.redis_client, so we
+    # patch the source module — Python's module cache ensures the lazy import
+    # picks up the test_redis instance instead of the real Redis connection.
+    import wxcode_adm.common.redis_client as redis_client_module
+    monkeypatch.setattr(redis_client_module, "redis_client", test_redis)
+
     # Mock Stripe client to avoid real API calls in tests
     import wxcode_adm.billing.stripe_client as stripe_client_module
 
