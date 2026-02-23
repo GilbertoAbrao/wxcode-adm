@@ -51,7 +51,7 @@ Plans:
   3. User can log in with verified email and password and receive an RS256 access token plus a refresh token
   4. User can use the refresh token to obtain a new access token; the old refresh token is revoked (rotation enforced)
   5. User can log out, invalidating their refresh token; blacklisted tokens are rejected on subsequent requests
-  6. User can reset a forgotten password via a single-use email link that expires in 1 hour
+  6. User can reset a forgotten password via a single-use email link that expires in 24 hours
   7. The JWKS endpoint (/.well-known/jwks.json) exposes the RSA public key and wxcode can validate a token locally using that key without calling wxcode-adm
 **Plans**: 5 plans
 
