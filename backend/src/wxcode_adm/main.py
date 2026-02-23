@@ -161,6 +161,10 @@ def create_app() -> FastAPI:
     app.include_router(billing_admin_router, prefix=settings.API_V1_PREFIX)
     app.include_router(billing_router, prefix=settings.API_V1_PREFIX)
 
+    # Webhook router: no JWT auth — uses Stripe-Signature header
+    from wxcode_adm.billing.webhook_router import webhook_router as billing_webhook_router  # noqa: PLC0415
+    app.include_router(billing_webhook_router, prefix=settings.API_V1_PREFIX)
+
     return app
 
 
