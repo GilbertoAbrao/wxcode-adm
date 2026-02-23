@@ -99,5 +99,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-23
-Stopped at: Completed 02-05-PLAN.md — auth dependencies (get_current_user, require_verified), /me endpoint, Alembic migration 001, 18 integration tests all passing; 2 tasks, 9 files; Phase 02-auth-core COMPLETE
-Resume file: None
+Stopped at: Phase 3 context gathered — multi-tenancy decisions captured (multi-tenant membership, per-tenant roles, header-based context, billing as permission toggle, ownership transfer requires acceptance)
+Resume file: .planning/phases/03-multi-tenancy-and-rbac/03-CONTEXT.md
