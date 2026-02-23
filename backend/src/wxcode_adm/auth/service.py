@@ -235,6 +235,13 @@ async def verify_email(
     user.email_verified = True
     logger.info(f"Email verified for user: {user.email} (id={user.id})")
 
+    # 5. Auto-join pending invitations (new user invitation flow)
+    # Lazy import to avoid circular import (tenants.service -> auth.models)
+    from wxcode_adm.tenants.service import auto_join_pending_invitations  # noqa: PLC0415
+    joined = await auto_join_pending_invitations(db, user)
+    if joined:
+        logger.info(f"Auto-joined {user.email} to {len(joined)} tenant(s) from pending invitations")
+
 
 async def resend_verification(
     db: AsyncSession, redis: Redis, body: ResendVerificationRequest

@@ -1,10 +1,13 @@
 """
 FastAPI routers for wxcode-adm tenant domain.
 
-Two routers are defined:
+Three routers are defined:
 - router: mounted at /api/v1/tenants — tenant info, members list, name updates,
-  member management (change role, remove, leave) and ownership transfer
+  member management (change role, remove, leave), ownership transfer, and
+  invitation management (create, list, cancel)
 - onboarding_router: mounted at /api/v1/onboarding — workspace creation
+- invitation_router: mounted at /api/v1/invitations — invitation acceptance
+  (existing users only; new users are auto-joined via verify_email hook)
 
 Design decisions (from 03-CONTEXT.md):
 - Workspace creation is a separate onboarding step, not part of sign-up.
@@ -17,6 +20,9 @@ Design decisions (from 03-CONTEXT.md):
 - PATCH /members/{user_id}/role and DELETE /members/{user_id} require ADMIN role.
 - POST /transfer requires OWNER role (only Owner initiates transfer).
 - POST /leave and POST /transfer/accept are open to any tenant member.
+- POST /invitations and GET/DELETE /invitations/* require ADMIN role.
+- POST /invitations/accept is NOT under /tenants/current — the user may have
+  no tenant context yet (this is their first membership). Uses invitation_router.
 """
 
 from __future__ import annotations
@@ -24,6 +30,7 @@ from __future__ import annotations
 import uuid
 
 from fastapi import APIRouter, Depends
+from redis.asyncio import Redis
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -31,14 +38,17 @@ from sqlalchemy.orm import selectinload
 from wxcode_adm.auth.dependencies import require_verified
 from wxcode_adm.auth.models import User
 from wxcode_adm.common.exceptions import NotFoundError
-from wxcode_adm.dependencies import get_session
+from wxcode_adm.dependencies import get_redis, get_session
 from wxcode_adm.tenants import service
 from wxcode_adm.tenants.dependencies import require_role, require_tenant_member
 from wxcode_adm.tenants.models import MemberRole, Tenant, TenantMembership
 from wxcode_adm.tenants.schemas import (
+    AcceptInvitationRequest,
     ChangeRoleRequest,
     CreateWorkspaceRequest,
     InitiateTransferRequest,
+    InvitationResponse,
+    InviteRequest,
     MembershipResponse,
     MessageResponse,
     MyTenantsResponse,
@@ -377,6 +387,135 @@ async def get_pending_transfer(
             message="No pending ownership transfer for this tenant",
         )
     return TransferResponse.model_validate(transfer)
+
+
+# ---------------------------------------------------------------------------
+# Invitation endpoints (under /tenants/current)
+# ---------------------------------------------------------------------------
+
+
+@router.post(
+    "/current/invitations",
+    response_model=InvitationResponse,
+    status_code=201,
+    summary="Invite a user to the tenant",
+    description=(
+        "Creates a pending invitation for the given email address with the specified role. "
+        "An email containing the acceptance link is sent via arq job. "
+        "Fails with 409 if the email is already a member or has an active invitation. "
+        "Requires ADMIN role or above."
+    ),
+)
+async def create_invitation(
+    body: InviteRequest,
+    ctx=Depends(require_role(MemberRole.ADMIN)),
+    db: AsyncSession = Depends(get_session),
+    redis: Redis = Depends(get_redis),
+) -> InvitationResponse:
+    """
+    POST /api/v1/tenants/current/invitations
+
+    Requires X-Tenant-ID header and ADMIN role.
+    Owner and Admin can invite users.
+    """
+    tenant, membership = ctx
+    invitation = await service.invite_user(db, redis, tenant, membership, body)
+    return InvitationResponse.model_validate(invitation)
+
+
+@router.get(
+    "/current/invitations",
+    response_model=list[InvitationResponse],
+    summary="List pending invitations for the tenant",
+    description=(
+        "Returns all pending (non-accepted) invitations for the current tenant. "
+        "Includes both active and expired invitations — frontend can filter by expires_at. "
+        "Requires ADMIN role or above."
+    ),
+)
+async def list_invitations(
+    ctx=Depends(require_role(MemberRole.ADMIN)),
+    db: AsyncSession = Depends(get_session),
+) -> list[InvitationResponse]:
+    """
+    GET /api/v1/tenants/current/invitations
+
+    Requires X-Tenant-ID header and ADMIN role.
+    """
+    tenant, _ = ctx
+    invitations = await service.list_invitations(db, tenant.id)
+    return [InvitationResponse.model_validate(inv) for inv in invitations]
+
+
+@router.delete(
+    "/current/invitations/{invitation_id}",
+    response_model=MessageResponse,
+    summary="Cancel a pending invitation",
+    description=(
+        "Cancels (deletes) a pending invitation. "
+        "Fails with 409 if the invitation has already been accepted. "
+        "Requires ADMIN role or above."
+    ),
+)
+async def cancel_invitation(
+    invitation_id: uuid.UUID,
+    ctx=Depends(require_role(MemberRole.ADMIN)),
+    db: AsyncSession = Depends(get_session),
+) -> MessageResponse:
+    """
+    DELETE /api/v1/tenants/current/invitations/{invitation_id}
+
+    Requires X-Tenant-ID header and ADMIN role.
+    """
+    tenant, _ = ctx
+    await service.cancel_invitation(db, tenant.id, invitation_id)
+    return MessageResponse(message="Invitation cancelled")
+
+
+# ---------------------------------------------------------------------------
+# Invitation acceptance router — mounted separately (user has no tenant yet)
+# ---------------------------------------------------------------------------
+
+# This router is mounted at /api/v1/invitations (NOT under /tenants/current)
+# because the accepting user may not yet be a member of any tenant.
+# New users who sign up via an invitation link do NOT use this endpoint —
+# they are auto-joined at email verification via the verify_email hook.
+invitation_router = APIRouter(prefix="/invitations", tags=["invitations"])
+
+
+@invitation_router.post(
+    "/accept",
+    response_model=MembershipResponse,
+    status_code=201,
+    summary="Accept a tenant invitation (existing users only)",
+    description=(
+        "Accepts a pending invitation using the signed token from the invitation email. "
+        "This endpoint is for EXISTING USERS who already have a verified account. "
+        "New users who sign up via an invitation link are auto-joined after email "
+        "verification — they do NOT need to call this endpoint. "
+        "Requires a verified account (no X-Tenant-ID header needed)."
+    ),
+)
+async def accept_invitation(
+    body: AcceptInvitationRequest,
+    user: User = Depends(require_verified),
+    db: AsyncSession = Depends(get_session),
+) -> MembershipResponse:
+    """
+    POST /api/v1/invitations/accept
+
+    Requires authentication (Bearer token) but NOT X-Tenant-ID.
+    For existing verified users accepting an invitation.
+    """
+    membership = await service.accept_invitation(db, user, body.token)
+    return MembershipResponse(
+        id=membership.id,
+        user_id=membership.user_id,
+        email=user.email,
+        role=membership.role.value,
+        billing_access=membership.billing_access,
+        created_at=membership.created_at,
+    )
 
 
 # ---------------------------------------------------------------------------

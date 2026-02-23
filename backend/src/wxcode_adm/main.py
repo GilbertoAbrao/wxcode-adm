@@ -137,6 +137,7 @@ def create_app() -> FastAPI:
     from wxcode_adm.auth.router import auth_api_router  # noqa: PLC0415
     from wxcode_adm.tenants.router import router as tenant_router  # noqa: PLC0415
     from wxcode_adm.tenants.router import onboarding_router  # noqa: PLC0415
+    from wxcode_adm.tenants.router import invitation_router  # noqa: PLC0415
 
     app.include_router(common_router, prefix=settings.API_V1_PREFIX)
 
@@ -149,6 +150,9 @@ def create_app() -> FastAPI:
     # Tenant routers: workspace creation (onboarding) and tenant management
     app.include_router(tenant_router, prefix=settings.API_V1_PREFIX)
     app.include_router(onboarding_router, prefix=settings.API_V1_PREFIX)
+
+    # Invitation acceptance router: /api/v1/invitations/accept (no tenant context needed)
+    app.include_router(invitation_router, prefix=settings.API_V1_PREFIX)
 
     return app
 
