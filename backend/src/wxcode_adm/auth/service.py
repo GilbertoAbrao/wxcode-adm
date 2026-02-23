@@ -8,6 +8,8 @@ Contains business logic for:
 - login: authenticate user and issue access + refresh tokens
 - refresh: rotate refresh token and issue new access token
 - logout: invalidate refresh token and blacklist access token in Redis
+- forgot_password: enqueue reset email (enumeration-safe, always succeeds)
+- reset_password: verify token, update password, revoke all sessions
 
 Redis OTP key pattern:
   auth:otp:{user_id}          — the 6-digit code (TTL 600s)
@@ -26,6 +28,8 @@ import uuid
 from datetime import datetime, timedelta, timezone
 
 import jwt as pyjwt
+from itsdangerous import URLSafeTimedSerializer
+from itsdangerous.exc import BadSignature, SignatureExpired
 from redis.asyncio import Redis
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -42,9 +46,11 @@ from wxcode_adm.auth.jwt import create_access_token
 from wxcode_adm.auth.models import RefreshToken, User
 from wxcode_adm.auth.password import hash_password, verify_password
 from wxcode_adm.auth.schemas import (
+    ForgotPasswordRequest,
     LoginRequest,
     LogoutRequest,
     RefreshRequest,
+    ResetPasswordRequest,
     ResendVerificationRequest,
     SignupRequest,
     TokenResponse,
@@ -55,6 +61,17 @@ from wxcode_adm.config import settings
 from wxcode_adm.tasks.worker import get_arq_pool
 
 logger = logging.getLogger(__name__)
+
+# ---------------------------------------------------------------------------
+# Password reset serializer
+# ---------------------------------------------------------------------------
+
+# Use JWT_PRIVATE_KEY as secret — strong random secret already in settings.
+# salt="password-reset" namespaces it from JWT usage.
+reset_serializer = URLSafeTimedSerializer(
+    settings.JWT_PRIVATE_KEY.get_secret_value(),
+    salt="password-reset",
+)
 
 
 # ---------------------------------------------------------------------------
@@ -484,3 +501,118 @@ async def logout(
         await blacklist_access_token(redis, access_token)
 
     logger.info("User logged out")
+
+
+# ---------------------------------------------------------------------------
+# Password reset token helpers
+# ---------------------------------------------------------------------------
+
+
+def generate_reset_token(email: str, pw_hash: str) -> str:
+    """
+    Generate a signed, time-limited password reset token.
+
+    The user's current password_hash is used as the per-token salt so that
+    changing the password automatically invalidates this token (single-use
+    enforcement without storing token state).
+    """
+    return reset_serializer.dumps(email, salt=pw_hash)
+
+
+def verify_reset_token(token: str, pw_hash: str) -> str:
+    """
+    Verify a password reset token and return the email address it encodes.
+
+    - Validates HMAC signature using the user's current password_hash as salt.
+    - Enforces 24-hour expiry (86400 seconds).
+    - If the password has already been changed (different pw_hash), the HMAC
+      will not match — this is how single-use is enforced.
+
+    Raises:
+        TokenExpiredError: token has passed its 24-hour expiry.
+        InvalidTokenError: token is tampered, malformed, or already used.
+    Returns:
+        The email address encoded in the token.
+    """
+    try:
+        return reset_serializer.loads(token, salt=pw_hash, max_age=86400)
+    except SignatureExpired:
+        raise TokenExpiredError()
+    except BadSignature:
+        raise InvalidTokenError()
+
+
+# ---------------------------------------------------------------------------
+# Password reset service functions
+# ---------------------------------------------------------------------------
+
+
+async def forgot_password(
+    db: AsyncSession, redis: Redis, body: ForgotPasswordRequest
+) -> None:
+    """
+    Initiate a password reset flow for the given email address.
+
+    Enumeration prevention: always returns None regardless of whether the
+    email exists. The arq job is only enqueued when the user is found.
+
+    Steps:
+    1. Look up user by email — return silently if not found.
+    2. Generate a signed reset token (itsdangerous, pw_hash as salt).
+    3. Build reset link from ALLOWED_ORIGINS[0] (placeholder — adjusted Phase 7).
+    4. Enqueue send_reset_email arq job.
+    """
+    result = await db.execute(select(User).where(User.email == body.email))
+    user = result.scalar_one_or_none()
+    if user is None:
+        # Return silently — do not reveal whether email exists
+        return
+
+    token = generate_reset_token(body.email, user.password_hash)
+    reset_link = f"{settings.ALLOWED_ORIGINS[0]}/reset-password?token={token}"
+
+    pool = await get_arq_pool()
+    try:
+        await pool.enqueue_job("send_reset_email", str(user.id), user.email, reset_link)
+    finally:
+        await pool.aclose()
+
+    logger.info(f"Password reset requested for: {user.email} (id={user.id})")
+
+
+async def reset_password(db: AsyncSession, body: ResetPasswordRequest) -> None:
+    """
+    Complete a password reset using a valid signed token.
+
+    Steps:
+    1. Extract email from token via loads_unsafe (needed to look up the user
+       before we have their pw_hash for full verification).
+    2. Find user by email — raise InvalidTokenError if not found.
+    3. Fully verify the token with the user's current pw_hash as salt.
+       This validates signature, expiry, and single-use (pw_hash changed => BadSignature).
+    4. Update password hash.
+    5. Delete ALL refresh tokens for the user (force re-login on all devices).
+    """
+    # Step 1: Extract email from token without full verification
+    _, data = reset_serializer.loads_unsafe(body.token)
+    if data is None:
+        raise InvalidTokenError()
+    email = data  # The payload is the email string
+
+    # Step 2: Find user by email
+    result = await db.execute(select(User).where(User.email == email))
+    user = result.scalar_one_or_none()
+    if user is None:
+        raise InvalidTokenError()
+
+    # Step 3: Full token verification with pw_hash as salt
+    # (validates signature, expiry, and single-use enforcement)
+    verify_reset_token(body.token, user.password_hash)
+
+    # Step 4: Update password
+    user.password_hash = hash_password(body.new_password)
+
+    # Step 5: Revoke all sessions — force re-login on all devices
+    await db.execute(delete(RefreshToken).where(RefreshToken.user_id == user.id))
+
+    logger.info(f"Password reset completed for: {user.email} (id={user.id})")

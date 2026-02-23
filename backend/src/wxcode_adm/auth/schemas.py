@@ -78,3 +78,32 @@ class LogoutRequest(BaseModel):
     """Request body for POST /api/v1/auth/logout."""
 
     refresh_token: str
+
+
+class ForgotPasswordRequest(BaseModel):
+    """Request body for POST /api/v1/auth/forgot-password."""
+
+    email: EmailStr
+
+
+class ForgotPasswordResponse(BaseModel):
+    """Response body for POST /api/v1/auth/forgot-password.
+
+    Always returns the same message regardless of whether the email exists
+    to prevent user enumeration attacks.
+    """
+
+    message: str
+
+
+class ResetPasswordRequest(BaseModel):
+    """Request body for POST /api/v1/auth/reset-password."""
+
+    token: str
+    new_password: str = Field(min_length=8, max_length=128)
+
+
+class ResetPasswordResponse(BaseModel):
+    """Response body for POST /api/v1/auth/reset-password."""
+
+    message: str
