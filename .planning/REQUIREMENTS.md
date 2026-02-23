@@ -27,7 +27,7 @@ Requirements for initial release. Each maps to roadmap phases.
 
 - [x] **TNNT-01**: Tenant auto-created on user sign-up
 - [x] **TNNT-02**: Tenant has human-readable slug identifier
-- [ ] **TNNT-03**: User invitation by email with 7-day expiry token
+- [x] **TNNT-03**: User invitation by email with 7-day expiry token
 - [x] **TNNT-04**: Invited user belongs exclusively to the inviting tenant
 - [x] **TNNT-05**: Owner can transfer ownership to another member
 
@@ -136,7 +136,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | AUTH-13 | Phase 6 | Pending |
 | TNNT-01 | Phase 3 | Complete |
 | TNNT-02 | Phase 3 | Complete |
-| TNNT-03 | Phase 3 | Pending |
+| TNNT-03 | Phase 3 | Complete |
 | TNNT-04 | Phase 3 | Complete |
 | TNNT-05 | Phase 3 | Complete |
 | RBAC-01 | Phase 3 | Complete |
