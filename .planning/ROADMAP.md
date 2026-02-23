@@ -13,7 +13,7 @@ WXCODE ADM is built in strict dependency order: the infrastructure foundation mu
 Decimal phases appear between their surrounding integers in numeric order.
 
 - [ ] **Phase 1: Foundation** - Project scaffolding, infrastructure init, and tenant isolation base class
-- [ ] **Phase 2: Auth Core** - Email/password auth, JWT RS256 issuance, JWKS endpoint, token lifecycle
+- [x] **Phase 2: Auth Core** - Email/password auth, JWT RS256 issuance, JWKS endpoint, token lifecycle (completed 2026-02-23)
 - [ ] **Phase 3: Multi-Tenancy and RBAC** - Tenant creation, role enforcement, invitations, ownership transfer
 - [ ] **Phase 4: Billing Core** - Stripe plans, Checkout, webhooks, Customer Portal, plan enforcement
 - [ ] **Phase 5: Platform Security** - API keys, rate limiting, audit log, transactional email templates
@@ -184,7 +184,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Foundation | 4/4 | Complete | 2026-02-22 |
-| 2. Auth Core | 4/5 | In Progress|  |
+| 2. Auth Core | 5/5 | Complete   | 2026-02-23 |
 | 3. Multi-Tenancy and RBAC | 0/5 | Not started | - |
 | 4. Billing Core | 0/6 | Not started | - |
 | 5. Platform Security | 0/5 | Not started | - |

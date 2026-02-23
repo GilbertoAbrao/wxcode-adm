@@ -9,28 +9,29 @@ See: .planning/PROJECT.md (updated 2026-02-22)
 
 ## Current Position
 
-Phase: 2 of 8 (Auth Core) — IN PROGRESS
-Plan: 4 of 5 in current phase (02-04 complete)
-Status: Plan 02-04 complete — Password reset flow with itsdangerous signed tokens, single-use enforcement via pw_hash salt, session revocation
-Last activity: 2026-02-23 — Plan 02-04 complete: forgot-password and reset-password endpoints, itsdangerous reset tokens, all sessions revoked on reset
+Phase: 2 of 8 (Auth Core) — COMPLETE
+Plan: 5 of 5 in current phase (02-05 complete — phase done)
+Status: Plan 02-05 complete — Auth dependencies (get_current_user, require_verified), /me endpoint, Alembic migration, 18 integration tests all passing
+Last activity: 2026-02-23 — Plan 02-05 complete: auth dependency chain, Alembic migration 001, 18 integration tests covering all 7 Phase 2 success criteria
 
-Progress: [██████░░░░] 35%
+Progress: [████████░░] 43%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 5
+- Total plans completed: 9
 - Average duration: 5 min
-- Total execution time: 0.40 hours
+- Total execution time: 0.70 hours
 
 **By Phase:**
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
 | 01-foundation | 4/4 | 23 min | 6 min |
+| 02-auth-core | 5/5 | 20 min | 4 min |
 
 **Recent Trend:**
-- Last 5 plans: 4 min, 2 min, 15 min, 2 min
+- Last 5 plans: 4 min, 3 min, 3 min, 2 min, 6 min
 - Trend: Stable
 
 *Updated after each plan completion*
@@ -38,6 +39,7 @@ Progress: [██████░░░░] 35%
 | Phase 02-auth-core P02 | 3 | 2 tasks | 7 files |
 | Phase 02-auth-core P03 | 3 | 2 tasks | 5 files |
 | Phase 02-auth-core P04 | 2 | 2 tasks | 4 files |
+| Phase 02-auth-core P05 | 6 | 2 tasks | 9 files |
 
 ## Accumulated Context
 
@@ -80,6 +82,9 @@ Recent decisions affecting current work:
 - [02-04]: loads_unsafe() for two-step verification — extract email first (unsigned) to find user for pw_hash, then full verify (breaks circular dependency)
 - [02-04]: reset_serializer uses JWT_PRIVATE_KEY as secret, salt="password-reset" namespaces from JWT usage
 - [02-04]: Reset link uses ALLOWED_ORIGINS[0] as base URL placeholder — adjusted in Phase 7 frontend integration
+- [Phase 02-auth-core]: conftest yields (client, redis, app, test_db) 4-tuple so tests can access app.dependency_overrides and test_db session factory directly
+- [Phase 02-auth-core]: db/base.py TimestampMixin gets Python-level defaults for created_at/updated_at — server_defaults remain for production, Python defaults serve SQLite test compat
+- [Phase 02-auth-core]: refresh service uses tzinfo-aware comparison: naive datetimes from SQLite get utc tzinfo attached before comparison
 
 ### Pending Todos
 
@@ -94,5 +99,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-23
-Stopped at: Completed 02-04-PLAN.md — password reset flow with itsdangerous signed tokens, forgot-password/reset-password endpoints, session revocation on reset; 2 tasks, 4 files
+Stopped at: Completed 02-05-PLAN.md — auth dependencies (get_current_user, require_verified), /me endpoint, Alembic migration 001, 18 integration tests all passing; 2 tasks, 9 files; Phase 02-auth-core COMPLETE
 Resume file: None
