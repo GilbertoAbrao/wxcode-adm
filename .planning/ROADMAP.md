@@ -63,7 +63,7 @@ Plans:
 - [ ] 02-05-PLAN.md — FastAPI auth dependencies (get_current_user, require_verified), Alembic migration, integration tests
 
 ### Phase 3: Multi-Tenancy and RBAC
-**Goal**: Every authenticated user belongs to exactly one tenant, every action is scoped to that tenant, and roles determine what each user can do within their tenant
+**Goal**: Every authenticated user can create or join tenants, every tenant-scoped action requires explicit tenant context via header, and per-tenant roles determine what each user can do within each tenant
 **Depends on**: Phase 2
 **Requirements**: TNNT-01, TNNT-02, TNNT-03, TNNT-04, TNNT-05, RBAC-01, RBAC-02, RBAC-03
 **Success Criteria** (what must be TRUE):
@@ -73,14 +73,16 @@ Plans:
   4. Owner or Admin can change any member's role or remove them from the tenant
   5. Tenant Owner can transfer ownership to another member; the previous owner's role is downgraded to Admin
   6. Every database query in the system includes tenant_id; a cross-tenant isolation test suite confirms zero data leakage between tenants
-**Plans**: TBD
+**Plans**: 5 plans
 
 Plans:
-- [ ] 03-01: Tenant model, TenantMembership model, slug generation, auto-create on sign-up
-- [ ] 03-02: RBAC dependency (require_role), role enforcement on all existing endpoints
-- [ ] 03-03: Invitation flow (email token, accept endpoint, exclusive binding)
-- [ ] 03-04: Member management (change role, remove member, ownership transfer)
-- [ ] 03-05: Tenant context middleware, cross-tenant isolation test suite
+- [ ] 03-01-PLAN.md — Tenant, TenantMembership, Invitation, OwnershipTransfer models, MemberRole enum, domain exceptions, Pydantic schemas
+- [ ] 03-02-PLAN.md — Tenant context dependency (X-Tenant-ID header), require_role RBAC factory, onboarding workspace endpoint, tenant info endpoints
+- [ ] 03-03-PLAN.md — Invitation flow (itsdangerous token, invite by email, accept endpoint, arq email job)
+- [ ] 03-04-PLAN.md — Member management (change role, remove, leave tenant), ownership transfer (request + accept)
+- [ ] 03-05-PLAN.md — Alembic migration 002, integration tests for all 6 success criteria, cross-tenant isolation test suite
+
+**Phase requirement IDs (every ID MUST appear in a plan's `requirements` field):** TNNT-01, TNNT-02, TNNT-03, TNNT-04, TNNT-05, RBAC-01, RBAC-02, RBAC-03
 
 ### Phase 4: Billing Core
 **Goal**: Tenants can subscribe to a paid plan, manage their billing, and the system enforces plan limits before any wxcode engine operation is allowed
