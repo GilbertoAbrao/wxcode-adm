@@ -12,6 +12,13 @@ Provides:
 - initiate_transfer: Owner initiates a two-step ownership transfer
 - accept_transfer: Target member accepts the ownership transfer
 - get_pending_transfer: Returns the pending transfer for a tenant, or None
+- generate_invitation_token / verify_invitation_token: itsdangerous token helpers
+- invite_user: creates an Invitation record and enqueues the email arq job
+- accept_invitation: existing-user flow — verifies token and creates membership
+- auto_join_pending_invitations: new-user flow — called by verify_email after
+  email verification; joins user to all pending invitations automatically
+- list_invitations: returns pending (non-accepted) invitations for a tenant
+- cancel_invitation: deletes a pending invitation
 
 Design notes:
 - generate_unique_slug uses python-slugify with a 10-iteration uniqueness loop.
@@ -32,28 +39,36 @@ Design notes:
 
 from __future__ import annotations
 
+import hashlib
+import logging
 import uuid
 from datetime import datetime, timedelta, timezone
 
 from itsdangerous import URLSafeTimedSerializer
+from itsdangerous.exc import BadSignature, SignatureExpired
+from redis.asyncio import Redis
 from slugify import slugify
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from wxcode_adm.auth.exceptions import TokenExpiredError
+from wxcode_adm.auth.exceptions import InvalidTokenError, TokenExpiredError
 from wxcode_adm.auth.models import User
-from wxcode_adm.common.exceptions import ConflictError
+from wxcode_adm.common.exceptions import ConflictError, ForbiddenError, NotFoundError
 from wxcode_adm.config import settings
 from wxcode_adm.tenants.exceptions import (
+    AlreadyMemberError,
     InsufficientRoleError,
+    InvitationAlreadyExistsError,
     NotMemberError,
     OwnerCannotLeaveError,
     OwnerCannotSelfDemoteError,
     TransferAlreadyPendingError,
 )
-from wxcode_adm.common.exceptions import ForbiddenError, NotFoundError
-from wxcode_adm.tenants.models import MemberRole, OwnershipTransfer, Tenant, TenantMembership
+from wxcode_adm.tenants.models import Invitation, MemberRole, OwnershipTransfer, Tenant, TenantMembership
+from wxcode_adm.tasks.worker import get_arq_pool
+
+logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
 # Module-level serializer (tests monkeypatch this attribute)
@@ -577,3 +592,417 @@ async def get_pending_transfer(
         return None
 
     return transfer
+
+
+# ---------------------------------------------------------------------------
+# Invitation token helpers
+# ---------------------------------------------------------------------------
+
+
+def generate_invitation_token(email: str, tenant_id: str) -> str:
+    """
+    Generate a signed itsdangerous invitation token embedding email and tenant_id.
+
+    Args:
+        email: The invitee's email address.
+        tenant_id: The tenant UUID as a string.
+
+    Returns:
+        A signed URL-safe token string.
+    """
+    return invitation_serializer.dumps({"email": email, "tenant_id": tenant_id})
+
+
+def verify_invitation_token(token: str) -> dict:
+    """
+    Verify an itsdangerous invitation token and return its payload.
+
+    Args:
+        token: The signed token to verify.
+
+    Returns:
+        The payload dict with keys: email, tenant_id.
+
+    Raises:
+        TokenExpiredError: Token has passed the 7-day expiry.
+        InvalidTokenError: Token is malformed, tampered, or has bad signature.
+    """
+    try:
+        return invitation_serializer.loads(token, max_age=7 * 24 * 3600)
+    except SignatureExpired:
+        raise TokenExpiredError()
+    except BadSignature:
+        raise InvalidTokenError()
+
+
+# ---------------------------------------------------------------------------
+# Invitation service functions
+# ---------------------------------------------------------------------------
+
+
+async def invite_user(
+    db: AsyncSession,
+    redis: Redis,
+    tenant: Tenant,
+    membership: TenantMembership,
+    body,
+) -> Invitation:
+    """
+    Create an invitation record and enqueue the invitation email arq job.
+
+    Requires the calling user (identified by membership) to be Admin or above.
+    Raises 409 if the target email is already a member or has a pending
+    non-expired invitation.
+
+    Steps:
+    1. Guard: caller must be Admin+ (defense in depth alongside require_role).
+    2. Check if email is already a member of this tenant.
+    3. Check for existing active (non-accepted, non-expired) invitation.
+    4. Generate invitation token (itsdangerous) and compute SHA-256 hash.
+    5. Create Invitation record, flush to get ID.
+    6. Build invite link and enqueue send_invitation_email arq job.
+
+    Args:
+        db: Async database session.
+        redis: Redis connection (for get_arq_pool — passed for future direct use).
+        tenant: The resolved Tenant for the current request.
+        membership: The caller's TenantMembership (provides user_id + role).
+        body: InviteRequest with fields: email, role, billing_access.
+
+    Returns:
+        The created Invitation ORM instance.
+
+    Raises:
+        InsufficientRoleError: Caller's role is below ADMIN.
+        AlreadyMemberError: Target email is already a tenant member.
+        InvitationAlreadyExistsError: Active invitation already exists.
+    """
+    # 1. Guard: caller must be Admin+ (defense in depth)
+    if membership.role.level < MemberRole.ADMIN.level:
+        raise InsufficientRoleError(
+            message="Only Admins and Owners can invite users"
+        )
+
+    # 2. Check if email is already a member
+    member_result = await db.execute(
+        select(TenantMembership)
+        .join(User, TenantMembership.user_id == User.id)
+        .where(
+            User.email == body.email,
+            TenantMembership.tenant_id == tenant.id,
+        )
+    )
+    if member_result.scalar_one_or_none() is not None:
+        raise AlreadyMemberError()
+
+    # 3. Check for existing active (non-expired, non-accepted) invitation
+    now = datetime.now(tz=timezone.utc)
+    existing_result = await db.execute(
+        select(Invitation).where(
+            Invitation.email == body.email,
+            Invitation.tenant_id == tenant.id,
+            Invitation.accepted_at.is_(None),
+            Invitation.expires_at > now,
+        )
+    )
+    if existing_result.scalar_one_or_none() is not None:
+        raise InvitationAlreadyExistsError()
+
+    # 4. Generate token and hash
+    token = generate_invitation_token(body.email, str(tenant.id))
+    token_hash = hashlib.sha256(token.encode()).hexdigest()
+
+    # 5. Create Invitation record
+    invitation = Invitation(
+        email=body.email,
+        tenant_id=tenant.id,
+        role=MemberRole(body.role),
+        token_hash=token_hash,
+        invited_by_id=membership.user_id,
+        expires_at=now + timedelta(days=7),
+        billing_access=body.billing_access,
+    )
+    db.add(invitation)
+    await db.flush()
+
+    # 6. Build invite link and enqueue email job
+    invite_link = f"{settings.ALLOWED_ORIGINS[0]}/invitations/accept?token={token}"
+    pool = await get_arq_pool()
+    try:
+        await pool.enqueue_job(
+            "send_invitation_email",
+            body.email,
+            tenant.name,
+            invite_link,
+            body.role,
+        )
+    finally:
+        await pool.aclose()
+
+    logger.info(
+        f"Invitation created for {body.email} to tenant {tenant.name} "
+        f"(id={tenant.id}) with role={body.role}"
+    )
+    return invitation
+
+
+async def accept_invitation(
+    db: AsyncSession,
+    user: User,
+    token: str,
+) -> TenantMembership:
+    """
+    Accept an invitation as an existing, verified user.
+
+    This is the EXISTING USER flow only. New users who sign up via an invitation
+    link are auto-joined by auto_join_pending_invitations (called from
+    auth/service.py verify_email) — they do NOT call this endpoint.
+
+    Steps:
+    1. Verify token — get payload (email, tenant_id).
+    2. Confirm token email matches authenticated user's email.
+    3. Look up Invitation by token_hash.
+    4. Validate: not yet accepted, not expired.
+    5. Check user is not already a member.
+    6. Create TenantMembership with role + billing_access from invitation.
+    7. Mark invitation.accepted_at.
+
+    Args:
+        db: Async database session.
+        user: The authenticated, verified user accepting the invitation.
+        token: The raw invitation token from the accept URL.
+
+    Returns:
+        The created TenantMembership.
+
+    Raises:
+        TokenExpiredError: Token has expired (> 7 days).
+        InvalidTokenError: Token is malformed, tampered, or not found in DB.
+        ForbiddenError: Token email does not match authenticated user's email.
+        ConflictError: Invitation already accepted.
+        AlreadyMemberError: User is already a member of this tenant.
+    """
+    # 1. Verify token — get payload
+    payload = verify_invitation_token(token)
+
+    # 2. Confirm token email matches authenticated user's email
+    if payload.get("email") != user.email:
+        raise ForbiddenError(
+            error_code="INVITATION_EMAIL_MISMATCH",
+            message="This invitation was sent to a different email address",
+        )
+
+    # 3. Look up Invitation by token_hash
+    token_hash = hashlib.sha256(token.encode()).hexdigest()
+    inv_result = await db.execute(
+        select(Invitation).where(Invitation.token_hash == token_hash)
+    )
+    invitation = inv_result.scalar_one_or_none()
+    if invitation is None:
+        raise InvalidTokenError()
+
+    # 4. Validate: not yet accepted
+    if invitation.accepted_at is not None:
+        raise ConflictError(
+            error_code="INVITATION_ALREADY_ACCEPTED",
+            message="This invitation has already been accepted",
+        )
+
+    # 4b. Check expiry (handle timezone-naive datetimes from SQLite in tests)
+    expires_at = invitation.expires_at
+    if expires_at.tzinfo is None:
+        expires_at = expires_at.replace(tzinfo=timezone.utc)
+    if expires_at < datetime.now(tz=timezone.utc):
+        raise TokenExpiredError()
+
+    # 5. Check user is not already a member
+    member_result = await db.execute(
+        select(TenantMembership).where(
+            TenantMembership.user_id == user.id,
+            TenantMembership.tenant_id == invitation.tenant_id,
+        )
+    )
+    if member_result.scalar_one_or_none() is not None:
+        raise AlreadyMemberError()
+
+    # 6. Create TenantMembership
+    new_membership = TenantMembership(
+        user_id=user.id,
+        tenant_id=invitation.tenant_id,
+        role=invitation.role,
+        billing_access=invitation.billing_access,
+        invited_by_id=invitation.invited_by_id,
+    )
+    db.add(new_membership)
+
+    # 7. Mark accepted
+    invitation.accepted_at = datetime.now(tz=timezone.utc)
+    await db.flush()
+
+    logger.info(
+        f"Invitation accepted by {user.email} for tenant_id={invitation.tenant_id}"
+    )
+    return new_membership
+
+
+async def auto_join_pending_invitations(
+    db: AsyncSession,
+    user: User,
+) -> list[TenantMembership]:
+    """
+    Automatically join a newly-verified user to all pending invitations.
+
+    This implements the NEW USER invitation flow per CONTEXT.md locked decision:
+    "New user invitation flow: invite link -> sign-up -> email verification ->
+    auto-join tenant (no separate accept step)"
+
+    Called by auth/service.py's verify_email function AFTER setting
+    email_verified=True. Runs inside the same DB transaction as verify_email.
+
+    CRITICAL: This function MUST NOT raise exceptions. It is fault-tolerant:
+    failures in individual invitation processing are caught, logged as warnings,
+    and skipped. The overall verify_email always succeeds.
+
+    Args:
+        db: Async database session (shared transaction with verify_email).
+        user: The newly-verified user.
+
+    Returns:
+        List of TenantMembership records created (may be empty if no pending
+        invitations exist for this email — that is normal and expected).
+    """
+    now = datetime.now(tz=timezone.utc)
+
+    # Query all pending (non-accepted) invitations for this email
+    result = await db.execute(
+        select(Invitation).where(
+            Invitation.email == user.email,
+            Invitation.accepted_at.is_(None),
+        )
+    )
+    pending = result.scalars().all()
+
+    memberships: list[TenantMembership] = []
+
+    for inv in pending:
+        try:
+            # Handle timezone-naive (SQLite in tests) vs timezone-aware (PostgreSQL)
+            expires_at = inv.expires_at
+            if expires_at.tzinfo is None:
+                expires_at = expires_at.replace(tzinfo=timezone.utc)
+
+            # Skip expired invitations
+            if expires_at <= now:
+                continue
+
+            # Check if user is already a member (idempotent)
+            member_result = await db.execute(
+                select(TenantMembership).where(
+                    TenantMembership.user_id == user.id,
+                    TenantMembership.tenant_id == inv.tenant_id,
+                )
+            )
+            if member_result.scalar_one_or_none() is not None:
+                # Already a member — skip
+                continue
+
+            # Create membership
+            new_membership = TenantMembership(
+                user_id=user.id,
+                tenant_id=inv.tenant_id,
+                role=inv.role,
+                billing_access=inv.billing_access,
+                invited_by_id=inv.invited_by_id,
+            )
+            db.add(new_membership)
+
+            # Mark invitation as accepted
+            inv.accepted_at = datetime.now(tz=timezone.utc)
+
+            memberships.append(new_membership)
+
+        except Exception:
+            logger.warning(
+                f"Failed to auto-join {user.email} to tenant_id={inv.tenant_id} "
+                f"from invitation id={inv.id} — skipping",
+                exc_info=True,
+            )
+            continue
+
+    if memberships:
+        await db.flush()
+
+    logger.info(
+        f"Auto-joined user {user.email} to {len(memberships)} tenant(s) "
+        "from pending invitations"
+    )
+    return memberships
+
+
+async def list_invitations(
+    db: AsyncSession,
+    tenant_id: uuid.UUID,
+) -> list[Invitation]:
+    """
+    Return all pending (non-accepted) invitations for a tenant.
+
+    Includes both active and expired invitations — frontend can filter by
+    expires_at. Ordered by created_at descending (newest first).
+
+    Args:
+        db: Async database session.
+        tenant_id: The tenant UUID to list invitations for.
+
+    Returns:
+        List of Invitation ORM instances (may be empty).
+    """
+    result = await db.execute(
+        select(Invitation)
+        .where(
+            Invitation.tenant_id == tenant_id,
+            Invitation.accepted_at.is_(None),
+        )
+        .order_by(Invitation.created_at.desc())
+    )
+    return list(result.scalars().all())
+
+
+async def cancel_invitation(
+    db: AsyncSession,
+    tenant_id: uuid.UUID,
+    invitation_id: uuid.UUID,
+) -> None:
+    """
+    Cancel (delete) a pending invitation for a tenant.
+
+    Args:
+        db: Async database session.
+        tenant_id: The tenant UUID (used to scope the lookup).
+        invitation_id: The invitation UUID to cancel.
+
+    Raises:
+        NotFoundError: Invitation not found for this tenant.
+        ConflictError: Invitation has already been accepted.
+    """
+    result = await db.execute(
+        select(Invitation).where(
+            Invitation.id == invitation_id,
+            Invitation.tenant_id == tenant_id,
+        )
+    )
+    invitation = result.scalar_one_or_none()
+
+    if invitation is None:
+        raise NotFoundError(
+            error_code="INVITATION_NOT_FOUND",
+            message="Invitation not found",
+        )
+
+    if invitation.accepted_at is not None:
+        raise ConflictError(
+            error_code="INVITATION_ALREADY_ACCEPTED",
+            message="Cannot cancel an accepted invitation",
+        )
+
+    await db.delete(invitation)
+    logger.info(f"Invitation {invitation_id} cancelled for tenant_id={tenant_id}")
