@@ -25,10 +25,23 @@ class Settings(BaseSettings):
     # --- JWT (Phase 2, declared here to fail fast if missing) ---
     JWT_PRIVATE_KEY: SecretStr  # RSA PEM, multi-line, set as env var
     JWT_PUBLIC_KEY: SecretStr
+    JWT_KID: str = "v1"  # Static key ID for Phase 2 (single-key rotation)
+    ACCESS_TOKEN_TTL_HOURS: int = 24
+    REFRESH_TOKEN_TTL_DAYS: int = 7
 
     # --- Super-admin seed ---
     SUPER_ADMIN_EMAIL: str
     SUPER_ADMIN_PASSWORD: SecretStr
+
+    # --- SMTP (fastapi-mail, defaults for Mailpit in development) ---
+    SMTP_HOST: str = "localhost"
+    SMTP_PORT: int = 1025
+    SMTP_USER: str = ""
+    SMTP_PASSWORD: str = ""
+    SMTP_FROM_EMAIL: str = "noreply@wxcode.io"
+    SMTP_FROM_NAME: str = "WXCODE"
+    SMTP_TLS: bool = False
+    SMTP_SSL: bool = False
 
     # --- CORS ---
     ALLOWED_ORIGINS: list[str] = ["http://localhost:3060"]
