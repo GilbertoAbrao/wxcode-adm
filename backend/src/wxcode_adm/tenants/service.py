@@ -6,6 +6,12 @@ Provides:
   ensuring uniqueness against existing tenant slugs
 - create_workspace: creates a Tenant and assigns the creator as Owner
 - get_user_tenants: returns a user's tenant memberships with tenant details
+- change_role: Owner or Admin changes a member's role (blocks Owner self-demotion)
+- remove_member: Owner or Admin removes a member (preserves user account)
+- leave_tenant: Member voluntarily leaves a tenant (Owner must transfer first)
+- initiate_transfer: Owner initiates a two-step ownership transfer
+- accept_transfer: Target member accepts the ownership transfer
+- get_pending_transfer: Returns the pending transfer for a tenant, or None
 
 Design notes:
 - generate_unique_slug uses python-slugify with a 10-iteration uniqueness loop.
@@ -17,9 +23,17 @@ Design notes:
 - invitation_serializer is module-level (captured at import time) and follows
   the same itsdangerous pattern as auth/service.py reset_serializer. Tests
   monkeypatch this attribute to use a test-keyed serializer.
+- change_role guard ORDER: owner self-demotion check FIRST (per research
+  pitfall #5), then actor privilege check, then OWNER role assignment block.
+- Datetime comparisons handle timezone-naive (SQLite in tests) vs
+  timezone-aware (PostgreSQL in production) by attaching utc tzinfo to naive
+  datetimes — same pattern as auth/service.py refresh token expiry.
 """
 
+from __future__ import annotations
+
 import uuid
+from datetime import datetime, timedelta, timezone
 
 from itsdangerous import URLSafeTimedSerializer
 from slugify import slugify
@@ -27,10 +41,19 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
+from wxcode_adm.auth.exceptions import TokenExpiredError
 from wxcode_adm.auth.models import User
 from wxcode_adm.common.exceptions import ConflictError
 from wxcode_adm.config import settings
-from wxcode_adm.tenants.models import MemberRole, Tenant, TenantMembership
+from wxcode_adm.tenants.exceptions import (
+    InsufficientRoleError,
+    NotMemberError,
+    OwnerCannotLeaveError,
+    OwnerCannotSelfDemoteError,
+    TransferAlreadyPendingError,
+)
+from wxcode_adm.common.exceptions import ForbiddenError, NotFoundError
+from wxcode_adm.tenants.models import MemberRole, OwnershipTransfer, Tenant, TenantMembership
 
 # ---------------------------------------------------------------------------
 # Module-level serializer (tests monkeypatch this attribute)
@@ -177,3 +200,380 @@ async def get_user_tenants(
         }
         for membership in memberships
     ]
+
+
+# ---------------------------------------------------------------------------
+# Member management
+# ---------------------------------------------------------------------------
+
+
+async def change_role(
+    db: AsyncSession,
+    tenant: Tenant,
+    actor: TenantMembership,
+    target_user_id: uuid.UUID,
+    new_role: MemberRole,
+    billing_access: bool | None,
+) -> TenantMembership:
+    """
+    Change a member's role within a tenant.
+
+    Guard order (per research pitfall #5 — owner self-demotion checked FIRST):
+    1. Fetch target membership — 404 if not found.
+    2. If target IS the Owner AND target IS the actor: block self-demotion.
+    3. If target IS the Owner AND actor is NOT the Owner: only Owner can touch Owner.
+    4. Reject OWNER as new_role — use ownership transfer instead.
+    5. Apply the role (and optional billing_access) change.
+
+    Args:
+        db: Async database session.
+        tenant: The resolved Tenant object.
+        actor: The TenantMembership of the user making the request.
+        target_user_id: UUID of the user whose role is being changed.
+        new_role: The desired new role (must not be OWNER).
+        billing_access: If provided, also update billing_access toggle.
+
+    Returns:
+        The updated TenantMembership.
+
+    Raises:
+        NotFoundError: MEMBER_NOT_FOUND — target is not a member.
+        OwnerCannotSelfDemoteError: Owner tried to demote themselves.
+        InsufficientRoleError: Admin tried to change Owner's role.
+        ForbiddenError: USE_TRANSFER — caller tried to assign OWNER via this endpoint.
+    """
+    # 1. Find target membership
+    result = await db.execute(
+        select(TenantMembership).where(
+            TenantMembership.user_id == target_user_id,
+            TenantMembership.tenant_id == tenant.id,
+        )
+    )
+    target_membership = result.scalar_one_or_none()
+    if target_membership is None:
+        raise NotFoundError(
+            error_code="MEMBER_NOT_FOUND",
+            message="Member not found in this tenant",
+        )
+
+    # 2. Owner cannot demote themselves — must transfer ownership first
+    if (
+        target_membership.role == MemberRole.OWNER
+        and target_membership.user_id == actor.user_id
+    ):
+        raise OwnerCannotSelfDemoteError()
+
+    # 3. Only the Owner can modify the Owner's membership
+    if (
+        target_membership.role == MemberRole.OWNER
+        and actor.role != MemberRole.OWNER
+    ):
+        raise InsufficientRoleError(
+            message="Only the Owner can change the Owner's role"
+        )
+
+    # 4. Cannot assign OWNER via change_role — use ownership transfer
+    if new_role == MemberRole.OWNER:
+        raise ForbiddenError(
+            error_code="USE_TRANSFER",
+            message="Use ownership transfer to assign Owner role",
+        )
+
+    # 5. Apply the changes
+    target_membership.role = new_role
+    if billing_access is not None:
+        target_membership.billing_access = billing_access
+
+    return target_membership
+
+
+async def remove_member(
+    db: AsyncSession,
+    tenant: Tenant,
+    actor: TenantMembership,
+    target_user_id: uuid.UUID,
+) -> None:
+    """
+    Remove a member from a tenant (Admin/Owner action).
+
+    The user's account is preserved — they just lose membership in this tenant.
+    Use leave_tenant for self-removal; this endpoint is for admin actions only.
+
+    Args:
+        db: Async database session.
+        tenant: The resolved Tenant object.
+        actor: The TenantMembership of the user making the request.
+        target_user_id: UUID of the user to remove.
+
+    Raises:
+        ForbiddenError: USE_LEAVE — actor tried to remove themselves.
+        NotFoundError: MEMBER_NOT_FOUND — target is not a member.
+        ForbiddenError: CANNOT_REMOVE_OWNER — cannot remove the tenant Owner.
+    """
+    # Cannot remove yourself via this endpoint — use leave_tenant
+    if target_user_id == actor.user_id:
+        raise ForbiddenError(
+            error_code="USE_LEAVE",
+            message="Use the leave endpoint to remove yourself",
+        )
+
+    # Find target membership
+    result = await db.execute(
+        select(TenantMembership).where(
+            TenantMembership.user_id == target_user_id,
+            TenantMembership.tenant_id == tenant.id,
+        )
+    )
+    target_membership = result.scalar_one_or_none()
+    if target_membership is None:
+        raise NotFoundError(
+            error_code="MEMBER_NOT_FOUND",
+            message="Member not found",
+        )
+
+    # Cannot remove the Owner
+    if target_membership.role == MemberRole.OWNER:
+        raise ForbiddenError(
+            error_code="CANNOT_REMOVE_OWNER",
+            message="Cannot remove the tenant Owner",
+        )
+
+    await db.delete(target_membership)
+
+
+async def leave_tenant(
+    db: AsyncSession,
+    tenant_id: uuid.UUID,
+    user_id: uuid.UUID,
+) -> None:
+    """
+    Allow a member to voluntarily leave a tenant.
+
+    The Owner cannot leave without first transferring ownership.
+
+    Args:
+        db: Async database session.
+        tenant_id: UUID of the tenant to leave.
+        user_id: UUID of the user leaving.
+
+    Raises:
+        NotMemberError: User is not a member of this tenant.
+        OwnerCannotLeaveError: Owner must transfer ownership before leaving.
+    """
+    result = await db.execute(
+        select(TenantMembership).where(
+            TenantMembership.user_id == user_id,
+            TenantMembership.tenant_id == tenant_id,
+        )
+    )
+    membership = result.scalar_one_or_none()
+    if membership is None:
+        raise NotMemberError()
+
+    if membership.role == MemberRole.OWNER:
+        raise OwnerCannotLeaveError()
+
+    await db.delete(membership)
+
+
+# ---------------------------------------------------------------------------
+# Ownership transfer
+# ---------------------------------------------------------------------------
+
+
+def _normalize_expires_at(expires_at: datetime) -> datetime:
+    """
+    Attach UTC tzinfo to a naive datetime for safe comparison.
+
+    SQLite stores datetimes as naive; PostgreSQL as timezone-aware.
+    This follows the same pattern as auth/service.py refresh token expiry.
+    """
+    if expires_at.tzinfo is None:
+        return expires_at.replace(tzinfo=timezone.utc)
+    return expires_at
+
+
+async def initiate_transfer(
+    db: AsyncSession,
+    tenant: Tenant,
+    owner_membership: TenantMembership,
+    to_user_id: uuid.UUID,
+) -> OwnershipTransfer:
+    """
+    Initiate a two-step ownership transfer to another tenant member.
+
+    Only the current Owner can call this. The target must already be a member.
+    Only one pending (non-expired) transfer is allowed per tenant at a time.
+    Expired stale transfers are cleaned up automatically.
+
+    Args:
+        db: Async database session.
+        tenant: The resolved Tenant object.
+        owner_membership: The TenantMembership of the requesting user (must be OWNER).
+        to_user_id: UUID of the member who will receive ownership.
+
+    Returns:
+        The created OwnershipTransfer record.
+
+    Raises:
+        InsufficientRoleError: Caller is not the Owner.
+        ForbiddenError: CANNOT_TRANSFER_TO_SELF — transferring to yourself.
+        NotFoundError: MEMBER_NOT_FOUND — target is not a member.
+        TransferAlreadyPendingError: A non-expired transfer already exists.
+    """
+    # Verify actor IS the Owner
+    if owner_membership.role != MemberRole.OWNER:
+        raise InsufficientRoleError(
+            message="Only the Owner can initiate ownership transfer"
+        )
+
+    # Cannot transfer to yourself
+    if to_user_id == owner_membership.user_id:
+        raise ForbiddenError(
+            error_code="CANNOT_TRANSFER_TO_SELF",
+            message="Cannot transfer ownership to yourself",
+        )
+
+    # Verify target is a member
+    result = await db.execute(
+        select(TenantMembership).where(
+            TenantMembership.user_id == to_user_id,
+            TenantMembership.tenant_id == tenant.id,
+        )
+    )
+    target_membership = result.scalar_one_or_none()
+    if target_membership is None:
+        raise NotFoundError(
+            error_code="MEMBER_NOT_FOUND",
+            message="Target user is not a member of this tenant",
+        )
+
+    # Check for existing pending transfer
+    now = datetime.now(tz=timezone.utc)
+    existing_result = await db.execute(
+        select(OwnershipTransfer).where(OwnershipTransfer.tenant_id == tenant.id)
+    )
+    existing = existing_result.scalar_one_or_none()
+    if existing is not None:
+        expires_at = _normalize_expires_at(existing.expires_at)
+        if expires_at > now:
+            raise TransferAlreadyPendingError()
+        # Expired — delete stale record and proceed
+        await db.delete(existing)
+        await db.flush()
+
+    # Create the transfer
+    transfer = OwnershipTransfer(
+        tenant_id=tenant.id,
+        from_user_id=owner_membership.user_id,
+        to_user_id=to_user_id,
+        expires_at=datetime.now(tz=timezone.utc) + timedelta(days=7),
+    )
+    db.add(transfer)
+    await db.flush()
+
+    return transfer
+
+
+async def accept_transfer(
+    db: AsyncSession,
+    tenant_id: uuid.UUID,
+    user_id: uuid.UUID,
+) -> None:
+    """
+    Accept a pending ownership transfer (called by the target member).
+
+    Upon acceptance:
+    - The old Owner is downgraded to Admin.
+    - The accepting user is upgraded to Owner.
+    - The transfer record is deleted.
+
+    Args:
+        db: Async database session.
+        tenant_id: UUID of the tenant.
+        user_id: UUID of the user accepting (must match transfer.to_user_id).
+
+    Raises:
+        NotFoundError: TRANSFER_NOT_FOUND — no pending transfer for this user.
+        TokenExpiredError: The transfer has expired.
+    """
+    # Find the pending transfer for this user
+    result = await db.execute(
+        select(OwnershipTransfer).where(
+            OwnershipTransfer.tenant_id == tenant_id,
+            OwnershipTransfer.to_user_id == user_id,
+        )
+    )
+    transfer = result.scalar_one_or_none()
+    if transfer is None:
+        raise NotFoundError(
+            error_code="TRANSFER_NOT_FOUND",
+            message="No pending ownership transfer found for you",
+        )
+
+    # Check expiry
+    now = datetime.now(tz=timezone.utc)
+    expires_at = _normalize_expires_at(transfer.expires_at)
+    if expires_at < now:
+        await db.delete(transfer)
+        raise TokenExpiredError()
+
+    # Find from_user membership (current Owner)
+    from_result = await db.execute(
+        select(TenantMembership).where(
+            TenantMembership.user_id == transfer.from_user_id,
+            TenantMembership.tenant_id == tenant_id,
+        )
+    )
+    from_membership = from_result.scalar_one_or_none()
+
+    # Find to_user membership (new Owner)
+    to_result = await db.execute(
+        select(TenantMembership).where(
+            TenantMembership.user_id == user_id,
+            TenantMembership.tenant_id == tenant_id,
+        )
+    )
+    to_membership = to_result.scalar_one_or_none()
+
+    # Swap roles
+    if from_membership is not None:
+        from_membership.role = MemberRole.ADMIN
+    if to_membership is not None:
+        to_membership.role = MemberRole.OWNER
+
+    # Delete the transfer record
+    await db.delete(transfer)
+
+
+async def get_pending_transfer(
+    db: AsyncSession,
+    tenant_id: uuid.UUID,
+) -> OwnershipTransfer | None:
+    """
+    Return the pending (non-expired) ownership transfer for a tenant.
+
+    If a transfer exists but has expired, it is deleted and None is returned.
+    If no transfer exists, None is returned.
+
+    Args:
+        db: Async database session.
+        tenant_id: UUID of the tenant.
+
+    Returns:
+        OwnershipTransfer if a valid pending transfer exists, else None.
+    """
+    result = await db.execute(
+        select(OwnershipTransfer).where(OwnershipTransfer.tenant_id == tenant_id)
+    )
+    transfer = result.scalar_one_or_none()
+    if transfer is None:
+        return None
+
+    now = datetime.now(tz=timezone.utc)
+    expires_at = _normalize_expires_at(transfer.expires_at)
+    if expires_at <= now:
+        await db.delete(transfer)
+        return None
+
+    return transfer
