@@ -9,12 +9,12 @@ See: .planning/PROJECT.md (updated 2026-02-22)
 
 ## Current Position
 
-Phase: 4 of 8 (Billing Core) — IN PROGRESS
-Plan: 4 of 5 in current phase (04-04 complete — Customer Portal access, subscription status API, and plan enforcement dependencies)
-Status: Plan 04-04 complete — POST /billing/portal, GET /billing/subscription, billing/dependencies.py with require_active_subscription, check_token_quota, check_member_cap, enforce_member_cap, _enforce_active_subscription, _enforce_token_quota
-Last activity: 2026-02-23 — Plan 04-04 complete: Stripe Customer Portal, subscription status, and plan enforcement dependencies
+Phase: 4 of 8 (Billing Core) — COMPLETE
+Plan: 5 of 5 in current phase (04-05 complete — Migration 003, billing test infrastructure, 19 integration tests, Phase 4 billing-core fully verified)
+Status: Plan 04-05 complete — Alembic migration 003, conftest Stripe mocks + free plan seed, 19 billing integration tests (all 5 BILL-* requirements verified)
+Last activity: 2026-02-23 — Plan 04-05 complete: Migration 003, billing tests, Phase 4 COMPLETE
 
-Progress: [████████████████] 75%
+Progress: [████████████████████] 80%
 
 ## Performance Metrics
 
@@ -51,6 +51,7 @@ Progress: [████████████████] 75%
 | Phase 04-billing-core P02 | 3 | 2 tasks | 4 files |
 | Phase 04-billing-core P04 | 4 | 2 tasks | 3 files |
 | Phase 04-billing-core P03 | 4 | 2 tasks | 5 files |
+| Phase 04-billing-core P05 | 7 | 2 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -129,6 +130,9 @@ Recent decisions affecting current work:
 - [Phase 04-billing-core]: Webhook router is a separate file from router.py — fundamentally different auth requirements (Stripe-Signature, not JWT)
 - [Phase 04-billing-core]: Two-layer webhook idempotency: arq _job_id (Redis, in-flight dedup) + WebhookEvent table (permanent DB record, outlasts arq TTL)
 - [Phase 04-billing-core]: payment_failed revokes JWT tokens via RefreshToken delete AND Redis blacklist with ACCESS_TOKEN_TTL_HOURS TTL
+- [Phase 04-05]: Stripe client must be mocked in both stripe_client_module and billing_service_module — service.py copies the reference at import time
+- [Phase 04-05]: Free plan seeded in test_db fixture so all workspace-creating tests work without explicit setup — bootstrap_free_subscription requires it
+- [Phase 04-05]: tasks.worker.get_arq_pool patched at source module so billing service lazy import picks up mock
 
 ### Pending Todos
 
@@ -143,5 +147,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-23
-Stopped at: Completed 04-04-PLAN.md — Customer Portal, subscription status API, plan enforcement dependencies, Plan 4 of 5 in Phase 4
-Resume file: .planning/phases/04-billing-core/04-05-PLAN.md
+Stopped at: Completed 04-05-PLAN.md — Migration 003, billing test infrastructure, 19 integration tests, Phase 4 billing-core COMPLETE (5 of 5 plans done)
+Resume file: .planning/phases/05-api-gateway/ (Phase 5 — next phase)
