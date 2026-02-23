@@ -94,15 +94,16 @@ Plans:
   3. When Stripe delivers a webhook event (subscription.updated, invoice.paid, invoice.payment_failed, subscription.deleted), the subscription state in the database is updated correctly within one webhook delivery — no polling required
   4. User can open the Stripe Customer Portal from within the app and manage their subscription, payment method, and invoices without contacting support
   5. When a tenant exceeds their plan's limits, the API returns HTTP 402 with a clear message before passing the request to the wxcode engine — no wxcode engine operation runs over-limit
-**Plans**: TBD
+**Plans**: 5 plans
 
 Plans:
-- [ ] 04-01: Plan model, plan CRUD API (super-admin only), Stripe Price sync
-- [ ] 04-02: Stripe Customer creation on tenant sign-up, Stripe Checkout session endpoint
-- [ ] 04-03: Webhook ingestion (raw body, signature verify, idempotency, arq enqueue)
-- [ ] 04-04: Webhook processors (subscription state machine, invoice events, payment_failed)
-- [ ] 04-05: Stripe Customer Portal endpoint, subscription state display API
-- [ ] 04-06: Plan enforcement dependency (check quota before wxcode operations, HTTP 402)
+- [ ] 04-01-PLAN.md — Stripe SDK + config, billing models (Plan, TenantSubscription, WebhookEvent), exceptions, stripe_client singleton, plan CRUD API (super-admin), Stripe Price/Meter sync
+- [ ] 04-02-PLAN.md — Stripe Customer creation at workspace onboarding, free plan bootstrap, Stripe Checkout session endpoint
+- [ ] 04-03-PLAN.md — Webhook ingestion (raw body, signature verify, arq enqueue with _job_id dedup), webhook processors (subscription state machine, payment failure + JWT revocation + email)
+- [ ] 04-04-PLAN.md — Customer Portal session endpoint, subscription status API, plan enforcement dependencies (active subscription, token quota, member cap)
+- [ ] 04-05-PLAN.md — Alembic migration 003, conftest billing imports + Stripe mocks, integration tests for all 5 success criteria
+
+**Phase requirement IDs (every ID MUST appear in a plan's `requirements` field):** BILL-01, BILL-02, BILL-03, BILL-04, BILL-05
 
 ### Phase 5: Platform Security
 **Goal**: Every sensitive API surface has rate limiting, every significant action is recorded in an immutable audit log, tenants have programmable API access with scoped keys, and all transactional emails are delivered via templated, tracked messages
@@ -188,7 +189,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8
 | 1. Foundation | 4/4 | Complete | 2026-02-22 |
 | 2. Auth Core | 5/5 | Complete   | 2026-02-23 |
 | 3. Multi-Tenancy and RBAC | 5/5 | Complete    | 2026-02-23 |
-| 4. Billing Core | 0/6 | Not started | - |
+| 4. Billing Core | 0/5 | Not started | - |
 | 5. Platform Security | 0/5 | Not started | - |
 | 6. OAuth and MFA | 0/5 | Not started | - |
 | 7. User Account | 0/4 | Not started | - |
