@@ -53,14 +53,14 @@ Plans:
   5. User can log out, invalidating their refresh token; blacklisted tokens are rejected on subsequent requests
   6. User can reset a forgotten password via a single-use email link that expires in 1 hour
   7. The JWKS endpoint (/.well-known/jwks.json) exposes the RSA public key and wxcode can validate a token locally using that key without calling wxcode-adm
-**Plans**: TBD
+**Plans**: 5 plans
 
 Plans:
-- [ ] 02-01: RSA key pair generation, JWT RS256 signing, JWKS endpoint
-- [ ] 02-02: Sign-up endpoint, email verification (6-digit code via arq), password hashing (pwdlib/argon2)
-- [ ] 02-03: Sign-in endpoint, refresh token rotation, Redis blacklist, logout
-- [ ] 02-04: Password reset flow (itsdangerous signed link, single-use enforcement)
-- [ ] 02-05: FastAPI auth dependencies (get_current_user, require_verified), integration tests
+- [ ] 02-01-PLAN.md — RSA key infrastructure, JWT RS256 signing/verification, JWKS endpoint, User model, auth exceptions, password hashing
+- [ ] 02-02-PLAN.md — Sign-up endpoint, email verification (6-digit OTP via Redis + arq), super-admin seed
+- [ ] 02-03-PLAN.md — Sign-in endpoint, refresh token rotation (DB storage), access token Redis blacklist, logout
+- [ ] 02-04-PLAN.md — Password reset flow (itsdangerous signed link, single-use via pw_hash salt, session revocation)
+- [ ] 02-05-PLAN.md — FastAPI auth dependencies (get_current_user, require_verified), Alembic migration, integration tests
 
 ### Phase 3: Multi-Tenancy and RBAC
 **Goal**: Every authenticated user belongs to exactly one tenant, every action is scoped to that tenant, and roles determine what each user can do within their tenant
@@ -183,8 +183,8 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Foundation | 3/4 | In progress | - |
-| 2. Auth Core | 0/5 | Not started | - |
+| 1. Foundation | 4/4 | Complete | 2026-02-22 |
+| 2. Auth Core | 0/5 | Planned | - |
 | 3. Multi-Tenancy and RBAC | 0/5 | Not started | - |
 | 4. Billing Core | 0/6 | Not started | - |
 | 5. Platform Security | 0/5 | Not started | - |
