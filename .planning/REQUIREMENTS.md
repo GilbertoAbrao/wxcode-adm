@@ -41,7 +41,7 @@ Requirements for initial release. Each maps to roadmap phases.
 
 - [x] **BILL-01**: Super-admin can CRUD billing plans (synced with Stripe)
 - [x] **BILL-02**: User can subscribe to a plan via Stripe Checkout
-- [ ] **BILL-03**: Stripe webhooks sync subscription state (paid, updated, deleted, failed)
+- [x] **BILL-03**: Stripe webhooks sync subscription state (paid, updated, deleted, failed)
 - [x] **BILL-04**: User can manage billing via Stripe Customer Portal
 - [x] **BILL-05**: Plan limits enforced before wxcode engine operations
 
@@ -144,7 +144,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | RBAC-03 | Phase 3 | Complete |
 | BILL-01 | Phase 4 | Complete |
 | BILL-02 | Phase 4 | Complete |
-| BILL-03 | Phase 4 | Pending |
+| BILL-03 | Phase 4 | Complete |
 | BILL-04 | Phase 4 | Complete |
 | BILL-05 | Phase 4 | Complete |
 | PLAT-01 | Phase 5 | Pending |

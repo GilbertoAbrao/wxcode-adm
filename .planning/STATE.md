@@ -50,6 +50,7 @@ Progress: [████████████████] 75%
 | Phase 04-billing-core P01 | 3 | 2 tasks | 9 files |
 | Phase 04-billing-core P02 | 3 | 2 tasks | 4 files |
 | Phase 04-billing-core P04 | 4 | 2 tasks | 3 files |
+| Phase 04-billing-core P03 | 4 | 2 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -125,6 +126,9 @@ Recent decisions affecting current work:
 - [04-04]: enforce_member_cap is a standalone async utility (not a FastAPI Depends) — avoids double tenant-context resolution since require_role already resolves it in create_invitation
 - [04-04]: check_token_quota chains on require_active_subscription — quota check only runs if subscription is not past_due/canceled
 - [04-04]: Overage billing rule: _enforce_token_quota only raises for monthly_fee_cents==0 plans — paid customers are never blocked regardless of token usage
+- [Phase 04-billing-core]: Webhook router is a separate file from router.py — fundamentally different auth requirements (Stripe-Signature, not JWT)
+- [Phase 04-billing-core]: Two-layer webhook idempotency: arq _job_id (Redis, in-flight dedup) + WebhookEvent table (permanent DB record, outlasts arq TTL)
+- [Phase 04-billing-core]: payment_failed revokes JWT tokens via RefreshToken delete AND Redis blacklist with ACCESS_TOKEN_TTL_HOURS TTL
 
 ### Pending Todos
 
