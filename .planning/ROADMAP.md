@@ -67,9 +67,9 @@ Plans:
 **Depends on**: Phase 2
 **Requirements**: TNNT-01, TNNT-02, TNNT-03, TNNT-04, TNNT-05, RBAC-01, RBAC-02, RBAC-03
 **Success Criteria** (what must be TRUE):
-  1. When a user completes sign-up, a tenant is auto-created with a human-readable slug and the user is assigned the Owner role
-  2. Tenant Owner or Admin can invite a user by email; the invited user receives an email with a 7-day expiry token and, upon accepting, is exclusively bound to that tenant
-  3. The 5 RBAC roles (Owner, Admin, Developer, Viewer, Billing) are enforced on every API endpoint — a Viewer cannot perform an Admin action and receives a 403 response
+  1. After a verified user completes the onboarding step (POST /api/v1/onboarding/workspace with a workspace name), a tenant is created with an auto-generated permanent slug and the user is assigned the Owner role
+  2. Tenant Owner or Admin can invite a user by email; the invited user receives an email with a 7-day expiry token; existing users accept via POST /invitations/accept, new users auto-join after completing sign-up and email verification (no separate accept step); the user gains membership in the inviting tenant (multiple concurrent memberships supported)
+  3. The 4 RBAC roles (Owner, Admin, Developer, Viewer) plus billing_access toggle are enforced on every API endpoint — a Viewer cannot perform an Admin action and receives a 403 response
   4. Owner or Admin can change any member's role or remove them from the tenant
   5. Tenant Owner can transfer ownership to another member; the previous owner's role is downgraded to Admin
   6. Every database query in the system includes tenant_id; a cross-tenant isolation test suite confirms zero data leakage between tenants
