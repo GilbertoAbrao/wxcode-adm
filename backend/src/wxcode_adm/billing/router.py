@@ -29,6 +29,7 @@ from wxcode_adm.billing.schemas import (
     CheckoutResponse,
     CreatePlanRequest,
     PlanResponse,
+    SubscriptionResponse,
     UpdatePlanRequest,
 )
 from wxcode_adm.common.exceptions import ForbiddenError
@@ -221,3 +222,45 @@ async def create_checkout_session(
         plan_id=body.plan_id,
     )
     return CheckoutResponse(checkout_url=checkout_url, session_id=session_id)
+
+
+@billing_router.post(
+    "/portal",
+    status_code=status.HTTP_200_OK,
+)
+async def create_portal_session(
+    db: Annotated[AsyncSession, Depends(get_session)],
+    ctx: Annotated[tuple[Tenant, TenantMembership], Depends(require_billing_access)],
+) -> dict:
+    """
+    Create a Stripe Customer Portal session for the current tenant.
+
+    Returns a portal URL for client-side redirect. The portal allows members with
+    billing access to manage their subscription, update payment methods, and view invoices.
+
+    Requires: billing_access=True on membership OR Owner role.
+    """
+    tenant, _ = ctx
+    portal_url = await service.create_portal_session(db=db, tenant_id=tenant.id)
+    return {"portal_url": portal_url}
+
+
+@billing_router.get(
+    "/subscription",
+    response_model=SubscriptionResponse,
+)
+async def get_subscription_status(
+    db: Annotated[AsyncSession, Depends(get_session)],
+    ctx: Annotated[tuple[Tenant, TenantMembership], Depends(get_tenant_context)],
+) -> SubscriptionResponse:
+    """
+    Get the current subscription status for the tenant.
+
+    Returns subscription details including plan information.
+    Any authenticated tenant member can view subscription status.
+
+    Requires: any tenant membership (no billing_access needed).
+    """
+    tenant, _ = ctx
+    subscription = await service.get_subscription_status(db=db, tenant_id=tenant.id)
+    return SubscriptionResponse.model_validate(subscription)

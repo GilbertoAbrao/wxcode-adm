@@ -14,6 +14,10 @@ Checkout / subscription bootstrap:
 - bootstrap_free_subscription: creates TenantSubscription(status=FREE) at onboarding
 - create_checkout_session: generates a Stripe Checkout session URL for plan upgrade
 
+Portal / subscription status:
+- create_portal_session: creates a Stripe Customer Portal session URL for billing management
+- get_subscription_status: returns the current TenantSubscription with plan details
+
 Stripe calls are wrapped in try/except — Stripe failures log a warning but do NOT
 block plan creation/update/deletion. The plan record is authoritative; Stripe IDs
 are back-filled after successful API calls.
@@ -531,3 +535,88 @@ async def create_checkout_session(
 
     # 8. Return (checkout_url, session_id)
     return session.url, session.id
+
+
+# ---------------------------------------------------------------------------
+# Customer Portal + subscription status
+# ---------------------------------------------------------------------------
+
+
+async def create_portal_session(
+    db: AsyncSession,
+    tenant_id: uuid.UUID,
+) -> str:
+    """
+    Create a Stripe Customer Portal session URL for a tenant.
+
+    The portal allows billing_access members to manage their subscription,
+    update payment methods, download invoices, and cancel/upgrade.
+
+    Args:
+        db: Async database session.
+        tenant_id: UUID of the tenant requesting portal access.
+
+    Returns:
+        The Stripe Customer Portal session URL (for client-side redirect).
+
+    Raises:
+        PaymentRequiredError: Subscription record not found, or stripe_customer_id is None.
+    """
+    from wxcode_adm.config import settings as _settings  # noqa: PLC0415
+
+    subscription_result = await db.execute(
+        select(TenantSubscription).where(TenantSubscription.tenant_id == tenant_id)
+    )
+    subscription = subscription_result.scalar_one_or_none()
+    if subscription is None:
+        raise PaymentRequiredError(
+            error_code="NO_SUBSCRIPTION",
+            message="No subscription found",
+        )
+
+    if subscription.stripe_customer_id is None:
+        raise PaymentRequiredError(
+            error_code="NO_STRIPE_CUSTOMER",
+            message="Stripe customer not configured",
+        )
+
+    portal = await stripe_client.billing_portal.sessions.create_async(
+        params={
+            "customer": subscription.stripe_customer_id,
+            "return_url": f"{_settings.FRONTEND_URL}/billing",
+        }
+    )
+
+    return portal.url
+
+
+async def get_subscription_status(
+    db: AsyncSession,
+    tenant_id: uuid.UUID,
+) -> TenantSubscription:
+    """
+    Return the current TenantSubscription for a tenant, including plan details.
+
+    The plan relationship is loaded eagerly (lazy="joined" on the model),
+    so no extra selectinload is needed.
+
+    Args:
+        db: Async database session.
+        tenant_id: UUID of the tenant.
+
+    Returns:
+        TenantSubscription ORM instance with .plan populated.
+
+    Raises:
+        NotFoundError: if no subscription record exists for this tenant.
+    """
+    subscription_result = await db.execute(
+        select(TenantSubscription).where(TenantSubscription.tenant_id == tenant_id)
+    )
+    subscription = subscription_result.scalar_one_or_none()
+    if subscription is None:
+        raise NotFoundError(
+            error_code="SUBSCRIPTION_NOT_FOUND",
+            message="No subscription found for this tenant",
+        )
+    return subscription
