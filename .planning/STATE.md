@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-02-22)
 
 **Core value:** Controlar acesso seguro a plataforma WXCODE com identidade, permissoes por tenant e cobranca recorrente — sem executar nenhuma operacao do wxcode engine.
-**Current focus:** Phase 3 — Multi-Tenancy and RBAC
+**Current focus:** Phase 4 — Billing Core
 
 ## Current Position
 
-Phase: 3 of 8 (Multi-Tenancy and RBAC) — COMPLETE
-Plan: 5 of 5 in current phase (03-05 complete — migration 002, 33 integration tests covering all 6 Phase 3 success criteria)
-Status: Plan 03-05 complete — Alembic migration 002 (4 tables), 33 integration tests, 54 total tests passing (auth + tenants), Phase 3 COMPLETE
-Last activity: 2026-02-23 — Plan 03-05 complete: migration 002 and full integration test suite for all Phase 3 success criteria
+Phase: 4 of 8 (Billing Core) — IN PROGRESS
+Plan: 1 of 5 in current phase (04-01 complete — billing foundation: Stripe SDK, Plan/TenantSubscription/WebhookEvent models, plan CRUD API with Stripe sync)
+Status: Plan 04-01 complete — stripe[async]==14.3.0 integrated, billing models, 5 super-admin plan CRUD endpoints, public plan catalog endpoint
+Last activity: 2026-02-23 — Plan 04-01 complete: billing domain foundation with Stripe synchronization
 
-Progress: [██████████] 62%
+Progress: [████████████] 65%
 
 ## Performance Metrics
 
@@ -30,9 +30,10 @@ Progress: [██████████] 62%
 | 01-foundation | 4/4 | 23 min | 6 min |
 | 02-auth-core | 5/5 | 20 min | 4 min |
 | 03-multi-tenancy-and-rbac | 5/5 | 22 min | 4 min |
+| 04-billing-core | 1/5 | 3 min | 3 min |
 
 **Recent Trend:**
-- Last 5 plans: 3 min, 2 min, 6 min, 4 min, 6 min
+- Last 5 plans: 2 min, 6 min, 4 min, 6 min, 3 min
 - Trend: Stable
 
 *Updated after each plan completion*
@@ -46,6 +47,7 @@ Progress: [██████████] 62%
 | Phase 03 P03 | 7 | 2 tasks | 6 files |
 | Phase 03 P04 | 4 | 2 tasks | 2 files |
 | Phase 03-multi-tenancy-and-rbac P05 | 6 | 2 tasks | 3 files |
+| Phase 04-billing-core P01 | 3 | 2 tasks | 9 files |
 
 ## Accumulated Context
 
@@ -107,6 +109,12 @@ Recent decisions affecting current work:
 - [Phase 03]: conftest.py must patch tenant_service_module.get_arq_pool alongside auth_service — invite_user calls get_arq_pool for email jobs
 - [Phase 03]: _signup_verify_login tracks pre-signup OTP keys in Redis to correctly identify new user's OTP key when multiple users exist in test DB
 - [Phase 03]: Alembic migration 002 uses String(20) for role columns (not native ENUM) matching native_enum=False decision from Plan 03-01
+- [04-01]: stripe[async]==14.3.0 uses modern StripeClient constructor (not legacy stripe.api_key global) — all async calls use _async suffix on methods
+- [04-01]: Stripe failures are non-blocking — wrapped in try/except with logger.warning; plan DB record is authoritative source of truth
+- [04-01]: Plan soft-deleted via is_active=False — hard delete blocked by TenantSubscription FK constraint
+- [04-01]: overage_rate_cents_per_token stored as integer hundredths of a cent (e.g., 4 = $0.00004/token) — avoids float precision issues
+- [04-01]: member_cap=-1 convention means unlimited members on a plan
+- [04-01]: Stripe IDs excluded from PlanResponse — internal implementation detail not needed by API consumers
 
 ### Pending Todos
 
@@ -121,5 +129,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-23
-Stopped at: Phase 4 context gathered — hybrid billing (monthly + token overage), no grace period, free tier hard block, member hard cap
-Resume file: .planning/phases/04-billing-core/04-CONTEXT.md
+Stopped at: Completed 04-01-PLAN.md — billing foundation complete, Plan 1 of 5 in Phase 4
+Resume file: .planning/phases/04-billing-core/04-02-PLAN.md
