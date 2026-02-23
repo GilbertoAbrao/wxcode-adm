@@ -13,6 +13,8 @@ This module provides two routers:
    - POST /login                 — Authenticate and receive access+refresh tokens
    - POST /refresh               — Rotate refresh token and get new access token
    - POST /logout                — Invalidate refresh token and blacklist access token
+   - POST /forgot-password       — Initiate password reset (enumeration-safe)
+   - POST /reset-password        — Complete password reset with signed token
 
 The JWKS endpoint MUST remain at domain root per RFC 5785 — external services
 (e.g., wxcode engine) fetch this URL to verify JWTs issued by wxcode-adm.
@@ -25,12 +27,16 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from wxcode_adm.auth import service
 from wxcode_adm.auth.jwks import build_jwks_response
 from wxcode_adm.auth.schemas import (
+    ForgotPasswordRequest,
+    ForgotPasswordResponse,
     LoginRequest,
     LogoutRequest,
     MessageResponse,
     RefreshRequest,
     ResendVerificationRequest,
     ResendVerificationResponse,
+    ResetPasswordRequest,
+    ResetPasswordResponse,
     SignupRequest,
     SignupResponse,
     TokenResponse,
@@ -175,3 +181,39 @@ async def logout(
         access_token = authorization[7:]
     await service.logout(db, redis, body.refresh_token, access_token)
     return MessageResponse(message="Logged out successfully")
+
+
+@auth_api_router.post("/forgot-password", response_model=ForgotPasswordResponse)
+async def forgot_password(
+    body: ForgotPasswordRequest,
+    db: AsyncSession = Depends(get_session),
+    redis: Redis = Depends(get_redis),
+) -> ForgotPasswordResponse:
+    """
+    Initiate a password reset flow for the given email address.
+
+    - Returns 200 always with the same message regardless of whether the email
+      exists — this prevents user enumeration attacks.
+    - An arq job is enqueued to send the reset link only when the user exists.
+    """
+    await service.forgot_password(db, redis, body)
+    return ForgotPasswordResponse(
+        message="If an account exists, a reset link has been sent"
+    )
+
+
+@auth_api_router.post("/reset-password", response_model=ResetPasswordResponse)
+async def reset_password(
+    body: ResetPasswordRequest,
+    db: AsyncSession = Depends(get_session),
+) -> ResetPasswordResponse:
+    """
+    Complete a password reset using a signed token from the reset email.
+
+    - Returns 200 on success with a confirmation message.
+    - Returns 401 if the token is invalid, malformed, or already used.
+    - Returns 401 if the token has expired (24-hour window).
+    - On success, ALL refresh tokens for the user are deleted (force re-login).
+    """
+    await service.reset_password(db, body)
+    return ResetPasswordResponse(message="Password has been reset successfully")

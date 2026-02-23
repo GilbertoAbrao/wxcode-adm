@@ -104,7 +104,7 @@ async def send_reset_email(
         message = MessageSchema(
             subject="WXCODE - Reset your password",
             recipients=[email],
-            body=f"Click the link below to reset your password:\n\n{reset_link}\n\nThis link expires in 1 hour.",
+            body=f"Click the link below to reset your password:\n\n{reset_link}\n\nThis link expires in 24 hours and can only be used once.",
             subtype="plain",
         )
         fm = FastMail(conf)
