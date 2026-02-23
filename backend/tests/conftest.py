@@ -202,6 +202,7 @@ async def client(test_db, test_redis, rsa_keys, monkeypatch):
         return _FakeArqPool()
 
     monkeypatch.setattr(auth_service_module, "get_arq_pool", mock_get_arq_pool)
+    monkeypatch.setattr(tenant_service_module, "get_arq_pool", mock_get_arq_pool)
 
     # Build the FastAPI app and override dependencies
     from wxcode_adm.main import create_app
