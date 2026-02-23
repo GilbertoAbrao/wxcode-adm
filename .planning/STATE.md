@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-02-22)
 ## Current Position
 
 Phase: 4 of 8 (Billing Core) — IN PROGRESS
-Plan: 2 of 5 in current phase (04-02 complete — Stripe Customer + free plan bootstrap at workspace onboarding, checkout session endpoint)
-Status: Plan 04-02 complete — create_workspace bootstraps Stripe Customer + TenantSubscription(FREE), POST /billing/checkout returns Stripe-hosted payment URL
-Last activity: 2026-02-23 — Plan 04-02 complete: workspace onboarding billing bootstrap + Stripe Checkout session endpoint
+Plan: 4 of 5 in current phase (04-04 complete — Customer Portal access, subscription status API, and plan enforcement dependencies)
+Status: Plan 04-04 complete — POST /billing/portal, GET /billing/subscription, billing/dependencies.py with require_active_subscription, check_token_quota, check_member_cap, enforce_member_cap, _enforce_active_subscription, _enforce_token_quota
+Last activity: 2026-02-23 — Plan 04-04 complete: Stripe Customer Portal, subscription status, and plan enforcement dependencies
 
-Progress: [████████████] 67%
+Progress: [████████████████] 75%
 
 ## Performance Metrics
 
@@ -49,6 +49,7 @@ Progress: [████████████] 67%
 | Phase 03-multi-tenancy-and-rbac P05 | 6 | 2 tasks | 3 files |
 | Phase 04-billing-core P01 | 3 | 2 tasks | 9 files |
 | Phase 04-billing-core P02 | 3 | 2 tasks | 4 files |
+| Phase 04-billing-core P04 | 4 | 2 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -120,6 +121,10 @@ Recent decisions affecting current work:
 - [04-02]: create_stripe_customer is best-effort — Stripe failure logs WARNING, returns None; checkout creates customer lazily if needed
 - [04-02]: bootstrap_free_subscription raises RuntimeError if no free plan exists — free plan is a hard system requirement (must be seeded)
 - [04-02]: require_billing_access: Owner always has implicit billing access; other roles need explicit billing_access=True toggle
+- [04-04]: _enforce_active_subscription and _enforce_token_quota are pure sync helpers — Plan 05 tests call them directly without FastAPI Depends wiring
+- [04-04]: enforce_member_cap is a standalone async utility (not a FastAPI Depends) — avoids double tenant-context resolution since require_role already resolves it in create_invitation
+- [04-04]: check_token_quota chains on require_active_subscription — quota check only runs if subscription is not past_due/canceled
+- [04-04]: Overage billing rule: _enforce_token_quota only raises for monthly_fee_cents==0 plans — paid customers are never blocked regardless of token usage
 
 ### Pending Todos
 
@@ -134,5 +139,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-23
-Stopped at: Completed 04-02-PLAN.md — workspace onboarding billing bootstrap + checkout session endpoint, Plan 2 of 5 in Phase 4
-Resume file: .planning/phases/04-billing-core/04-03-PLAN.md
+Stopped at: Completed 04-04-PLAN.md — Customer Portal, subscription status API, plan enforcement dependencies, Plan 4 of 5 in Phase 4
+Resume file: .planning/phases/04-billing-core/04-05-PLAN.md
