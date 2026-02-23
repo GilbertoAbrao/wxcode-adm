@@ -11,7 +11,7 @@ import uuid
 from datetime import datetime
 
 from sqlalchemy import Boolean, DateTime, ForeignKey, String
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from wxcode_adm.db.base import Base, TimestampMixin
 
@@ -51,6 +51,15 @@ class User(TimestampMixin, Base):
         Boolean,
         default=False,
         nullable=False,
+    )
+
+    # Phase 3: TenantMembership join table links users to tenants.
+    # String reference avoids circular import — SQLAlchemy resolves at mapper
+    # configuration time. foreign_keys disambiguates TenantMembership.user_id
+    # from TenantMembership.invited_by_id (both reference users.id).
+    memberships: Mapped[list["TenantMembership"]] = relationship(  # type: ignore[name-defined]
+        back_populates="user",
+        foreign_keys="TenantMembership.user_id",
     )
 
     def __repr__(self) -> str:

@@ -17,6 +17,8 @@ dependencies = [
     "itsdangerous==2.2.0",
     "slowapi==0.1.9",
     "fastapi-mail==1.6.2",
+    # Phase 3 -- Multi-tenancy
+    "python-slugify==8.0.4",
 ]
 
 [project.optional-dependencies]
