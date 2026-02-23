@@ -121,5 +121,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-23
-Stopped at: Completed 03-05-PLAN.md — Migration 002 (4 tenant tables) and 33 integration tests covering all 6 Phase 3 success criteria. Phase 3 COMPLETE.
-Resume file: .planning/phases/04-billing/04-01-PLAN.md (next phase)
+Stopped at: Phase 4 context gathered — hybrid billing (monthly + token overage), no grace period, free tier hard block, member hard cap
+Resume file: .planning/phases/04-billing-core/04-CONTEXT.md
