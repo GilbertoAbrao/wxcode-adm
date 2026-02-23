@@ -12,7 +12,7 @@ Requirements for initial release. Each maps to roadmap phases.
 - [x] **AUTH-01**: User can sign up with email and password
 - [x] **AUTH-02**: User receives 6-digit verification code by email after signup
 - [x] **AUTH-03**: User can verify email entering the 6-digit code
-- [ ] **AUTH-04**: User can reset password via email link
+- [x] **AUTH-04**: User can reset password via email link
 - [x] **AUTH-05**: User receives JWT RS256 access token + refresh token on login
 - [x] **AUTH-06**: Refresh token rotation with revocation on logout
 - [x] **AUTH-07**: JWKS endpoint exposes public key for wxcode to validate tokens locally
@@ -124,7 +124,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | AUTH-01 | Phase 2 | Complete |
 | AUTH-02 | Phase 2 | Complete |
 | AUTH-03 | Phase 2 | Complete |
-| AUTH-04 | Phase 2 | Pending |
+| AUTH-04 | Phase 2 | Complete |
 | AUTH-05 | Phase 2 | Complete |
 | AUTH-06 | Phase 2 | Complete |
 | AUTH-07 | Phase 2 | Complete |

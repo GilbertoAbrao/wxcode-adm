@@ -10,18 +10,18 @@ See: .planning/PROJECT.md (updated 2026-02-22)
 ## Current Position
 
 Phase: 2 of 8 (Auth Core) — IN PROGRESS
-Plan: 3 of 5 in current phase (02-03 complete)
-Status: Plan 02-03 complete — Login/refresh/logout endpoints, RefreshToken model, access token blacklist, replay detection
-Last activity: 2026-02-23 — Plan 02-03 complete: login/refresh/logout, RefreshToken, Redis jti blacklist, shadow key replay detection
+Plan: 4 of 5 in current phase (02-04 complete)
+Status: Plan 02-04 complete — Password reset flow with itsdangerous signed tokens, single-use enforcement via pw_hash salt, session revocation
+Last activity: 2026-02-23 — Plan 02-04 complete: forgot-password and reset-password endpoints, itsdangerous reset tokens, all sessions revoked on reset
 
-Progress: [█████░░░░░] 30%
+Progress: [██████░░░░] 35%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 4
+- Total plans completed: 5
 - Average duration: 5 min
-- Total execution time: 0.37 hours
+- Total execution time: 0.40 hours
 
 **By Phase:**
 
@@ -37,6 +37,7 @@ Progress: [█████░░░░░] 30%
 | Phase 02-auth-core P01 | 4 | 2 tasks | 9 files |
 | Phase 02-auth-core P02 | 3 | 2 tasks | 7 files |
 | Phase 02-auth-core P03 | 3 | 2 tasks | 5 files |
+| Phase 02-auth-core P04 | 2 | 2 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -75,6 +76,10 @@ Recent decisions affecting current work:
 - [02-03]: ReplayDetectedError error_code changed to REPLAY_DETECTED (from AUTH_REPLAY_DETECTED) per plan spec; triggers full session revocation
 - [02-03]: blacklist_access_token uses jwt.decode with verify_exp=False — allows blacklisting nearly-expired tokens on logout
 - [02-03]: Shadow key pattern auth:replay:{sha256} maps consumed refresh token hash to user_id for replay detection across DB row deletion
+- [02-04]: pw_hash as itsdangerous salt — changing password automatically invalidates reset token without any DB token storage
+- [02-04]: loads_unsafe() for two-step verification — extract email first (unsigned) to find user for pw_hash, then full verify (breaks circular dependency)
+- [02-04]: reset_serializer uses JWT_PRIVATE_KEY as secret, salt="password-reset" namespaces from JWT usage
+- [02-04]: Reset link uses ALLOWED_ORIGINS[0] as base URL placeholder — adjusted in Phase 7 frontend integration
 
 ### Pending Todos
 
@@ -89,5 +94,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-23
-Stopped at: Completed 02-03-PLAN.md — login/refresh/logout endpoints, RefreshToken model, Redis jti blacklist, shadow key replay detection; 2 tasks, 5 files
+Stopped at: Completed 02-04-PLAN.md — password reset flow with itsdangerous signed tokens, forgot-password/reset-password endpoints, session revocation on reset; 2 tasks, 4 files
 Resume file: None
