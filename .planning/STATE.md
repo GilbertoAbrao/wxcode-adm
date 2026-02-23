@@ -10,9 +10,9 @@ See: .planning/PROJECT.md (updated 2026-02-22)
 ## Current Position
 
 Phase: 3 of 8 (Multi-Tenancy and RBAC) — IN PROGRESS
-Plan: 1 of 5 in current phase (03-01 complete — tenant data foundation done)
-Status: Plan 03-01 complete — Tenant, TenantMembership, Invitation, OwnershipTransfer models, MemberRole enum, domain exceptions, Pydantic schemas, ROADMAP.md aligned
-Last activity: 2026-02-23 — Plan 03-01 complete: 4 SQLAlchemy models, 9 domain exceptions, Pydantic v2 schemas, python-slugify installed
+Plan: 2 of 5 in current phase (03-02 complete — tenant operations, RBAC enforcement, router wiring done)
+Status: Plan 03-02 complete — get_tenant_context, require_role, workspace creation, 5 tenant endpoints, conftest and alembic updated
+Last activity: 2026-02-23 — Plan 03-02 complete: dependency chain, service layer, tenant router, main.py wiring, 21 tests passing
 
 Progress: [████████░░] 45%
 
@@ -29,7 +29,7 @@ Progress: [████████░░] 45%
 |-------|-------|-------|----------|
 | 01-foundation | 4/4 | 23 min | 6 min |
 | 02-auth-core | 5/5 | 20 min | 4 min |
-| 03-multi-tenancy-and-rbac | 1/5 | 4 min | 4 min |
+| 03-multi-tenancy-and-rbac | 2/5 | 8 min | 4 min |
 
 **Recent Trend:**
 - Last 5 plans: 3 min, 3 min, 2 min, 6 min, 4 min
@@ -42,6 +42,7 @@ Progress: [████████░░] 45%
 | Phase 02-auth-core P04 | 2 | 2 tasks | 4 files |
 | Phase 02-auth-core P05 | 6 | 2 tasks | 9 files |
 | Phase 03-multi-tenancy-and-rbac P01 | 4 | 3 tasks | 6 files |
+| Phase 03 P02 | 4 | 2 tasks | 6 files |
 
 ## Accumulated Context
 
@@ -90,6 +91,9 @@ Recent decisions affecting current work:
 - [Phase 03-multi-tenancy-and-rbac]: native_enum=False on MemberRole Enum columns — avoids PostgreSQL CREATE TYPE and Alembic migration pitfalls
 - [Phase 03-multi-tenancy-and-rbac]: from __future__ import annotations in tenants/models.py — Python 3.9.6 runtime requires Optional[X] instead of X | None
 - [Phase 03-multi-tenancy-and-rbac]: billing_access is Boolean toggle on TenantMembership (not a role) — propagated from Invitation on acceptance
+- [Phase 03]: UpdateTenantRequest defined in router.py (not schemas.py) — keeps schemas.py clean for Plan 03-03 invitation/transfer additions
+- [Phase 03]: list_members returns list[dict] (not list[MembershipResponse]) — email comes from User relationship, not TenantMembership ORM column; dict avoids from_attributes mismatch
+- [Phase 03]: invitation_serializer pre-wired in service.py in Plan 03-02 — avoids touching service.py again in Plan 03-03; tests monkeypatch via client fixture
 
 ### Pending Todos
 
@@ -104,5 +108,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-23
-Stopped at: Completed 03-01-PLAN.md — Tenant data foundation (models, exceptions, schemas, ROADMAP.md alignment)
-Resume file: .planning/phases/03-multi-tenancy-and-rbac/03-02-PLAN.md
+Stopped at: Completed 03-02-PLAN.md — Tenant operations (dependency chain, workspace creation, RBAC enforcement, router wiring)
+Resume file: .planning/phases/03-multi-tenancy-and-rbac/03-03-PLAN.md
