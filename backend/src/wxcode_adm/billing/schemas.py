@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import uuid
 from datetime import datetime
+from typing import Optional
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -27,12 +28,12 @@ class CreatePlanRequest(BaseModel):
 class UpdatePlanRequest(BaseModel):
     """Request body for PATCH /admin/billing/plans/{plan_id}."""
 
-    name: str | None = Field(default=None, min_length=2, max_length=100)
-    monthly_fee_cents: int | None = Field(default=None, ge=0)
-    token_quota: int | None = Field(default=None, ge=0)
-    overage_rate_cents_per_token: int | None = Field(default=None, ge=0)
-    member_cap: int | None = None
-    is_active: bool | None = None
+    name: Optional[str] = Field(default=None, min_length=2, max_length=100)
+    monthly_fee_cents: Optional[int] = Field(default=None, ge=0)
+    token_quota: Optional[int] = Field(default=None, ge=0)
+    overage_rate_cents_per_token: Optional[int] = Field(default=None, ge=0)
+    member_cap: Optional[int] = None
+    is_active: Optional[bool] = None
 
 
 class PlanResponse(BaseModel):
@@ -48,5 +49,44 @@ class PlanResponse(BaseModel):
     overage_rate_cents_per_token: int
     member_cap: int
     is_active: bool
+    created_at: datetime
+    updated_at: datetime
+
+
+# ---------------------------------------------------------------------------
+# Checkout schemas
+# ---------------------------------------------------------------------------
+
+
+class CheckoutRequest(BaseModel):
+    """Request body for POST /billing/checkout."""
+
+    plan_id: uuid.UUID
+
+
+class CheckoutResponse(BaseModel):
+    """Response for POST /billing/checkout — Stripe Checkout session details."""
+
+    checkout_url: str
+    session_id: str
+
+
+# ---------------------------------------------------------------------------
+# Subscription response (used in Plan 04-04 quota endpoints)
+# ---------------------------------------------------------------------------
+
+
+class SubscriptionResponse(BaseModel):
+    """Response schema for TenantSubscription objects."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    tenant_id: uuid.UUID
+    plan: PlanResponse
+    status: str
+    current_period_start: Optional[datetime] = None
+    current_period_end: Optional[datetime] = None
+    tokens_used_this_period: int
     created_at: datetime
     updated_at: datetime

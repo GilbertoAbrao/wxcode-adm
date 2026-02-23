@@ -10,6 +10,7 @@ billing_admin_router (prefix: /admin/billing/plans):
 billing_router (prefix: /billing):
   Any authenticated user. Public plan catalog endpoint returns active plans only.
   Used by tenants to browse available plans before subscribing.
+  POST /billing/checkout: create Stripe Checkout session (billing_access or Owner required).
 """
 
 from __future__ import annotations
@@ -23,9 +24,17 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from wxcode_adm.auth.dependencies import require_verified
 from wxcode_adm.auth.models import User
 from wxcode_adm.billing import service
-from wxcode_adm.billing.schemas import CreatePlanRequest, PlanResponse, UpdatePlanRequest
+from wxcode_adm.billing.schemas import (
+    CheckoutRequest,
+    CheckoutResponse,
+    CreatePlanRequest,
+    PlanResponse,
+    UpdatePlanRequest,
+)
 from wxcode_adm.common.exceptions import ForbiddenError
 from wxcode_adm.dependencies import get_session
+from wxcode_adm.tenants.dependencies import get_tenant_context
+from wxcode_adm.tenants.models import MemberRole, Tenant, TenantMembership
 
 # ---------------------------------------------------------------------------
 # Superuser dependency
@@ -140,6 +149,40 @@ billing_router = APIRouter(
 )
 
 
+# ---------------------------------------------------------------------------
+# Billing access dependency
+# ---------------------------------------------------------------------------
+
+
+async def require_billing_access(
+    ctx: Annotated[tuple[Tenant, TenantMembership], Depends(get_tenant_context)],
+) -> tuple[Tenant, TenantMembership]:
+    """
+    Enforce that the requesting member has billing_access=True OR is the Owner.
+
+    Owners always have implicit billing access. Other roles (Admin, Viewer)
+    require the billing_access toggle to be explicitly set on their membership.
+
+    Returns:
+        (Tenant, TenantMembership) — the resolved tenant context.
+
+    Raises:
+        ForbiddenError: BILLING_ACCESS_REQUIRED — member lacks billing access.
+    """
+    tenant, membership = ctx
+    if not membership.billing_access and membership.role != MemberRole.OWNER:
+        raise ForbiddenError(
+            error_code="BILLING_ACCESS_REQUIRED",
+            message="Billing access required",
+        )
+    return tenant, membership
+
+
+# ---------------------------------------------------------------------------
+# Endpoints
+# ---------------------------------------------------------------------------
+
+
 @billing_router.get(
     "/plans",
     response_model=list[PlanResponse],
@@ -151,3 +194,30 @@ async def list_active_plans(
     """List active billing plans (public catalog for authenticated users)."""
     plans = await service.list_plans(db, include_inactive=False)
     return [PlanResponse.model_validate(p) for p in plans]
+
+
+@billing_router.post(
+    "/checkout",
+    response_model=CheckoutResponse,
+)
+async def create_checkout_session(
+    body: CheckoutRequest,
+    db: Annotated[AsyncSession, Depends(get_session)],
+    ctx: Annotated[tuple[Tenant, TenantMembership], Depends(require_billing_access)],
+) -> CheckoutResponse:
+    """
+    Create a Stripe Checkout session for a tenant to subscribe to a paid plan.
+
+    Returns a Stripe-hosted checkout URL for client-side redirect.
+    Includes both the flat monthly fee and metered overage line items.
+
+    Requires: billing_access=True on membership OR Owner role.
+    Rejects: free plan checkout, already-subscribed tenants.
+    """
+    tenant, _ = ctx
+    checkout_url, session_id = await service.create_checkout_session(
+        db=db,
+        tenant_id=tenant.id,
+        plan_id=body.plan_id,
+    )
+    return CheckoutResponse(checkout_url=checkout_url, session_id=session_id)
