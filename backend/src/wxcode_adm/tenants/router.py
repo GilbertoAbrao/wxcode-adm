@@ -403,6 +403,7 @@ async def get_pending_transfer(
         "Creates a pending invitation for the given email address with the specified role. "
         "An email containing the acceptance link is sent via arq job. "
         "Fails with 409 if the email is already a member or has an active invitation. "
+        "Fails with 402 if the tenant has reached the plan member cap. "
         "Requires ADMIN role or above."
     ),
 )
@@ -417,8 +418,15 @@ async def create_invitation(
 
     Requires X-Tenant-ID header and ADMIN role.
     Owner and Admin can invite users.
+
+    Enforces plan member cap before creating the invitation.
+    Uses enforce_member_cap (standalone utility) to avoid double tenant-context
+    resolution — require_role already resolved tenant and membership via Depends.
     """
+    from wxcode_adm.billing.dependencies import enforce_member_cap  # noqa: PLC0415
+
     tenant, membership = ctx
+    await enforce_member_cap(db, tenant.id)
     invitation = await service.invite_user(db, redis, tenant, membership, body)
     return InvitationResponse.model_validate(invitation)
 
