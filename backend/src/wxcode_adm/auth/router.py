@@ -25,7 +25,9 @@ from redis.asyncio import Redis
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from wxcode_adm.auth import service
+from wxcode_adm.auth.dependencies import require_verified
 from wxcode_adm.auth.jwks import build_jwks_response
+from wxcode_adm.auth.models import User
 from wxcode_adm.auth.schemas import (
     ForgotPasswordRequest,
     ForgotPasswordResponse,
@@ -217,3 +219,29 @@ async def reset_password(
     """
     await service.reset_password(db, body)
     return ResetPasswordResponse(message="Password has been reset successfully")
+
+
+@auth_api_router.get("/me")
+async def me(
+    user: User = Depends(require_verified),
+) -> dict:
+    """
+    Return the current authenticated and verified user's basic information.
+
+    This endpoint is protected by the full dependency chain:
+    get_current_user (JWT validation + blacklist check) → require_verified
+    (email verification enforcement).
+
+    - Returns 401 if no/invalid Bearer token is provided.
+    - Returns 401 if the access token has been blacklisted (logged out).
+    - Returns 403 if the user's email is not verified.
+    - Returns 200 with id, email, email_verified on success.
+
+    Note: this endpoint will be refined in Phase 7 (User Account) to include
+    additional profile fields.
+    """
+    return {
+        "id": str(user.id),
+        "email": user.email,
+        "email_verified": user.email_verified,
+    }
