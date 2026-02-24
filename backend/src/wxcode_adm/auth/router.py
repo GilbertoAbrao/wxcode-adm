@@ -10,7 +10,8 @@ This module provides two routers:
    - POST /signup                      — Create account and send verification email
    - POST /verify-email                — Verify email with OTP code
    - POST /resend-verification         — Resend OTP with 60-second cooldown
-   - POST /login                       — Authenticate and receive access+refresh tokens
+   - POST /login                       — Authenticate and receive access+refresh tokens (or MFA challenge)
+   - POST /mfa/verify                  — Complete two-stage MFA login (TOTP or backup code)
    - POST /refresh                     — Rotate refresh token and get new access token
    - POST /logout                      — Invalidate refresh token and blacklist access token
    - POST /forgot-password             — Initiate password reset (enumeration-safe)
@@ -30,6 +31,7 @@ The JWKS endpoint MUST remain at domain root per RFC 5785 — external services
 from typing import Union
 
 from fastapi import APIRouter, Depends, Header, Request
+from fastapi.responses import JSONResponse
 from redis.asyncio import Redis
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -44,6 +46,7 @@ from wxcode_adm.auth.schemas import (
     ForgotPasswordRequest,
     ForgotPasswordResponse,
     LoginRequest,
+    LoginResponse,
     LogoutRequest,
     MessageResponse,
     MfaDisableRequest,
@@ -51,6 +54,7 @@ from wxcode_adm.auth.schemas import (
     MfaEnrollConfirmRequest,
     MfaEnrollConfirmResponse,
     MfaStatusResponse,
+    MfaVerifyRequest,
     OAuthCallbackResponse,
     OAuthLinkConfirmRequest,
     OAuthLinkResponse,
@@ -175,27 +179,53 @@ async def resend_verification(
     return ResendVerificationResponse(message="Check your email for a new verification code")
 
 
-@auth_api_router.post("/login", response_model=TokenResponse)
+@auth_api_router.post("/login", response_model=LoginResponse)
 @limiter.limit(settings.RATE_LIMIT_AUTH)
 async def login(
     request: Request,
     body: LoginRequest,
     db: AsyncSession = Depends(get_session),
     redis: Redis = Depends(get_redis),
-) -> TokenResponse:
+) -> LoginResponse:
     """
-    Authenticate a user and issue JWT access + refresh tokens.
+    Authenticate a user and issue JWT access + refresh tokens, or initiate MFA.
 
-    - Returns 200 with access_token and refresh_token on success.
+    When MFA is enabled on the user's account:
+    - Returns LoginResponse(mfa_required=True, mfa_token=...) without JWT tokens.
+    - Client must complete login via POST /mfa/verify with mfa_token + TOTP code.
+    - A wxcode_trusted_device cookie (if present) is checked; trusted devices
+      skip the MFA prompt.
+
+    When MFA is not enabled:
+    - Returns LoginResponse with access_token and refresh_token.
+
     - Returns 401 if email not found, password incorrect, or account inactive.
     - Returns 403 if email has not been verified.
     - Single-session policy: previous refresh tokens for the user are revoked.
     """
-    result = await service.login(db, redis, body)
+    # Extract trusted device cookie (may be None — backward compatible)
+    device_token = request.cookies.get("wxcode_trusted_device")
+
+    result = await service.login(db, redis, body, device_token=device_token)
+
     # Lightweight user lookup to capture actor_id in audit log.
-    # Uses indexed email column — only runs on successful login.
+    # Uses indexed email column — only runs on successful authentication.
     user_result = await db.execute(select(User.id).where(User.email == body.email))
     user_row = user_result.scalar_one_or_none()
+
+    if result.get("mfa_required"):
+        # MFA pending — log intermediate action (no tokens issued yet)
+        if user_row:
+            await write_audit(
+                db,
+                actor_id=user_row,
+                action="login_mfa_pending",
+                resource_type="session",
+                ip_address=request.client.host if request.client else None,
+            )
+        return LoginResponse(mfa_required=True, mfa_token=result["mfa_token"])
+
+    # Tokens issued — log full login
     if user_row:
         await write_audit(
             db,
@@ -204,7 +234,68 @@ async def login(
             resource_type="session",
             ip_address=request.client.host if request.client else None,
         )
-    return result
+    return LoginResponse(
+        access_token=result["access_token"],
+        refresh_token=result["refresh_token"],
+    )
+
+
+@auth_api_router.post("/mfa/verify")
+@limiter.limit(settings.RATE_LIMIT_AUTH)
+async def mfa_verify(
+    request: Request,
+    body: MfaVerifyRequest,
+    db: AsyncSession = Depends(get_session),
+    redis: Redis = Depends(get_redis),
+) -> JSONResponse:
+    """
+    Complete a two-stage MFA login by verifying a TOTP code or backup code.
+
+    Accepts the mfa_token returned by POST /login when MFA is required, plus
+    the user's current TOTP code (or an unused backup code). On success,
+    issues JWT access + refresh tokens and optionally sets a trusted device
+    cookie (HttpOnly, SameSite=Lax, Secure in production).
+
+    - Returns 200 with access_token, refresh_token, token_type on success.
+    - Returns 401 (INVALID_TOKEN) if mfa_token is expired or not found.
+    - Returns 401 (MFA_INVALID_CODE) if TOTP code is wrong or backup code is
+      invalid/already used.
+    - Returns 401 (MFA_INVALID_CODE) if the same TOTP code is submitted twice
+      within 60 seconds (replay prevention).
+    - Rate limited: same limit as other auth endpoints (brute-force protection).
+    """
+    result = await service.mfa_verify(
+        db, redis, body.mfa_token, body.code, body.trust_device
+    )
+
+    # Write audit entry on successful MFA verification
+    await write_audit(
+        db,
+        action="mfa_verify_success",
+        resource_type="session",
+        ip_address=request.client.host if request.client else None,
+    )
+
+    # Build JSON response with tokens
+    response_data = {
+        "access_token": result["access_token"],
+        "refresh_token": result["refresh_token"],
+        "token_type": "bearer",
+    }
+    response = JSONResponse(content=response_data)
+
+    # Set trusted device cookie if requested and device_token was returned
+    if body.trust_device and "device_token" in result:
+        response.set_cookie(
+            key="wxcode_trusted_device",
+            value=result["device_token"],
+            httponly=True,
+            secure=settings.APP_ENV != "development",
+            samesite="lax",
+            max_age=settings.TRUSTED_DEVICE_TTL_DAYS * 86400,
+        )
+
+    return response
 
 
 @auth_api_router.post("/refresh", response_model=TokenResponse)
