@@ -5,7 +5,7 @@ Contains business logic for:
 - signup: create user account and send verification email
 - verify_email: verify OTP code and mark email as verified
 - resend_verification: resend OTP with cooldown enforcement
-- login: authenticate user and issue access + refresh tokens
+- login: authenticate user and issue access + refresh tokens (or MFA challenge)
 - refresh: rotate refresh token and issue new access token
 - logout: invalidate refresh token and blacklist access token in Redis
 - forgot_password: enqueue reset email (enumeration-safe, always succeeds)
@@ -20,6 +20,10 @@ Contains business logic for:
 - mfa_begin_enrollment: generate TOTP secret + QR code for enrollment start
 - mfa_confirm_enrollment: verify TOTP code, set mfa_enabled, generate backup codes
 - mfa_disable: disable MFA accepting TOTP or backup code
+- mfa_verify: complete two-stage login with TOTP or backup code
+- create_trusted_device: generate and store a trusted device token (DB + cookie value)
+- is_device_trusted: check whether a device token matches a valid TrustedDevice row
+- revoke_trusted_devices: delete all TrustedDevice rows for a user
 
 Redis OTP key pattern:
   auth:otp:{user_id}          — the 6-digit code (TTL 600s)
@@ -32,6 +36,12 @@ Redis blacklist/replay key patterns:
 
 Redis OAuth link pattern:
   auth:oauth_link:{token}     — JSON {user_id, provider, provider_user_id} (TTL = MFA_PENDING_TTL_SECONDS)
+
+Redis MFA pending key pattern:
+  auth:mfa_pending:{token}    — user_id string (TTL = MFA_PENDING_TTL_SECONDS = 300s)
+
+Redis MFA replay prevention pattern:
+  auth:mfa:used:{user_id}     — TOTP code value (TTL = 60s; prevents same code reuse)
 """
 
 import base64
@@ -64,7 +74,7 @@ from wxcode_adm.auth.exceptions import (
     TokenExpiredError,
 )
 from wxcode_adm.auth.jwt import create_access_token
-from wxcode_adm.auth.models import MfaBackupCode, OAuthAccount, RefreshToken, User
+from wxcode_adm.auth.models import MfaBackupCode, OAuthAccount, RefreshToken, TrustedDevice, User
 from wxcode_adm.auth.password import hash_password, verify_password
 from wxcode_adm.auth.schemas import (
     ForgotPasswordRequest,
@@ -407,10 +417,27 @@ async def _check_replay_and_logout(
 
 
 async def login(
-    db: AsyncSession, redis: Redis, body: LoginRequest
-) -> TokenResponse:
+    db: AsyncSession,
+    redis: Redis,
+    body: LoginRequest,
+    device_token: str | None = None,
+) -> dict:
     """
     Authenticate a user and issue a new access + refresh token pair.
+
+    When MFA is enabled on the user's account:
+    - Checks if the request carries a trusted device cookie (device_token).
+    - If the device is trusted, skips MFA and issues tokens immediately.
+    - Otherwise, generates an opaque mfa_pending token stored in Redis
+      (TTL = MFA_PENDING_TTL_SECONDS) and returns
+      {"mfa_required": True, "mfa_token": token} without issuing JWT tokens.
+
+    When MFA is not enabled, issues access + refresh tokens immediately and
+    returns {"mfa_required": False, "access_token": ..., "refresh_token": ...}.
+
+    The router interprets the returned dict and constructs the appropriate
+    LoginResponse. device_token defaults to None for backward compatibility
+    with all existing callers and tests.
 
     - Returns 401 if email not found, account inactive, or password wrong.
     - Returns 403 if email is not verified.
@@ -437,11 +464,42 @@ async def login(
             message="Please verify your email before logging in",
         )
 
-    # Issue new tokens via shared helper (enforces single-session policy)
+    # MFA branch: check if MFA is enabled on this account
+    if user.mfa_enabled:
+        # Check whether the client carries a valid trusted device token
+        if device_token and await is_device_trusted(db, str(user.id), device_token):
+            # Trusted device — skip MFA and issue tokens directly
+            token_response = await _issue_tokens(db, redis, user)
+            logger.info(
+                f"User logged in via trusted device: {user.email} (id={user.id})"
+            )
+            return {
+                "mfa_required": False,
+                "access_token": token_response.access_token,
+                "refresh_token": token_response.refresh_token,
+            }
+
+        # Device not trusted — issue an MFA pending token
+        mfa_token = secrets.token_urlsafe(32)
+        await redis.set(
+            f"auth:mfa_pending:{mfa_token}",
+            str(user.id),
+            ex=settings.MFA_PENDING_TTL_SECONDS,
+        )
+        logger.info(
+            f"MFA required for login: {user.email} (id={user.id})"
+        )
+        return {"mfa_required": True, "mfa_token": mfa_token}
+
+    # MFA not enabled — issue tokens directly
     token_response = await _issue_tokens(db, redis, user)
 
     logger.info(f"User logged in: {user.email} (id={user.id})")
-    return token_response
+    return {
+        "mfa_required": False,
+        "access_token": token_response.access_token,
+        "refresh_token": token_response.refresh_token,
+    }
 
 
 async def refresh(
@@ -1180,3 +1238,202 @@ async def mfa_disable(
     )
 
     logger.info(f"MFA disabled for user: {user.email} (id={user.id})")
+
+
+# ---------------------------------------------------------------------------
+# Phase 6: MFA two-stage login verify + trusted device helpers
+# ---------------------------------------------------------------------------
+
+
+async def mfa_verify(
+    db: AsyncSession,
+    redis: Redis,
+    mfa_token: str,
+    code: str,
+    trust_device: bool = False,
+) -> dict:
+    """
+    Complete a two-stage MFA login by verifying a TOTP code or backup code.
+
+    Flow:
+    1. Look up auth:mfa_pending:{mfa_token} in Redis.
+       If not found, raise InvalidTokenError (expired or invalid).
+    2. Load the User by the stored user_id.
+       If not found or not active, raise InvalidTokenError.
+    3. TOTP replay check (6-digit codes only):
+       If auth:mfa:used:{user_id} exists AND equals code, raise
+       MfaInvalidCodeError (replay detected).
+    4. Verify code — TOTP first, then backup code:
+       a. TOTP: pyotp.TOTP(user.mfa_secret).verify(code, valid_window=1).
+          On success, write replay prevention key (TTL 60s).
+       b. Backup: strip dashes, iterate unused MfaBackupCode rows, verify hash.
+          On match, set row.used_at = now.
+       c. If neither matches, raise MfaInvalidCodeError.
+    5. Delete the mfa_pending Redis key (consumed).
+    6. Issue tokens via _issue_tokens.
+    7. If trust_device=True, create a TrustedDevice record and include
+       the plaintext device_token in the returned dict for cookie-setting.
+
+    Returns:
+        dict with access_token, refresh_token, and optionally device_token.
+
+    Raises:
+        InvalidTokenError: mfa_token not found in Redis.
+        MfaInvalidCodeError: TOTP or backup code verification failed.
+    """
+    # 1. Retrieve mfa_pending token from Redis
+    raw_user_id = await redis.get(f"auth:mfa_pending:{mfa_token}")
+    if raw_user_id is None:
+        raise InvalidTokenError()
+
+    user_id_str = raw_user_id if isinstance(raw_user_id, str) else raw_user_id.decode()
+
+    # 2. Load user
+    user_result = await db.execute(
+        select(User).where(User.id == uuid.UUID(user_id_str))
+    )
+    user = user_result.scalar_one_or_none()
+    if user is None or not user.is_active:
+        raise InvalidTokenError()
+
+    # 3. TOTP replay check — only applies to 6-digit numeric TOTP codes
+    is_totp_code = len(code) == 6 and code.isdigit()
+    if is_totp_code:
+        used_code = await redis.get(f"auth:mfa:used:{user_id_str}")
+        if used_code is not None:
+            used_str = used_code if isinstance(used_code, str) else used_code.decode()
+            if used_str == code:
+                raise MfaInvalidCodeError()
+
+    # 4. Verify code: TOTP first, then backup code
+    totp_valid = pyotp.TOTP(user.mfa_secret).verify(code, valid_window=1)
+
+    if totp_valid:
+        # Write replay prevention key for 60 seconds
+        await redis.set(f"auth:mfa:used:{user_id_str}", code, ex=60)
+    else:
+        # Try backup code — strip dashes before comparing
+        code_stripped = code.replace("-", "")
+        backup_result = await db.execute(
+            select(MfaBackupCode).where(
+                MfaBackupCode.user_id == user.id,
+                MfaBackupCode.used_at.is_(None),
+            )
+        )
+        backup_rows = backup_result.scalars().all()
+
+        backup_valid = False
+        for row in backup_rows:
+            if verify_password(code_stripped, row.code_hash):
+                row.used_at = datetime.now(tz=timezone.utc)
+                backup_valid = True
+                break
+
+        if not backup_valid:
+            raise MfaInvalidCodeError()
+
+    # 5. Consume the mfa_pending token
+    await redis.delete(f"auth:mfa_pending:{mfa_token}")
+
+    # 6. Issue tokens
+    token_response = await _issue_tokens(db, redis, user)
+
+    result: dict = {
+        "access_token": token_response.access_token,
+        "refresh_token": token_response.refresh_token,
+    }
+
+    # 7. Create trusted device record if requested
+    if trust_device:
+        device_token_value = await create_trusted_device(db, user.id)
+        result["device_token"] = device_token_value
+
+    logger.info(f"MFA verified for user: {user.email} (id={user.id})")
+    return result
+
+
+async def create_trusted_device(db: AsyncSession, user_id: uuid.UUID) -> str:
+    """
+    Create a TrustedDevice record for the given user and return the plaintext token.
+
+    Generates a random opaque device_token, stores its SHA-256 hash in the DB
+    with an expiry of TRUSTED_DEVICE_TTL_DAYS days, and returns the plaintext
+    token for storing in an HttpOnly cookie.
+
+    Args:
+        db: async database session
+        user_id: UUID of the user
+
+    Returns:
+        Plaintext device_token (for cookie; never stored in DB).
+    """
+    device_token = secrets.token_urlsafe(32)
+    token_hash = hashlib.sha256(device_token.encode()).hexdigest()
+    expires_at = datetime.now(tz=timezone.utc) + timedelta(
+        days=settings.TRUSTED_DEVICE_TTL_DAYS
+    )
+    db.add(
+        TrustedDevice(
+            user_id=user_id,
+            token_hash=token_hash,
+            expires_at=expires_at,
+        )
+    )
+    logger.info(f"Trusted device created for user_id={user_id}")
+    return device_token
+
+
+async def is_device_trusted(
+    db: AsyncSession, user_id: str, device_token: str
+) -> bool:
+    """
+    Check whether a device token corresponds to a valid, unexpired TrustedDevice.
+
+    Args:
+        db: async database session
+        user_id: string UUID of the user
+        device_token: plaintext device token (from cookie)
+
+    Returns:
+        True if the device is trusted and not expired; False otherwise.
+    """
+    if not device_token:
+        return False
+
+    token_hash = hashlib.sha256(device_token.encode()).hexdigest()
+    result = await db.execute(
+        select(TrustedDevice).where(
+            TrustedDevice.user_id == uuid.UUID(user_id),
+            TrustedDevice.token_hash == token_hash,
+        )
+    )
+    row = result.scalar_one_or_none()
+    if row is None:
+        return False
+
+    # Check expiry
+    expires_at = row.expires_at
+    if expires_at.tzinfo is None:
+        expires_at = expires_at.replace(tzinfo=timezone.utc)
+
+    if expires_at < datetime.now(tz=timezone.utc):
+        await db.delete(row)
+        return False
+
+    return True
+
+
+async def revoke_trusted_devices(db: AsyncSession, user_id: uuid.UUID) -> None:
+    """
+    Delete all TrustedDevice records for the given user.
+
+    Called when a user resets their password or explicitly revokes all sessions
+    to ensure trusted devices are cleared along with refresh tokens.
+
+    Args:
+        db: async database session
+        user_id: UUID of the user
+    """
+    await db.execute(
+        delete(TrustedDevice).where(TrustedDevice.user_id == user_id)
+    )
