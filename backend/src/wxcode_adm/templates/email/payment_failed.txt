@@ -1,0 +1,11 @@
+WXCODE - Payment failed
+
+Payment has failed for your workspace {{ tenant_name }}.
+
+Your workspace access to the wxcode engine has been restricted.
+Please update your payment method to restore access:
+{{ billing_url }}
+
+You can still access wxcode-adm to manage your account and billing.
+
+— WXCODE Team

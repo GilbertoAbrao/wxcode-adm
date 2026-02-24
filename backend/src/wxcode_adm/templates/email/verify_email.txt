@@ -1,0 +1,7 @@
+WXCODE - Verify your email
+
+Your verification code is: {{ code }}
+
+This code expires in 10 minutes.
+
+If you did not create a WXCODE account, ignore this email.

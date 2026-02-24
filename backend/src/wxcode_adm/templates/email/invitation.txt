@@ -1,0 +1,8 @@
+WXCODE - You've been invited!
+
+You've been invited to join {{ tenant_name }} as {{ role }}.
+
+Click the link below to accept the invitation:
+{{ invite_link }}
+
+This invitation expires in 7 days.
