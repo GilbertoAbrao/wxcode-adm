@@ -52,6 +52,8 @@ from wxcode_adm.tenants.schemas import (
     InviteRequest,
     MembershipResponse,
     MessageResponse,
+    MfaEnforcementRequest,
+    MfaEnforcementResponse,
     MyTenantsResponse,
     TenantResponse,
     TransferResponse,
@@ -575,6 +577,69 @@ async def cancel_invitation(
         ip_address=request.client.host if request.client else None,
     )
     return MessageResponse(message="Invitation cancelled")
+
+
+# ---------------------------------------------------------------------------
+# Phase 6: MFA enforcement endpoint
+# ---------------------------------------------------------------------------
+
+
+@router.patch(
+    "/current/mfa-enforcement",
+    response_model=MfaEnforcementResponse,
+    summary="Toggle MFA enforcement for the tenant",
+    description=(
+        "Enables or disables MFA enforcement for the current tenant. "
+        "To enable enforcement, the Owner must already have MFA enabled on "
+        "their own account. When enabled, all refresh tokens for members "
+        "without MFA are immediately revoked. "
+        "Requires OWNER role."
+    ),
+)
+async def toggle_mfa_enforcement(
+    request: Request,
+    body: MfaEnforcementRequest,
+    ctx=Depends(require_role(MemberRole.OWNER)),
+    db: AsyncSession = Depends(get_session),
+    redis: Redis = Depends(get_redis),
+) -> MfaEnforcementResponse:
+    """
+    PATCH /api/v1/tenants/current/mfa-enforcement
+
+    Requires X-Tenant-ID header and OWNER role.
+
+    Enabling enforcement:
+    - Owner must have MFA enabled on their account (400 if not).
+    - All refresh tokens for non-MFA members are immediately revoked.
+
+    Disabling enforcement:
+    - No session revocation — members keep their sessions.
+    """
+    tenant, membership = ctx
+
+    # Load the acting User to check their MFA status
+    user_result = await db.execute(
+        select(User).where(User.id == membership.user_id)
+    )
+    actor_user = user_result.scalar_one()
+
+    if body.enforce:
+        await service.enable_mfa_enforcement(db, redis, tenant, actor_user)
+    else:
+        await service.disable_mfa_enforcement(db, tenant)
+
+    await write_audit(
+        db,
+        actor_id=membership.user_id,
+        action="toggle_mfa_enforcement",
+        resource_type="tenant",
+        resource_id=str(tenant.id),
+        tenant_id=tenant.id,
+        ip_address=request.client.host if request.client else None,
+        details={"enforce": body.enforce},
+    )
+
+    return MfaEnforcementResponse(mfa_enforced=tenant.mfa_enforced)
 
 
 # ---------------------------------------------------------------------------

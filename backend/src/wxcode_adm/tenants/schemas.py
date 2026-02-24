@@ -174,3 +174,20 @@ class MyTenantsResponse(BaseModel):
     """Response for GET /api/v1/tenants/me — user's tenant memberships."""
 
     tenants: list[MyTenantItem]
+
+
+# ---------------------------------------------------------------------------
+# Phase 6: Tenant MFA enforcement schemas
+# ---------------------------------------------------------------------------
+
+
+class MfaEnforcementRequest(BaseModel):
+    """Request body for PATCH /api/v1/tenants/current/mfa-enforcement."""
+
+    enforce: bool
+
+
+class MfaEnforcementResponse(BaseModel):
+    """Response for PATCH /api/v1/tenants/current/mfa-enforcement."""
+
+    mfa_enforced: bool

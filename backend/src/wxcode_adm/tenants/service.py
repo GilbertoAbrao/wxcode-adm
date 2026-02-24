@@ -19,6 +19,10 @@ Provides:
   email verification; joins user to all pending invitations automatically
 - list_invitations: returns pending (non-accepted) invitations for a tenant
 - cancel_invitation: deletes a pending invitation
+- enable_mfa_enforcement: Owner enables MFA enforcement for a tenant
+- disable_mfa_enforcement: Owner disables MFA enforcement for a tenant
+- get_enforcing_tenants_for_user: returns tenant IDs where MFA is enforced for
+  the given user (used by login flow)
 
 Design notes:
 - generate_unique_slug uses python-slugify with a 10-iteration uniqueness loop.
@@ -35,6 +39,10 @@ Design notes:
 - Datetime comparisons handle timezone-naive (SQLite in tests) vs
   timezone-aware (PostgreSQL in production) by attaching utc tzinfo to naive
   datetimes — same pattern as auth/service.py refresh token expiry.
+- enable_mfa_enforcement requires the Owner to already have MFA enabled on
+  their own account before enforcing it on others (per locked decision).
+  Enabling enforcement immediately revokes refresh tokens for all non-MFA
+  members so they cannot silently hold sessions after the policy changes.
 """
 
 from __future__ import annotations
@@ -48,12 +56,12 @@ from itsdangerous import URLSafeTimedSerializer
 from itsdangerous.exc import BadSignature, SignatureExpired
 from redis.asyncio import Redis
 from slugify import slugify
-from sqlalchemy import select
+from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from wxcode_adm.auth.exceptions import InvalidTokenError, TokenExpiredError
-from wxcode_adm.auth.models import User
+from wxcode_adm.auth.exceptions import InvalidTokenError, MfaRequiredError, TokenExpiredError
+from wxcode_adm.auth.models import RefreshToken, User
 from wxcode_adm.common.exceptions import ConflictError, ForbiddenError, NotFoundError
 from wxcode_adm.config import settings
 from wxcode_adm.tenants.exceptions import (
@@ -1021,3 +1029,114 @@ async def cancel_invitation(
 
     await db.delete(invitation)
     logger.info(f"Invitation {invitation_id} cancelled for tenant_id={tenant_id}")
+
+
+# ---------------------------------------------------------------------------
+# Phase 6: Tenant MFA enforcement
+# ---------------------------------------------------------------------------
+
+
+async def enable_mfa_enforcement(
+    db: AsyncSession,
+    redis: Redis,
+    tenant: Tenant,
+    actor_user: User,
+) -> None:
+    """
+    Enable MFA enforcement for a tenant.
+
+    Per locked decision: "Owner must have MFA enabled on their own account
+    before they can turn on enforcement." This prevents the Owner from
+    locking out all members (including themselves) without having MFA ready.
+
+    On enable:
+    - Sets tenant.mfa_enforced = True.
+    - Immediately revokes all refresh tokens for members who do NOT have MFA
+      enabled. This is the "immediate lockout" policy — those members cannot
+      refresh sessions; their short-lived access tokens expire naturally
+      (within ACCESS_TOKEN_TTL_HOURS). They must enroll in MFA to log in again.
+
+    Args:
+        db: Async database session.
+        redis: Redis client (reserved for future access token blacklisting).
+        tenant: The Tenant to enforce MFA on.
+        actor_user: The User making the request (must have mfa_enabled=True).
+
+    Raises:
+        MfaRequiredError: Actor does not have MFA enabled on their account.
+    """
+    if not actor_user.mfa_enabled:
+        raise MfaRequiredError()
+
+    tenant.mfa_enforced = True
+
+    # Query user_ids of tenant members who do NOT have MFA enabled
+    non_mfa_result = await db.execute(
+        select(TenantMembership.user_id)
+        .join(User, TenantMembership.user_id == User.id)
+        .where(
+            TenantMembership.tenant_id == tenant.id,
+            User.mfa_enabled.is_(False),
+        )
+    )
+    non_mfa_user_ids = [row[0] for row in non_mfa_result.all()]
+
+    if non_mfa_user_ids:
+        # Revoke all refresh tokens for non-MFA members immediately
+        await db.execute(
+            delete(RefreshToken).where(
+                RefreshToken.user_id.in_(non_mfa_user_ids)
+            )
+        )
+        logger.info(
+            f"MFA enforcement enabled for tenant {tenant.id}: "
+            f"revoked refresh tokens for {len(non_mfa_user_ids)} non-MFA member(s)"
+        )
+    else:
+        logger.info(
+            f"MFA enforcement enabled for tenant {tenant.id}: "
+            "all members already have MFA enabled"
+        )
+
+
+async def disable_mfa_enforcement(db: AsyncSession, tenant: Tenant) -> None:
+    """
+    Disable MFA enforcement for a tenant.
+
+    No session revocation needed — members keep their existing sessions.
+    They will no longer be required to have MFA on future logins to this tenant.
+
+    Args:
+        db: Async database session (unused; included for API symmetry).
+        tenant: The Tenant to disable enforcement on.
+    """
+    tenant.mfa_enforced = False
+    logger.info(f"MFA enforcement disabled for tenant {tenant.id}")
+
+
+async def get_enforcing_tenants_for_user(
+    db: AsyncSession,
+    user_id: uuid.UUID,
+) -> list[uuid.UUID]:
+    """
+    Return the UUIDs of tenants where MFA is enforced and the user is a member.
+
+    Used by the login flow to determine whether MFA must be required even if
+    the user has not personally enabled MFA on their account.
+
+    Args:
+        db: Async database session.
+        user_id: UUID of the user to check.
+
+    Returns:
+        List of tenant UUIDs (may be empty if user is in no enforcing tenants).
+    """
+    result = await db.execute(
+        select(Tenant.id)
+        .join(TenantMembership, Tenant.id == TenantMembership.tenant_id)
+        .where(
+            TenantMembership.user_id == user_id,
+            Tenant.mfa_enforced.is_(True),
+        )
+    )
+    return [row[0] for row in result.all()]
