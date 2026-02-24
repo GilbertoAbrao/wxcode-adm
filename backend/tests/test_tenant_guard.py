@@ -8,7 +8,8 @@ Verifies:
 """
 
 import pytest
-from sqlalchemy import select, text
+from sqlalchemy import JSON, select, text
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -32,8 +33,23 @@ async def guarded_session():
     """
     engine = create_async_engine("sqlite+aiosqlite://", echo=False)
 
+    # SQLite does not support JSONB — patch to JSON before create_all, restore after.
+    _jsonb_originals = {}
+    for table in Base.metadata.sorted_tables:
+        for col in table.columns:
+            if isinstance(col.type, JSONB):
+                _jsonb_originals[(table.name, col.name)] = (col.type, col.server_default)
+                col.type = JSON()
+                col.server_default = None
+
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+
+    for table in Base.metadata.sorted_tables:
+        for col in table.columns:
+            key = (table.name, col.name)
+            if key in _jsonb_originals:
+                col.type, col.server_default = _jsonb_originals[key]
 
     session_maker = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
     install_tenant_guard(session_maker)

@@ -30,7 +30,8 @@ from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import rsa
 from httpx import ASGITransport, AsyncClient
 from pydantic import SecretStr
-from sqlalchemy import MetaData, Table, Column, event
+from sqlalchemy import JSON, MetaData, Table, Column, event
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
 from wxcode_adm.db.base import Base
@@ -84,6 +85,7 @@ def _build_sqlite_metadata() -> MetaData:
     import wxcode_adm.auth.models  # noqa: F401
     import wxcode_adm.tenants.models  # noqa: F401
     import wxcode_adm.billing.models  # noqa: F401
+    from wxcode_adm.audit import models as _audit_models  # noqa: F401
 
     sqlite_meta = MetaData()
     for table in Base.metadata.sorted_tables:
@@ -108,15 +110,35 @@ async def test_db():
     Server defaults that require PostgreSQL functions (gen_random_uuid, now())
     are stripped; Python-level model defaults (uuid.uuid4, etc.) are used instead.
     """
-    # Ensure models are registered
+    # Ensure models are registered (including audit models for audit_logs table)
     import wxcode_adm.auth.models  # noqa: F401
     import wxcode_adm.tenants.models  # noqa: F401
     import wxcode_adm.billing.models  # noqa: F401
+    from wxcode_adm.audit import models as _audit_models  # noqa: F401
 
     engine = create_async_engine("sqlite+aiosqlite://", echo=False)
 
+    # SQLite does not support JSONB or PostgreSQL server defaults like '{}'::jsonb.
+    # Patch all JSONB columns in Base.metadata to use JSON (SQLite-compatible) and
+    # remove the PostgreSQL-specific server_default before create_all.
+    # Originals are restored after table creation so production code is unaffected.
+    _jsonb_originals = {}
+    for table in Base.metadata.sorted_tables:
+        for col in table.columns:
+            if isinstance(col.type, JSONB):
+                _jsonb_originals[(table.name, col.name)] = (col.type, col.server_default)
+                col.type = JSON()
+                col.server_default = None  # strip '{}'::jsonb — SQLite can't parse it
+
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+
+    # Restore original JSONB types and server_defaults so production code is unaffected
+    for table in Base.metadata.sorted_tables:
+        for col in table.columns:
+            key = (table.name, col.name)
+            if key in _jsonb_originals:
+                col.type, col.server_default = _jsonb_originals[key]
 
     session_maker = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
 
@@ -327,6 +349,12 @@ async def client(test_db, test_redis, rsa_keys, monkeypatch):
     from wxcode_adm.dependencies import get_session, get_redis
 
     app = create_app()
+
+    # Disable rate limiter by default for test isolation.
+    # Individual rate limit tests re-enable it within the test body.
+    # This is the standard slowapi approach: setting limiter.enabled = False
+    # causes all @limiter.limit() decorators to be no-ops.
+    app.state.limiter.enabled = False
 
     async def override_get_session():
         async with test_db() as session:
