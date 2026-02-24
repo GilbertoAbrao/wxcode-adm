@@ -17,6 +17,7 @@ from wxcode_adm.auth import models as _auth_models  # noqa: F401
 from wxcode_adm.tenants import models as _tenant_models  # noqa: F401
 # from wxcode_adm.users import models as _  # noqa
 from wxcode_adm.billing import models as _billing_models  # noqa: F401
+from wxcode_adm.audit import models as _audit_models  # noqa: F401
 
 # This is the Alembic Config object, which provides
 # access to the values within the .ini file in use.

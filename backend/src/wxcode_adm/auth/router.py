@@ -20,12 +20,13 @@ The JWKS endpoint MUST remain at domain root per RFC 5785 — external services
 (e.g., wxcode engine) fetch this URL to verify JWTs issued by wxcode-adm.
 """
 
-from fastapi import APIRouter, Depends, Header
+from fastapi import APIRouter, Depends, Header, Request
 from redis.asyncio import Redis
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from wxcode_adm.auth import service
 from wxcode_adm.auth.dependencies import require_verified
+from wxcode_adm.common.rate_limit import limiter
 from wxcode_adm.auth.jwks import build_jwks_response
 from wxcode_adm.auth.models import User
 from wxcode_adm.auth.schemas import (
@@ -56,6 +57,7 @@ router = APIRouter(tags=["auth"])
 
 
 @router.get("/.well-known/jwks.json")
+@limiter.exempt
 async def jwks_endpoint() -> dict:
     """
     Return the RSA public key in JWKS (JSON Web Key Set) format.
@@ -78,7 +80,9 @@ auth_api_router = APIRouter(prefix="/auth", tags=["auth"])
 
 
 @auth_api_router.post("/signup", response_model=SignupResponse, status_code=201)
+@limiter.limit(settings.RATE_LIMIT_AUTH)
 async def signup(
+    request: Request,
     body: SignupRequest,
     db: AsyncSession = Depends(get_session),
     redis: Redis = Depends(get_redis),
@@ -113,7 +117,9 @@ async def verify_email(
 
 
 @auth_api_router.post("/resend-verification", response_model=ResendVerificationResponse)
+@limiter.limit(settings.RATE_LIMIT_AUTH)
 async def resend_verification(
+    request: Request,
     body: ResendVerificationRequest,
     db: AsyncSession = Depends(get_session),
     redis: Redis = Depends(get_redis),
@@ -129,7 +135,9 @@ async def resend_verification(
 
 
 @auth_api_router.post("/login", response_model=TokenResponse)
+@limiter.limit(settings.RATE_LIMIT_AUTH)
 async def login(
+    request: Request,
     body: LoginRequest,
     db: AsyncSession = Depends(get_session),
     redis: Redis = Depends(get_redis),
@@ -186,7 +194,9 @@ async def logout(
 
 
 @auth_api_router.post("/forgot-password", response_model=ForgotPasswordResponse)
+@limiter.limit(settings.RATE_LIMIT_AUTH)
 async def forgot_password(
+    request: Request,
     body: ForgotPasswordRequest,
     db: AsyncSession = Depends(get_session),
     redis: Redis = Depends(get_redis),
@@ -205,7 +215,9 @@ async def forgot_password(
 
 
 @auth_api_router.post("/reset-password", response_model=ResetPasswordResponse)
+@limiter.limit(settings.RATE_LIMIT_AUTH)
 async def reset_password(
+    request: Request,
     body: ResetPasswordRequest,
     db: AsyncSession = Depends(get_session),
 ) -> ResetPasswordResponse:

@@ -43,6 +43,7 @@ async def get_raw_body(request: Request) -> bytes:
 
 @webhook_router.post("/webhooks/stripe", status_code=200)
 async def stripe_webhook(
+    request: Request,
     stripe_signature: Annotated[str, Header(alias="stripe-signature")],
     body: bytes = Depends(get_raw_body),
 ) -> dict:

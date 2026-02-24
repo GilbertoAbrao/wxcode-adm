@@ -18,7 +18,7 @@ from __future__ import annotations
 import uuid
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, Request, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from wxcode_adm.auth.dependencies import require_verified
@@ -75,6 +75,7 @@ billing_admin_router = APIRouter(
     response_model=PlanResponse,
 )
 async def create_plan(
+    request: Request,
     body: CreatePlanRequest,
     db: Annotated[AsyncSession, Depends(get_session)],
     _: Annotated[User, Depends(require_superuser)],
@@ -89,6 +90,7 @@ async def create_plan(
     response_model=PlanResponse,
 )
 async def update_plan(
+    request: Request,
     plan_id: uuid.UUID,
     body: UpdatePlanRequest,
     db: Annotated[AsyncSession, Depends(get_session)],
@@ -104,6 +106,7 @@ async def update_plan(
     response_model=PlanResponse,
 )
 async def delete_plan(
+    request: Request,
     plan_id: uuid.UUID,
     db: Annotated[AsyncSession, Depends(get_session)],
     _: Annotated[User, Depends(require_superuser)],
@@ -118,6 +121,7 @@ async def delete_plan(
     response_model=list[PlanResponse],
 )
 async def list_plans_admin(
+    request: Request,
     db: Annotated[AsyncSession, Depends(get_session)],
     _: Annotated[User, Depends(require_superuser)],
 ) -> list[PlanResponse]:
@@ -131,6 +135,7 @@ async def list_plans_admin(
     response_model=PlanResponse,
 )
 async def get_plan(
+    request: Request,
     plan_id: uuid.UUID,
     db: Annotated[AsyncSession, Depends(get_session)],
     _: Annotated[User, Depends(require_superuser)],
@@ -189,6 +194,7 @@ async def require_billing_access(
     response_model=list[PlanResponse],
 )
 async def list_active_plans(
+    request: Request,
     db: Annotated[AsyncSession, Depends(get_session)],
     _: Annotated[User, Depends(require_verified)],
 ) -> list[PlanResponse]:
@@ -202,6 +208,7 @@ async def list_active_plans(
     response_model=CheckoutResponse,
 )
 async def create_checkout_session(
+    request: Request,
     body: CheckoutRequest,
     db: Annotated[AsyncSession, Depends(get_session)],
     ctx: Annotated[tuple[Tenant, TenantMembership], Depends(require_billing_access)],
@@ -229,6 +236,7 @@ async def create_checkout_session(
     status_code=status.HTTP_200_OK,
 )
 async def create_portal_session(
+    request: Request,
     db: Annotated[AsyncSession, Depends(get_session)],
     ctx: Annotated[tuple[Tenant, TenantMembership], Depends(require_billing_access)],
 ) -> dict:
@@ -250,6 +258,7 @@ async def create_portal_session(
     response_model=SubscriptionResponse,
 )
 async def get_subscription_status(
+    request: Request,
     db: Annotated[AsyncSession, Depends(get_session)],
     ctx: Annotated[tuple[Tenant, TenantMembership], Depends(get_tenant_context)],
 ) -> SubscriptionResponse:

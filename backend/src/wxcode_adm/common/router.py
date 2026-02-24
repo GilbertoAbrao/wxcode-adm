@@ -13,12 +13,14 @@ from redis.asyncio import Redis
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from wxcode_adm.common.rate_limit import limiter
 from wxcode_adm.dependencies import get_redis, get_session
 
 router = APIRouter(tags=["common"])
 
 
 @router.get("/health")
+@limiter.exempt
 async def health_check(
     db: AsyncSession = Depends(get_session),
     redis: Redis = Depends(get_redis),

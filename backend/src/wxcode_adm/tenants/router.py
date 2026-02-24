@@ -29,7 +29,7 @@ from __future__ import annotations
 
 import uuid
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Request
 from redis.asyncio import Redis
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -76,6 +76,7 @@ onboarding_router = APIRouter(prefix="/onboarding", tags=["onboarding"])
     ),
 )
 async def create_workspace(
+    request: Request,
     body: CreateWorkspaceRequest,
     user: User = Depends(require_verified),
     db: AsyncSession = Depends(get_session),
@@ -112,6 +113,7 @@ router = APIRouter(prefix="/tenants", tags=["tenants"])
     ),
 )
 async def list_my_tenants(
+    request: Request,
     user: User = Depends(require_verified),
     db: AsyncSession = Depends(get_session),
 ) -> MyTenantsResponse:
@@ -135,6 +137,7 @@ async def list_my_tenants(
     ),
 )
 async def get_current_tenant(
+    request: Request,
     ctx=Depends(require_tenant_member),
 ) -> TenantResponse:
     """
@@ -156,6 +159,7 @@ async def get_current_tenant(
     ),
 )
 async def update_current_tenant(
+    request: Request,
     body: "UpdateTenantRequest",
     ctx=Depends(require_role(MemberRole.ADMIN)),
     db: AsyncSession = Depends(get_session),
@@ -182,6 +186,7 @@ async def update_current_tenant(
     ),
 )
 async def list_members(
+    request: Request,
     ctx=Depends(require_tenant_member),
     db: AsyncSession = Depends(get_session),
 ) -> list[dict]:
@@ -224,6 +229,7 @@ async def list_members(
     ),
 )
 async def change_member_role(
+    request: Request,
     user_id: uuid.UUID,
     body: ChangeRoleRequest,
     ctx=Depends(require_role(MemberRole.ADMIN)),
@@ -270,6 +276,7 @@ async def change_member_role(
     ),
 )
 async def remove_member(
+    request: Request,
     user_id: uuid.UUID,
     ctx=Depends(require_role(MemberRole.ADMIN)),
     db: AsyncSession = Depends(get_session),
@@ -295,6 +302,7 @@ async def remove_member(
     ),
 )
 async def leave_tenant(
+    request: Request,
     ctx=Depends(require_tenant_member),
     db: AsyncSession = Depends(get_session),
 ) -> MessageResponse:
@@ -321,6 +329,7 @@ async def leave_tenant(
     ),
 )
 async def initiate_transfer(
+    request: Request,
     body: InitiateTransferRequest,
     ctx=Depends(require_role(MemberRole.OWNER)),
     db: AsyncSession = Depends(get_session),
@@ -347,6 +356,7 @@ async def initiate_transfer(
     ),
 )
 async def accept_transfer(
+    request: Request,
     ctx=Depends(require_tenant_member),
     db: AsyncSession = Depends(get_session),
 ) -> MessageResponse:
@@ -371,6 +381,7 @@ async def accept_transfer(
     ),
 )
 async def get_pending_transfer(
+    request: Request,
     ctx=Depends(require_role(MemberRole.OWNER)),
     db: AsyncSession = Depends(get_session),
 ) -> TransferResponse:
@@ -408,6 +419,7 @@ async def get_pending_transfer(
     ),
 )
 async def create_invitation(
+    request: Request,
     body: InviteRequest,
     ctx=Depends(require_role(MemberRole.ADMIN)),
     db: AsyncSession = Depends(get_session),
@@ -442,6 +454,7 @@ async def create_invitation(
     ),
 )
 async def list_invitations(
+    request: Request,
     ctx=Depends(require_role(MemberRole.ADMIN)),
     db: AsyncSession = Depends(get_session),
 ) -> list[InvitationResponse]:
@@ -466,6 +479,7 @@ async def list_invitations(
     ),
 )
 async def cancel_invitation(
+    request: Request,
     invitation_id: uuid.UUID,
     ctx=Depends(require_role(MemberRole.ADMIN)),
     db: AsyncSession = Depends(get_session),
@@ -505,6 +519,7 @@ invitation_router = APIRouter(prefix="/invitations", tags=["invitations"])
     ),
 )
 async def accept_invitation(
+    request: Request,
     body: AcceptInvitationRequest,
     user: User = Depends(require_verified),
     db: AsyncSession = Depends(get_session),

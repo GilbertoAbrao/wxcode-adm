@@ -179,6 +179,10 @@ def create_app() -> FastAPI:
     from wxcode_adm.billing.webhook_router import webhook_router as billing_webhook_router  # noqa: PLC0415
     app.include_router(billing_webhook_router, prefix=settings.API_V1_PREFIX)
 
+    # Audit router (Phase 5): super-admin-only audit log query endpoint
+    from wxcode_adm.audit.router import audit_router  # noqa: PLC0415
+    app.include_router(audit_router, prefix=settings.API_V1_PREFIX)
+
     return app
 
 
