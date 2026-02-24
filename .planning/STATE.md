@@ -10,9 +10,9 @@ See: .planning/PROJECT.md (updated 2026-02-22)
 ## Current Position
 
 Phase: 5 of 8 (Platform Security) — In Progress
-Plan: 3 of 4 in current phase (05-03 complete — FastMail singleton + 9 branded email templates + 4 refactored email senders)
-Status: Plan 05-03 complete — common/mail.py FastMail singleton, 9 Jinja2 email templates (base.html + 4 HTML + 4 txt), all 4 email sender functions upgraded to html+plain multipart (PLAT-05 verified)
-Last activity: 2026-02-24 — Plan 05-03 complete: branded email templates, Phase 5 plan 3/4 done
+Plan: 3 of 4 in current phase (05-02 complete — immutable audit log subsystem, write_audit wired into 24 write endpoints across auth/tenants/billing, arq cron retention purge)
+Status: Plan 05-02 complete — audit_logs table (append-only), write_audit() helper, purge cron at 2 AM UTC, GET /admin/audit-logs super-admin endpoint, all write endpoints instrumented (PLAT-04 verified)
+Last activity: 2026-02-24 — Plan 05-02 complete: audit subsystem + endpoint instrumentation, Phase 5 plans 01/02/03 done (3 of 4)
 
 Progress: [█████████████████████] 85%
 
@@ -54,6 +54,7 @@ Progress: [█████████████████████] 85%
 | Phase 04-billing-core P05 | 7 | 2 tasks | 4 files |
 | Phase 05-platform-security P03 | 3 | 2 tasks | 13 files |
 | Phase 05-platform-security P01 | 4 | 2 tasks | 8 files |
+| Phase 05-platform-security P02 | 7 | 3 tasks | 11 files |
 
 ## Accumulated Context
 
@@ -142,6 +143,9 @@ Recent decisions affecting current work:
 - [Phase 05-platform-security]: FastMail singleton constructed once in common/mail.py, imported lazily inside try/except by senders
 - [Phase 05-platform-security]: html_template + plain_template params used (not template_name) so fastapi-mail produces multipart/alternative MIME structure
 - [Phase 05-platform-security]: Email templates use {{ variable }} directly (not {{ body.variable }}) — fastapi-mail 1.6.2 passes template_body dict at top level via render(**template_data)
+- [Phase 05-platform-security]: AuditLog has no TimestampMixin and no updated_at — append-only table semantics enforced at model level
+- [Phase 05-platform-security]: write_audit does NOT commit — caller's session commit includes audit entry atomically with business data
+- [Phase 05-platform-security]: login audit lookup queries User.id by email (indexed) after successful login — only runs on success, lightweight
 
 ### Pending Todos
 
