@@ -39,6 +39,7 @@ limiter = Limiter(
     key_func=get_remote_address,
     default_limits=[settings.RATE_LIMIT_GLOBAL],
     storage_uri=settings.REDIS_URL,
+    headers_enabled=True,  # Include X-RateLimit-* and Retry-After in responses
 )
 
 # Re-export for main.py convenience
