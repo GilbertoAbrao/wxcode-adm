@@ -35,6 +35,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
+from wxcode_adm.audit.service import write_audit
 from wxcode_adm.auth.dependencies import require_verified
 from wxcode_adm.auth.models import User
 from wxcode_adm.common.exceptions import NotFoundError
@@ -90,6 +91,14 @@ async def create_workspace(
         WorkspaceCreatedResponse with tenant details and membership_id.
     """
     tenant, membership = await service.create_workspace(db, user, body.name)
+    await write_audit(
+        db,
+        actor_id=user.id,
+        action="create_workspace",
+        resource_type="tenant",
+        resource_id=str(tenant.id),
+        ip_address=request.client.host if request.client else None,
+    )
     return WorkspaceCreatedResponse(
         tenant=TenantResponse.model_validate(tenant),
         membership_id=membership.id,
@@ -174,6 +183,16 @@ async def update_current_tenant(
     tenant.name = body.name
     db.add(tenant)
     await db.flush()
+    await write_audit(
+        db,
+        actor_id=membership.user_id,
+        action="update_tenant",
+        resource_type="tenant",
+        resource_id=str(tenant.id),
+        tenant_id=tenant.id,
+        ip_address=request.client.host if request.client else None,
+        details={"name": body.name},
+    )
     return TenantResponse.model_validate(tenant)
 
 
@@ -254,6 +273,16 @@ async def change_member_role(
         select(User).where(User.id == updated.user_id)
     )
     user = user_result.scalar_one()
+    await write_audit(
+        db,
+        actor_id=membership.user_id,
+        action="change_role",
+        resource_type="membership",
+        resource_id=str(user_id),
+        tenant_id=tenant.id,
+        ip_address=request.client.host if request.client else None,
+        details={"new_role": body.role},
+    )
     return MembershipResponse(
         id=updated.id,
         user_id=updated.user_id,
@@ -288,6 +317,15 @@ async def remove_member(
     """
     tenant, membership = ctx
     await service.remove_member(db, tenant, membership, user_id)
+    await write_audit(
+        db,
+        actor_id=membership.user_id,
+        action="remove_member",
+        resource_type="membership",
+        resource_id=str(user_id),
+        tenant_id=tenant.id,
+        ip_address=request.client.host if request.client else None,
+    )
     return MessageResponse(message="Member removed from tenant")
 
 
@@ -313,6 +351,14 @@ async def leave_tenant(
     """
     tenant, membership = ctx
     await service.leave_tenant(db, tenant.id, membership.user_id)
+    await write_audit(
+        db,
+        actor_id=membership.user_id,
+        action="leave_tenant",
+        resource_type="membership",
+        tenant_id=tenant.id,
+        ip_address=request.client.host if request.client else None,
+    )
     return MessageResponse(message="You have left the tenant")
 
 
@@ -341,6 +387,16 @@ async def initiate_transfer(
     """
     tenant, membership = ctx
     transfer = await service.initiate_transfer(db, tenant, membership, body.to_user_id)
+    await write_audit(
+        db,
+        actor_id=membership.user_id,
+        action="initiate_transfer",
+        resource_type="ownership_transfer",
+        resource_id=str(transfer.id),
+        tenant_id=tenant.id,
+        ip_address=request.client.host if request.client else None,
+        details={"to_user_id": str(body.to_user_id)},
+    )
     return TransferResponse.model_validate(transfer)
 
 
@@ -367,6 +423,14 @@ async def accept_transfer(
     """
     tenant, membership = ctx
     await service.accept_transfer(db, tenant.id, membership.user_id)
+    await write_audit(
+        db,
+        actor_id=membership.user_id,
+        action="accept_transfer",
+        resource_type="ownership_transfer",
+        tenant_id=tenant.id,
+        ip_address=request.client.host if request.client else None,
+    )
     return MessageResponse(message="Ownership transferred successfully")
 
 
@@ -440,6 +504,16 @@ async def create_invitation(
     tenant, membership = ctx
     await enforce_member_cap(db, tenant.id)
     invitation = await service.invite_user(db, redis, tenant, membership, body)
+    await write_audit(
+        db,
+        actor_id=membership.user_id,
+        action="invite_user",
+        resource_type="invitation",
+        resource_id=str(invitation.id),
+        tenant_id=tenant.id,
+        ip_address=request.client.host if request.client else None,
+        details={"email": body.email, "role": body.role},
+    )
     return InvitationResponse.model_validate(invitation)
 
 
@@ -489,8 +563,17 @@ async def cancel_invitation(
 
     Requires X-Tenant-ID header and ADMIN role.
     """
-    tenant, _ = ctx
+    tenant, membership = ctx
     await service.cancel_invitation(db, tenant.id, invitation_id)
+    await write_audit(
+        db,
+        actor_id=membership.user_id,
+        action="cancel_invitation",
+        resource_type="invitation",
+        resource_id=str(invitation_id),
+        tenant_id=tenant.id,
+        ip_address=request.client.host if request.client else None,
+    )
     return MessageResponse(message="Invitation cancelled")
 
 
@@ -531,6 +614,14 @@ async def accept_invitation(
     For existing verified users accepting an invitation.
     """
     membership = await service.accept_invitation(db, user, body.token)
+    await write_audit(
+        db,
+        actor_id=user.id,
+        action="accept_invitation",
+        resource_type="invitation",
+        tenant_id=membership.tenant_id,
+        ip_address=request.client.host if request.client else None,
+    )
     return MembershipResponse(
         id=membership.id,
         user_id=membership.user_id,

@@ -22,11 +22,12 @@ The JWKS endpoint MUST remain at domain root per RFC 5785 — external services
 
 from fastapi import APIRouter, Depends, Header, Request
 from redis.asyncio import Redis
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from wxcode_adm.audit.service import write_audit
 from wxcode_adm.auth import service
 from wxcode_adm.auth.dependencies import require_verified
-from wxcode_adm.common.rate_limit import limiter
 from wxcode_adm.auth.jwks import build_jwks_response
 from wxcode_adm.auth.models import User
 from wxcode_adm.auth.schemas import (
@@ -46,6 +47,7 @@ from wxcode_adm.auth.schemas import (
     VerifyEmailRequest,
     VerifyEmailResponse,
 )
+from wxcode_adm.common.rate_limit import limiter
 from wxcode_adm.config import settings
 from wxcode_adm.dependencies import get_redis, get_session
 
@@ -95,11 +97,19 @@ async def signup(
     - Returns 422 if the request body is invalid.
     """
     await service.signup(db, redis, body)
+    await write_audit(
+        db,
+        action="signup",
+        resource_type="user",
+        ip_address=request.client.host if request.client else None,
+        details={"email": body.email},
+    )
     return SignupResponse(message="Check your email for a verification code")
 
 
 @auth_api_router.post("/verify-email", response_model=VerifyEmailResponse)
 async def verify_email(
+    request: Request,
     body: VerifyEmailRequest,
     db: AsyncSession = Depends(get_session),
     redis: Redis = Depends(get_redis),
@@ -113,6 +123,12 @@ async def verify_email(
     - After 3 wrong attempts the code is invalidated — user must resend.
     """
     await service.verify_email(db, redis, body)
+    await write_audit(
+        db,
+        action="verify_email",
+        resource_type="user",
+        ip_address=request.client.host if request.client else None,
+    )
     return VerifyEmailResponse(message="Email verified successfully")
 
 
@@ -131,6 +147,12 @@ async def resend_verification(
     - Returns 429 if the 60-second cooldown is still active.
     """
     await service.resend_verification(db, redis, body)
+    await write_audit(
+        db,
+        action="resend_verification",
+        resource_type="user",
+        ip_address=request.client.host if request.client else None,
+    )
     return ResendVerificationResponse(message="Check your email for a new verification code")
 
 
@@ -150,11 +172,25 @@ async def login(
     - Returns 403 if email has not been verified.
     - Single-session policy: previous refresh tokens for the user are revoked.
     """
-    return await service.login(db, redis, body)
+    result = await service.login(db, redis, body)
+    # Lightweight user lookup to capture actor_id in audit log.
+    # Uses indexed email column — only runs on successful login.
+    user_result = await db.execute(select(User.id).where(User.email == body.email))
+    user_row = user_result.scalar_one_or_none()
+    if user_row:
+        await write_audit(
+            db,
+            actor_id=user_row,
+            action="login",
+            resource_type="session",
+            ip_address=request.client.host if request.client else None,
+        )
+    return result
 
 
 @auth_api_router.post("/refresh", response_model=TokenResponse)
 async def refresh(
+    request: Request,
     body: RefreshRequest,
     db: AsyncSession = Depends(get_session),
     redis: Redis = Depends(get_redis),
@@ -168,11 +204,19 @@ async def refresh(
       this triggers full logout (all sessions revoked).
     - Returns 401 if the refresh token has expired.
     """
-    return await service.refresh(db, redis, body)
+    result = await service.refresh(db, redis, body)
+    await write_audit(
+        db,
+        action="refresh_token",
+        resource_type="session",
+        ip_address=request.client.host if request.client else None,
+    )
+    return result
 
 
 @auth_api_router.post("/logout", response_model=MessageResponse)
 async def logout(
+    request: Request,
     body: LogoutRequest,
     db: AsyncSession = Depends(get_session),
     redis: Redis = Depends(get_redis),
@@ -190,6 +234,12 @@ async def logout(
     if authorization and authorization.startswith("Bearer "):
         access_token = authorization[7:]
     await service.logout(db, redis, body.refresh_token, access_token)
+    await write_audit(
+        db,
+        action="logout",
+        resource_type="session",
+        ip_address=request.client.host if request.client else None,
+    )
     return MessageResponse(message="Logged out successfully")
 
 
@@ -209,6 +259,13 @@ async def forgot_password(
     - An arq job is enqueued to send the reset link only when the user exists.
     """
     await service.forgot_password(db, redis, body)
+    # No details — enumeration-safe (do not expose whether email was found)
+    await write_audit(
+        db,
+        action="forgot_password",
+        resource_type="user",
+        ip_address=request.client.host if request.client else None,
+    )
     return ForgotPasswordResponse(
         message="If an account exists, a reset link has been sent"
     )
@@ -230,6 +287,12 @@ async def reset_password(
     - On success, ALL refresh tokens for the user are deleted (force re-login).
     """
     await service.reset_password(db, body)
+    await write_audit(
+        db,
+        action="reset_password",
+        resource_type="user",
+        ip_address=request.client.host if request.client else None,
+    )
     return ResetPasswordResponse(message="Password has been reset successfully")
 
 

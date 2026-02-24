@@ -21,6 +21,7 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, Request, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from wxcode_adm.audit.service import write_audit
 from wxcode_adm.auth.dependencies import require_verified
 from wxcode_adm.auth.models import User
 from wxcode_adm.billing import service
@@ -78,10 +79,19 @@ async def create_plan(
     request: Request,
     body: CreatePlanRequest,
     db: Annotated[AsyncSession, Depends(get_session)],
-    _: Annotated[User, Depends(require_superuser)],
+    user: Annotated[User, Depends(require_superuser)],
 ) -> PlanResponse:
     """Create a new billing plan and sync to Stripe."""
     plan = await service.create_plan(db, body)
+    await write_audit(
+        db,
+        actor_id=user.id,
+        action="create_plan",
+        resource_type="plan",
+        resource_id=str(plan.id),
+        ip_address=request.client.host if request.client else None,
+        details={"slug": body.slug},
+    )
     return PlanResponse.model_validate(plan)
 
 
@@ -94,10 +104,18 @@ async def update_plan(
     plan_id: uuid.UUID,
     body: UpdatePlanRequest,
     db: Annotated[AsyncSession, Depends(get_session)],
-    _: Annotated[User, Depends(require_superuser)],
+    user: Annotated[User, Depends(require_superuser)],
 ) -> PlanResponse:
     """Update an existing billing plan. Re-syncs Stripe Prices if fee amounts changed."""
     plan = await service.update_plan(db, plan_id, body)
+    await write_audit(
+        db,
+        actor_id=user.id,
+        action="update_plan",
+        resource_type="plan",
+        resource_id=str(plan_id),
+        ip_address=request.client.host if request.client else None,
+    )
     return PlanResponse.model_validate(plan)
 
 
@@ -109,10 +127,18 @@ async def delete_plan(
     request: Request,
     plan_id: uuid.UUID,
     db: Annotated[AsyncSession, Depends(get_session)],
-    _: Annotated[User, Depends(require_superuser)],
+    user: Annotated[User, Depends(require_superuser)],
 ) -> PlanResponse:
     """Soft-delete a billing plan (sets is_active=False). Archives Stripe Product."""
     plan = await service.delete_plan(db, plan_id)
+    await write_audit(
+        db,
+        actor_id=user.id,
+        action="delete_plan",
+        resource_type="plan",
+        resource_id=str(plan_id),
+        ip_address=request.client.host if request.client else None,
+    )
     return PlanResponse.model_validate(plan)
 
 
@@ -222,11 +248,20 @@ async def create_checkout_session(
     Requires: billing_access=True on membership OR Owner role.
     Rejects: free plan checkout, already-subscribed tenants.
     """
-    tenant, _ = ctx
+    tenant, membership = ctx
     checkout_url, session_id = await service.create_checkout_session(
         db=db,
         tenant_id=tenant.id,
         plan_id=body.plan_id,
+    )
+    await write_audit(
+        db,
+        actor_id=membership.user_id,
+        action="create_checkout",
+        resource_type="subscription",
+        tenant_id=tenant.id,
+        ip_address=request.client.host if request.client else None,
+        details={"plan_id": str(body.plan_id)},
     )
     return CheckoutResponse(checkout_url=checkout_url, session_id=session_id)
 
@@ -248,8 +283,16 @@ async def create_portal_session(
 
     Requires: billing_access=True on membership OR Owner role.
     """
-    tenant, _ = ctx
+    tenant, membership = ctx
     portal_url = await service.create_portal_session(db=db, tenant_id=tenant.id)
+    await write_audit(
+        db,
+        actor_id=membership.user_id,
+        action="create_portal_session",
+        resource_type="subscription",
+        tenant_id=tenant.id,
+        ip_address=request.client.host if request.client else None,
+    )
     return {"portal_url": portal_url}
 
 
