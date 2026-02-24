@@ -15,10 +15,11 @@ arq uses Redis as its queue backend (same Redis instance as the API).
 
 import logging
 
-from arq import create_pool
+from arq import create_pool, cron
 from arq.connections import RedisSettings
 from sqlalchemy import text
 
+from wxcode_adm.audit.service import purge_old_audit_logs
 from wxcode_adm.auth.email import send_reset_email, send_verification_email
 from wxcode_adm.billing.email import send_payment_failed_email
 from wxcode_adm.billing.service import process_stripe_event
@@ -105,6 +106,7 @@ class WorkerSettings:
         process_stripe_event,
         send_payment_failed_email,
     ]
+    cron_jobs = [cron(purge_old_audit_logs, hour=2, minute=0)]
     on_startup = startup
     on_shutdown = shutdown
     redis_settings = RedisSettings.from_dsn(settings.REDIS_URL)
