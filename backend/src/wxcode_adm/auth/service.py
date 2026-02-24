@@ -15,6 +15,11 @@ Contains business logic for:
 - get_google_userinfo: extract email/sub from Google OIDC token
 - resolve_oauth_account: state machine for new-user / link-required / existing login
 - confirm_oauth_link: confirm account link with password verification
+- generate_backup_codes: generate 10 formatted backup codes with argon2 hashes
+- generate_qr_code_base64: encode a provisioning URI as a base64 PNG QR code
+- mfa_begin_enrollment: generate TOTP secret + QR code for enrollment start
+- mfa_confirm_enrollment: verify TOTP code, set mfa_enabled, generate backup codes
+- mfa_disable: disable MFA accepting TOTP or backup code
 
 Redis OTP key pattern:
   auth:otp:{user_id}          — the 6-digit code (TTL 600s)
@@ -29,7 +34,9 @@ Redis OAuth link pattern:
   auth:oauth_link:{token}     — JSON {user_id, provider, provider_user_id} (TTL = MFA_PENDING_TTL_SECONDS)
 """
 
+import base64
 import hashlib
+import io
 import json
 import logging
 import secrets
@@ -37,6 +44,8 @@ import uuid
 from datetime import datetime, timedelta, timezone
 
 import jwt as pyjwt
+import pyotp
+import qrcode
 from itsdangerous import URLSafeTimedSerializer
 from itsdangerous.exc import BadSignature, SignatureExpired
 from redis.asyncio import Redis
@@ -48,13 +57,14 @@ from wxcode_adm.auth.exceptions import (
     EmailNotVerifiedError,
     InvalidCredentialsError,
     InvalidTokenError,
+    MfaInvalidCodeError,
     OAuthEmailUnavailableError,
     OAuthProviderAlreadyLinkedError,
     ReplayDetectedError,
     TokenExpiredError,
 )
 from wxcode_adm.auth.jwt import create_access_token
-from wxcode_adm.auth.models import OAuthAccount, RefreshToken, User
+from wxcode_adm.auth.models import MfaBackupCode, OAuthAccount, RefreshToken, User
 from wxcode_adm.auth.password import hash_password, verify_password
 from wxcode_adm.auth.schemas import (
     ForgotPasswordRequest,
@@ -922,3 +932,251 @@ async def confirm_oauth_link(
     )
 
     return await _issue_tokens(db, redis, user)
+
+
+# ---------------------------------------------------------------------------
+# Phase 6: MFA enrollment service functions
+# ---------------------------------------------------------------------------
+
+# Number of backup codes generated at enrollment time.
+BACKUP_CODE_COUNT = 10
+
+
+def generate_backup_codes() -> tuple[list[str], list[str]]:
+    """
+    Generate BACKUP_CODE_COUNT one-time backup codes for MFA recovery.
+
+    Each code is a random 10-character string formatted as "XXXXX-XXXXX"
+    (5 chars, dash, 5 chars) for readability. The code is hashed with
+    argon2id (via hash_password) without the dash for storage.
+
+    Returns:
+        Tuple of (plaintext_formatted, hashed) lists, each of length
+        BACKUP_CODE_COUNT. The plaintext list is shown to the user ONCE
+        and must never be stored in the database.
+    """
+    plaintext_formatted: list[str] = []
+    hashed: list[str] = []
+
+    for _ in range(BACKUP_CODE_COUNT):
+        raw = secrets.token_urlsafe(8)[:10].upper()
+        formatted = f"{raw[:5]}-{raw[5:]}"
+        # Strip dash before hashing — verification also strips dash
+        code_hash = hash_password(raw)
+        plaintext_formatted.append(formatted)
+        hashed.append(code_hash)
+
+    return plaintext_formatted, hashed
+
+
+def generate_qr_code_base64(uri: str) -> str:
+    """
+    Generate a QR code image for a TOTP provisioning URI and return it as
+    a base64-encoded PNG string.
+
+    The base64 string can be embedded in an <img> src attribute directly:
+        <img src="data:image/png;base64,{qr_code}" />
+
+    Args:
+        uri: otpauth:// provisioning URI from pyotp.TOTP.provisioning_uri()
+
+    Returns:
+        Base64-encoded PNG string (no data URI prefix).
+    """
+    img = qrcode.make(uri)
+    buf = io.BytesIO()
+    img.save(buf, format="PNG")
+    buf.seek(0)
+    return base64.b64encode(buf.read()).decode("utf-8")
+
+
+async def mfa_begin_enrollment(db: AsyncSession, user: User) -> dict:
+    """
+    Begin MFA enrollment for a user: generate a TOTP secret and QR code.
+
+    Does NOT set mfa_enabled=True — that only happens when the user confirms
+    enrollment with a valid TOTP code (mfa_confirm_enrollment).
+
+    Steps:
+    1. Reject if MFA is already enabled.
+    2. Generate a new TOTP secret (pyotp.random_base32).
+    3. Store the secret on user.mfa_secret (temporary, not yet confirmed).
+    4. Generate the provisioning URI and QR code image.
+
+    Args:
+        db: async database session
+        user: the authenticated User requesting enrollment
+
+    Returns:
+        Dict with keys: secret, qr_code (base64 PNG), provisioning_uri.
+
+    Raises:
+        AppError(MFA_ALREADY_ENABLED, 400): if user.mfa_enabled is True.
+    """
+    if user.mfa_enabled:
+        raise AppError(
+            error_code="MFA_ALREADY_ENABLED",
+            message="MFA is already enabled",
+            status_code=400,
+        )
+
+    secret = pyotp.random_base32()
+    user.mfa_secret = secret
+
+    provisioning_uri = pyotp.TOTP(secret).provisioning_uri(
+        name=user.email,
+        issuer_name="WXCODE",
+    )
+    qr_code = generate_qr_code_base64(provisioning_uri)
+
+    logger.info(f"MFA enrollment started for user: {user.email} (id={user.id})")
+
+    return {
+        "secret": secret,
+        "qr_code": qr_code,
+        "provisioning_uri": provisioning_uri,
+    }
+
+
+async def mfa_confirm_enrollment(
+    db: AsyncSession, user: User, code: str
+) -> list[str]:
+    """
+    Confirm MFA enrollment by verifying a TOTP code from the user's authenticator.
+
+    On success:
+    - Sets user.mfa_enabled = True.
+    - Generates 10 argon2-hashed backup codes.
+    - Cleans up any pre-existing MfaBackupCode rows (from previous failed enrollments).
+    - Creates new MfaBackupCode rows (one per hashed code).
+    - Returns the plaintext backup codes (shown to the user ONCE, never stored).
+
+    Args:
+        db: async database session
+        user: the authenticated User completing enrollment
+        code: 6-digit TOTP code from the user's authenticator app
+
+    Returns:
+        List of 10 plaintext backup codes formatted as "XXXXX-XXXXX".
+
+    Raises:
+        AppError(MFA_NOT_STARTED, 400): if user.mfa_secret is None.
+        AppError(MFA_ALREADY_ENABLED, 400): if user.mfa_enabled is True.
+        MfaInvalidCodeError: if the TOTP code is invalid.
+    """
+    if user.mfa_secret is None:
+        raise AppError(
+            error_code="MFA_NOT_STARTED",
+            message="Begin enrollment first",
+            status_code=400,
+        )
+
+    if user.mfa_enabled:
+        raise AppError(
+            error_code="MFA_ALREADY_ENABLED",
+            message="MFA is already enabled",
+            status_code=400,
+        )
+
+    # Verify the TOTP code (valid_window=1 allows ±30s clock skew)
+    if not pyotp.TOTP(user.mfa_secret).verify(code, valid_window=1):
+        raise MfaInvalidCodeError()
+
+    # Enable MFA
+    user.mfa_enabled = True
+
+    # Generate backup codes
+    plaintext_codes, hashed_codes = generate_backup_codes()
+
+    # Delete any pre-existing backup codes (cleanup from previous failed enrollments)
+    await db.execute(
+        delete(MfaBackupCode).where(MfaBackupCode.user_id == user.id)
+    )
+
+    # Create new backup code rows
+    for code_hash in hashed_codes:
+        db.add(
+            MfaBackupCode(
+                user_id=user.id,
+                code_hash=code_hash,
+                used_at=None,
+            )
+        )
+
+    await db.flush()
+
+    logger.info(f"MFA enrollment confirmed for user: {user.email} (id={user.id})")
+
+    return plaintext_codes
+
+
+async def mfa_disable(
+    db: AsyncSession, redis: Redis, user: User, code: str
+) -> None:
+    """
+    Disable MFA for a user by verifying a TOTP code or an unused backup code.
+
+    Verification order:
+    1. Try TOTP verification first.
+    2. If TOTP fails, try backup code: strip dashes, query unused MfaBackupCode
+       rows, iterate and call verify_password on each code_hash.
+    3. If neither matches, raise MfaInvalidCodeError.
+
+    On success:
+    - Sets user.mfa_enabled = False and user.mfa_secret = None.
+    - Deletes all MfaBackupCode rows for the user.
+
+    Note (per locked decision): if tenant MFA enforcement is on, the user will
+    be re-prompted to enroll on their next login.
+
+    Args:
+        db: async database session
+        redis: Redis client (reserved for future session invalidation)
+        user: the authenticated User requesting MFA disable
+        code: a 6-digit TOTP code OR a formatted backup code ("XXXXX-XXXXX")
+
+    Raises:
+        AppError(MFA_NOT_ENABLED, 400): if user.mfa_enabled is False.
+        MfaInvalidCodeError: if neither TOTP nor backup code matches.
+    """
+    if not user.mfa_enabled:
+        raise AppError(
+            error_code="MFA_NOT_ENABLED",
+            message="MFA is not enabled",
+            status_code=400,
+        )
+
+    # Try TOTP verification first
+    totp_valid = pyotp.TOTP(user.mfa_secret).verify(code, valid_window=1)
+
+    if not totp_valid:
+        # Try backup code — strip dashes before comparing
+        code_stripped = code.replace("-", "")
+        backup_result = await db.execute(
+            select(MfaBackupCode).where(
+                MfaBackupCode.user_id == user.id,
+                MfaBackupCode.used_at.is_(None),
+            )
+        )
+        backup_rows = backup_result.scalars().all()
+
+        backup_valid = False
+        for row in backup_rows:
+            if verify_password(code_stripped, row.code_hash):
+                row.used_at = datetime.now(timezone.utc)
+                backup_valid = True
+                break
+
+        if not backup_valid:
+            raise MfaInvalidCodeError()
+
+    # Disable MFA
+    user.mfa_enabled = False
+    user.mfa_secret = None
+
+    # Delete all backup codes for this user
+    await db.execute(
+        delete(MfaBackupCode).where(MfaBackupCode.user_id == user.id)
+    )
+
+    logger.info(f"MFA disabled for user: {user.email} (id={user.id})")
