@@ -51,6 +51,13 @@ class Settings(BaseSettings):
     STRIPE_PUBLISHABLE_KEY: str
     STRIPE_WEBHOOK_SECRET: SecretStr
 
+    # --- Audit Log (Phase 5 -- Platform Security) ---
+    AUDIT_LOG_RETENTION_DAYS: int = 365
+
+    # --- Rate Limiting (Phase 5 -- Platform Security) ---
+    RATE_LIMIT_AUTH: str = "5/minute"    # Strict limit for auth endpoints (brute-force protection)
+    RATE_LIMIT_GLOBAL: str = "60/minute"  # Global default for all other endpoints
+
     # --- Frontend ---
     FRONTEND_URL: str = "http://localhost:3060"
 

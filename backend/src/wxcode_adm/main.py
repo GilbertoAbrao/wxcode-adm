@@ -103,6 +103,20 @@ def create_app() -> FastAPI:
         redoc_url=f"{settings.API_V1_PREFIX}/redoc",
     )
 
+    # --- Rate Limiting (SlowAPI) ---
+    # Must be wired BEFORE routers so global default_limits apply to all endpoints.
+    # Use SlowAPIASGIMiddleware (not SlowAPIMiddleware) — required for async FastAPI.
+    from wxcode_adm.common.rate_limit import (  # noqa: PLC0415
+        RateLimitExceeded,
+        SlowAPIASGIMiddleware,
+        _rate_limit_exceeded_handler,
+        limiter,
+    )
+
+    app.state.limiter = limiter
+    app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+    app.add_middleware(SlowAPIASGIMiddleware)
+
     # --- CORS Middleware ---
     app.add_middleware(
         CORSMiddleware,
