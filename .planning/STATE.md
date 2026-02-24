@@ -10,9 +10,9 @@ See: .planning/PROJECT.md (updated 2026-02-22)
 ## Current Position
 
 Phase: 6 of 8 (OAuth and MFA) — In Progress
-Plan: 3 of 5 in current phase (06-03 complete — two-stage MFA login flow, POST /auth/mfa/verify endpoint, TOTP replay prevention, trusted device cookie)
-Status: Plan 06-03 complete — MFA login flow: login returns mfa_required+mfa_token; mfa/verify validates TOTP/backup code; trusted device 30-day cookie; all 90 tests passing
-Last activity: 2026-02-24 — Plan 06-03 complete: two-stage MFA login done (3 of 5)
+Plan: 4 of 5 in current phase (06-04 complete — tenant MFA enforcement toggle, login flow integration, OAuth-only user password reset)
+Status: Plan 06-04 complete — Owner PATCH /tenants/current/mfa-enforcement toggle; immediate non-MFA session revocation; mfa_setup_required login signal; _reset_salt for OAuth-only users; all 90 tests passing
+Last activity: 2026-02-24 — Plan 06-04 complete: tenant MFA enforcement done (4 of 5)
 
 Progress: [████████████████████████] 88%
 
@@ -58,6 +58,7 @@ Progress: [███████████████████████
 | Phase 05-platform-security P04 | 8 | 2 tasks | 7 files |
 | Phase 06-oauth-and-mfa P02 | 7 | 2 tasks | 2 files |
 | Phase 06-oauth-and-mfa P03 | 3 | 2 tasks | 2 files |
+| Phase 06-oauth-and-mfa P04 | 4 | 2 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -167,6 +168,12 @@ Recent decisions affecting current work:
 - [06-03]: POST /auth/mfa/verify returns JSONResponse (not Pydantic model) — required to call response.set_cookie() on the response object
 - [06-03]: login audit uses login_mfa_pending action when MFA required — differentiates partial auth from full logins in audit trail
 - [06-03]: is_device_trusted() accepts str user_id — avoids UUID/str conversion at call site; consistent with other Redis key patterns using str(user.id)
+- [06-04]: enable_mfa_enforcement raises MfaRequiredError if actor has no MFA — prevents Owner locking all members including themselves without having MFA ready
+- [06-04]: Immediate lockout on enforcement: refresh tokens deleted for non-MFA members; access tokens expire naturally within ACCESS_TOKEN_TTL_HOURS
+- [06-04]: mfa_pending Redis value is JSON {"user_id": ..., "setup_required": true} for enforcement flow, plain string for normal MFA — mfa_verify discriminates via try/except json.loads
+- [06-04]: Trusted device check skipped entirely when user is in any enforcing tenant — always require TOTP for enforcing tenants
+- [06-04]: OAuth new user needs_onboarding=False when pending invitations exist — auto_join_pending_invitations handles workspace assignment after email verification
+- [06-04]: _reset_salt() uses f"no-password-{user.id}" for OAuth-only users (null password_hash) — becomes invalidated after reset_password sets a real hash
 
 ### Pending Todos
 
@@ -181,5 +188,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-24
-Stopped at: Completed 06-03-PLAN.md — two-stage MFA login flow, POST /auth/mfa/verify, TOTP replay prevention, trusted device cookie; all 90 tests passing
-Resume file: .planning/ (Phase 6 plan 3 complete, plan 4 is next — tenant MFA enforcement)
+Stopped at: Completed 06-04-PLAN.md — tenant MFA enforcement toggle, login flow enforcement integration, mfa_setup_required signal, OAuth-only password reset; all 90 tests passing
+Resume file: .planning/ (Phase 6 plan 4 complete, plan 5 is next — OAuth routes final integration)

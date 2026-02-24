@@ -20,7 +20,7 @@ Requirements for initial release. Each maps to roadmap phases.
 - [x] **AUTH-09**: User can sign in with GitHub via OAuth 2.0 (PKCE)
 - [x] **AUTH-10**: User can enable MFA via TOTP (QR code setup + backup codes)
 - [x] **AUTH-11**: User is prompted for TOTP code on login when MFA enabled
-- [ ] **AUTH-12**: Tenant owner can enforce MFA for all tenant members
+- [x] **AUTH-12**: Tenant owner can enforce MFA for all tenant members
 - [x] **AUTH-13**: User can skip MFA on remembered devices (30-day)
 
 ### Multi-Tenancy
@@ -132,7 +132,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | AUTH-09 | Phase 6 | Complete |
 | AUTH-10 | Phase 6 | Complete |
 | AUTH-11 | Phase 6 | Complete |
-| AUTH-12 | Phase 6 | Pending |
+| AUTH-12 | Phase 6 | Complete |
 | AUTH-13 | Phase 6 | Complete |
 | TNNT-01 | Phase 3 | Complete |
 | TNNT-02 | Phase 3 | Complete |
