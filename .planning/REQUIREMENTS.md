@@ -51,7 +51,7 @@ Requirements for initial release. Each maps to roadmap phases.
 - [ ] **PLAT-02**: API key revocation and rotation
 - [ ] **PLAT-03**: Rate limiting per IP and per user (login, signup, reset, API)
 - [ ] **PLAT-04**: Immutable audit log of sensitive actions
-- [ ] **PLAT-05**: Transactional email templates (verify, reset, invite, payment failed)
+- [x] **PLAT-05**: Transactional email templates (verify, reset, invite, payment failed)
 
 ### Super-Admin
 
@@ -151,7 +151,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | PLAT-02 | Phase 5 | Pending |
 | PLAT-03 | Phase 5 | Pending |
 | PLAT-04 | Phase 5 | Pending |
-| PLAT-05 | Phase 5 | Pending |
+| PLAT-05 | Phase 5 | Complete |
 | SADM-01 | Phase 8 | Pending |
 | SADM-02 | Phase 8 | Pending |
 | SADM-03 | Phase 8 | Pending |

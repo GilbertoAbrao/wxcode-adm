@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-02-22)
 
 **Core value:** Controlar acesso seguro a plataforma WXCODE com identidade, permissoes por tenant e cobranca recorrente — sem executar nenhuma operacao do wxcode engine.
-**Current focus:** Phase 4 — Billing Core
+**Current focus:** Phase 5 — Platform Security
 
 ## Current Position
 
-Phase: 4 of 8 (Billing Core) — COMPLETE
-Plan: 5 of 5 in current phase (04-05 complete — Migration 003, billing test infrastructure, 19 integration tests, Phase 4 billing-core fully verified)
-Status: Plan 04-05 complete — Alembic migration 003, conftest Stripe mocks + free plan seed, 19 billing integration tests (all 5 BILL-* requirements verified)
-Last activity: 2026-02-23 — Plan 04-05 complete: Migration 003, billing tests, Phase 4 COMPLETE
+Phase: 5 of 8 (Platform Security) — In Progress
+Plan: 3 of 4 in current phase (05-03 complete — FastMail singleton + 9 branded email templates + 4 refactored email senders)
+Status: Plan 05-03 complete — common/mail.py FastMail singleton, 9 Jinja2 email templates (base.html + 4 HTML + 4 txt), all 4 email sender functions upgraded to html+plain multipart (PLAT-05 verified)
+Last activity: 2026-02-24 — Plan 05-03 complete: branded email templates, Phase 5 plan 3/4 done
 
-Progress: [████████████████████] 80%
+Progress: [█████████████████████] 85%
 
 ## Performance Metrics
 
@@ -52,6 +52,7 @@ Progress: [████████████████████] 80%
 | Phase 04-billing-core P04 | 4 | 2 tasks | 3 files |
 | Phase 04-billing-core P03 | 4 | 2 tasks | 5 files |
 | Phase 04-billing-core P05 | 7 | 2 tasks | 4 files |
+| Phase 05-platform-security P03 | 3 | 2 tasks | 13 files |
 
 ## Accumulated Context
 
@@ -133,6 +134,9 @@ Recent decisions affecting current work:
 - [Phase 04-05]: Stripe client must be mocked in both stripe_client_module and billing_service_module — service.py copies the reference at import time
 - [Phase 04-05]: Free plan seeded in test_db fixture so all workspace-creating tests work without explicit setup — bootstrap_free_subscription requires it
 - [Phase 04-05]: tasks.worker.get_arq_pool patched at source module so billing service lazy import picks up mock
+- [Phase 05-platform-security]: FastMail singleton constructed once in common/mail.py, imported lazily inside try/except by senders
+- [Phase 05-platform-security]: html_template + plain_template params used (not template_name) so fastapi-mail produces multipart/alternative MIME structure
+- [Phase 05-platform-security]: Email templates use {{ variable }} directly (not {{ body.variable }}) — fastapi-mail 1.6.2 passes template_body dict at top level via render(**template_data)
 
 ### Pending Todos
 
@@ -146,6 +150,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-02-23
-Stopped at: Completed 04-05-PLAN.md — Migration 003, billing test infrastructure, 19 integration tests, Phase 4 billing-core COMPLETE (5 of 5 plans done)
-Resume file: .planning/phases/05-api-gateway/ (Phase 5 — next phase)
+Last session: 2026-02-24
+Stopped at: Completed 05-03-PLAN.md — FastMail singleton + 9 branded email templates + 4 refactored email senders (3 of 4 plans done in Phase 5)
+Resume file: .planning/phases/05-platform-security/05-04-PLAN.md (Phase 5 Plan 4 — next plan)
