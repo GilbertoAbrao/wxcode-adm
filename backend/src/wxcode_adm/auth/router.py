@@ -18,6 +18,10 @@ This module provides two routers:
    - GET  /oauth/{provider}/login      — OAuth redirect to Google or GitHub
    - GET  /oauth/{provider}/callback   — OAuth callback — exchange code, resolve account
    - POST /oauth/link/confirm          — Confirm account link with password
+   - POST /mfa/enroll                  — Begin MFA enrollment (generate secret + QR code)
+   - POST /mfa/confirm                 — Confirm enrollment with TOTP code + receive backup codes
+   - DELETE /mfa                       — Disable MFA (TOTP or backup code required)
+   - GET  /mfa/status                  — Check MFA enrollment status
 
 The JWKS endpoint MUST remain at domain root per RFC 5785 — external services
 (e.g., wxcode engine) fetch this URL to verify JWTs issued by wxcode-adm.
@@ -42,6 +46,11 @@ from wxcode_adm.auth.schemas import (
     LoginRequest,
     LogoutRequest,
     MessageResponse,
+    MfaDisableRequest,
+    MfaEnrollBeginResponse,
+    MfaEnrollConfirmRequest,
+    MfaEnrollConfirmResponse,
+    MfaStatusResponse,
     OAuthCallbackResponse,
     OAuthLinkConfirmRequest,
     OAuthLinkResponse,
@@ -474,3 +483,116 @@ async def oauth_link_confirm(
         is_new_user=False,
         needs_onboarding=False,
     )
+
+
+# ---------------------------------------------------------------------------
+# Phase 6: MFA enrollment routes
+# ---------------------------------------------------------------------------
+
+
+@auth_api_router.post("/mfa/enroll", response_model=MfaEnrollBeginResponse)
+async def mfa_enroll(
+    request: Request,
+    db: AsyncSession = Depends(get_session),
+    redis: Redis = Depends(get_redis),
+    user: User = Depends(require_verified),
+) -> MfaEnrollBeginResponse:
+    """
+    Begin MFA enrollment by generating a TOTP secret and QR code.
+
+    The returned QR code should be scanned with an authenticator app (e.g.,
+    Google Authenticator, Authy). The provisioning_uri can be used for manual
+    entry. After scanning, call POST /mfa/confirm with a valid TOTP code.
+
+    - Returns 200 with secret, qr_code (base64 PNG), provisioning_uri.
+    - Returns 400 if MFA is already enabled.
+    - Returns 401 if not authenticated.
+    - Returns 403 if email is not verified.
+    """
+    result = await service.mfa_begin_enrollment(db, user)
+    await write_audit(
+        db,
+        actor_id=user.id,
+        action="mfa_enroll_begin",
+        resource_type="user",
+        ip_address=request.client.host if request.client else None,
+    )
+    return MfaEnrollBeginResponse(**result)
+
+
+@auth_api_router.post("/mfa/confirm", response_model=MfaEnrollConfirmResponse)
+async def mfa_confirm(
+    request: Request,
+    body: MfaEnrollConfirmRequest,
+    db: AsyncSession = Depends(get_session),
+    redis: Redis = Depends(get_redis),
+    user: User = Depends(require_verified),
+) -> MfaEnrollConfirmResponse:
+    """
+    Confirm MFA enrollment by providing a valid TOTP code from the authenticator.
+
+    On success, 10 backup codes are returned. These codes are shown ONCE and
+    must be saved by the user — they are never stored in plain text.
+
+    - Returns 200 with backup_codes list on success.
+    - Returns 400 if mfa_begin_enrollment was not called first (no mfa_secret).
+    - Returns 400 if MFA is already enabled.
+    - Returns 401 if the TOTP code is invalid.
+    - Returns 401 if not authenticated.
+    - Returns 403 if email is not verified.
+    """
+    backup_codes = await service.mfa_confirm_enrollment(db, user, body.code)
+    await write_audit(
+        db,
+        actor_id=user.id,
+        action="mfa_enroll_confirm",
+        resource_type="user",
+        ip_address=request.client.host if request.client else None,
+    )
+    return MfaEnrollConfirmResponse(backup_codes=backup_codes)
+
+
+@auth_api_router.delete("/mfa", response_model=MessageResponse)
+async def mfa_disable(
+    request: Request,
+    body: MfaDisableRequest,
+    db: AsyncSession = Depends(get_session),
+    redis: Redis = Depends(get_redis),
+    user: User = Depends(require_verified),
+) -> MessageResponse:
+    """
+    Disable MFA by providing a valid TOTP code or an unused backup code.
+
+    Per locked decision: if the tenant enforces MFA, the user will be
+    re-prompted to enroll on their next login.
+
+    - Returns 200 on success.
+    - Returns 400 if MFA is not enabled.
+    - Returns 401 if the code is invalid (TOTP or backup).
+    - Returns 401 if not authenticated.
+    - Returns 403 if email is not verified.
+    """
+    await service.mfa_disable(db, redis, user, body.code)
+    await write_audit(
+        db,
+        actor_id=user.id,
+        action="mfa_disable",
+        resource_type="user",
+        ip_address=request.client.host if request.client else None,
+    )
+    return MessageResponse(message="MFA has been disabled")
+
+
+@auth_api_router.get("/mfa/status", response_model=MfaStatusResponse)
+async def mfa_status(
+    request: Request,
+    user: User = Depends(require_verified),
+) -> MfaStatusResponse:
+    """
+    Check the current user's MFA enrollment status.
+
+    - Returns 200 with mfa_enabled boolean.
+    - Returns 401 if not authenticated.
+    - Returns 403 if email is not verified.
+    """
+    return MfaStatusResponse(mfa_enabled=user.mfa_enabled)
