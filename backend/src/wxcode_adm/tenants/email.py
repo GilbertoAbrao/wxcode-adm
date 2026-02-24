@@ -6,9 +6,10 @@ them from tenant service code (invite_user). The arq worker runs as a
 separate process:
     arq wxcode_adm.tasks.worker.WorkerSettings
 
-Phase 3 behavior:
+Phase 5 behavior:
 - Logs the invite link at INFO level for dev/test use.
-- Attempts SMTP send via fastapi-mail if configured.
+- Sends multipart HTML+plain-text email using shared FastMail singleton and
+  branded Jinja2 template from templates/email/invitation.html.
 - Gracefully handles SMTP unavailability — job does NOT fail if SMTP is down.
 
 This follows the exact same pattern as auth/email.py's send_verification_email
@@ -16,8 +17,6 @@ and send_reset_email.
 """
 
 import logging
-
-from wxcode_adm.config import settings
 
 logger = logging.getLogger(__name__)
 
@@ -32,7 +31,7 @@ async def send_invitation_email(
     """
     Send a tenant invitation email with the acceptance link.
 
-    Phase 3: Logs the invite link for dev/test access (intentional).
+    Logs the invite link for dev/test access (intentional).
     Wraps actual SMTP send in try/except so the job never fails on
     SMTP misconfiguration.
 
@@ -47,34 +46,29 @@ async def send_invitation_email(
     logger.info(f"[DEV] Invitation link for {email} to join {tenant_name}: {invite_link}")
 
     try:
-        from fastapi_mail import ConnectionConfig, FastMail, MessageSchema  # noqa: PLC0415
+        from fastapi_mail import MessageSchema, MessageType  # noqa: PLC0415
 
-        conf = ConnectionConfig(
-            MAIL_USERNAME=settings.SMTP_USER,
-            MAIL_PASSWORD=settings.SMTP_PASSWORD,
-            MAIL_FROM=settings.SMTP_FROM_EMAIL,
-            MAIL_FROM_NAME=settings.SMTP_FROM_NAME,
-            MAIL_PORT=settings.SMTP_PORT,
-            MAIL_SERVER=settings.SMTP_HOST,
-            MAIL_STARTTLS=settings.SMTP_TLS,
-            MAIL_SSL_TLS=settings.SMTP_SSL,
-            USE_CREDENTIALS=bool(settings.SMTP_USER),
-        )
+        from wxcode_adm.common.mail import fast_mail  # noqa: PLC0415
+
         message = MessageSchema(
-            subject=f"You've been invited to {tenant_name}",
+            subject=f"You've been invited to {tenant_name} \u2014 WXCODE",
             recipients=[email],
-            body=(
-                f"You've been invited to join {tenant_name} as {role}. "
-                f"Click the link to accept: {invite_link}. "
-                "This invitation expires in 7 days."
-            ),
-            subtype="plain",
+            template_body={
+                "tenant_name": tenant_name,
+                "invite_link": invite_link,
+                "role": role,
+                "email": email,
+            },
+            subtype=MessageType.html,
         )
-        fm = FastMail(conf)
-        await fm.send_message(message)
+        await fast_mail.send_message(
+            message,
+            html_template="invitation.html",
+            plain_template="invitation.txt",
+        )
         logger.info(f"Invitation email sent to {email} for tenant {tenant_name}")
     except Exception:
         logger.warning(
-            f"Failed to send invitation email to {email} — SMTP may not be configured",
+            f"Failed to send invitation email to {email} \u2014 SMTP may not be configured",
             exc_info=True,
         )
