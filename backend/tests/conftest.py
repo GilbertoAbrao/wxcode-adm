@@ -86,6 +86,9 @@ def _build_sqlite_metadata() -> MetaData:
     import wxcode_adm.tenants.models  # noqa: F401
     import wxcode_adm.billing.models  # noqa: F401
     from wxcode_adm.audit import models as _audit_models  # noqa: F401
+    # Phase 6: ensure OAuth/MFA models are registered (they are in auth.models
+    # but explicit import is future-proof and documents intent)
+    from wxcode_adm.auth.models import OAuthAccount, MfaBackupCode, TrustedDevice  # noqa: F401
 
     sqlite_meta = MetaData()
     for table in Base.metadata.sorted_tables:
@@ -115,6 +118,8 @@ async def test_db():
     import wxcode_adm.tenants.models  # noqa: F401
     import wxcode_adm.billing.models  # noqa: F401
     from wxcode_adm.audit import models as _audit_models  # noqa: F401
+    # Phase 6: ensure OAuth/MFA models are registered
+    from wxcode_adm.auth.models import OAuthAccount, MfaBackupCode, TrustedDevice  # noqa: F401
 
     engine = create_async_engine("sqlite+aiosqlite://", echo=False)
 

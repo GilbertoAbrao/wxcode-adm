@@ -897,8 +897,14 @@ async def resolve_oauth_account(
         )
         user = user_result.scalar_one()
         token_response = await _issue_tokens(db, redis, user)
-        # Determine if user needs onboarding (no tenant memberships)
-        needs_onboarding = len(user.memberships) == 0
+        # Determine if user needs onboarding — use explicit async query to avoid
+        # lazy-loading the memberships relationship on the async session
+        # (lazy loads raise MissingGreenlet on async sessions in SQLAlchemy 2.0).
+        from wxcode_adm.tenants.models import TenantMembership as _TM  # noqa: PLC0415
+        membership_count_result = await db.execute(
+            select(_TM).where(_TM.user_id == user.id)
+        )
+        needs_onboarding = len(membership_count_result.scalars().all()) == 0
         logger.info(f"OAuth login for existing user: {user.email} via {provider}")
         return OAuthCallbackResponse(
             access_token=token_response.access_token,
@@ -1081,8 +1087,10 @@ def generate_backup_codes() -> tuple[list[str], list[str]]:
     for _ in range(BACKUP_CODE_COUNT):
         raw = secrets.token_urlsafe(8)[:10].upper()
         formatted = f"{raw[:5]}-{raw[5:]}"
-        # Strip dash before hashing — verification also strips dash
-        code_hash = hash_password(raw)
+        # Strip ALL dashes from raw before hashing so that token_urlsafe-generated
+        # dashes in the raw value don't cause a mismatch with verify (which also
+        # strips all dashes from the submitted code before comparing).
+        code_hash = hash_password(raw.replace("-", ""))
         plaintext_formatted.append(formatted)
         hashed.append(code_hash)
 

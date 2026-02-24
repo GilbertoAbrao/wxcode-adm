@@ -196,7 +196,9 @@ class MfaVerifyRequest(BaseModel):
     """
 
     mfa_token: str
-    code: str = Field(min_length=6, max_length=10)
+    # Allow 6 (TOTP) to 11 (backup code formatted as "XXXXX-XXXXX") characters.
+    # Service strips dashes before hash comparison.
+    code: str = Field(min_length=6, max_length=11)
     trust_device: bool = False
 
 
@@ -209,7 +211,9 @@ class MfaStatusResponse(BaseModel):
 class MfaDisableRequest(BaseModel):
     """Request body for POST /api/v1/auth/mfa/disable."""
 
-    code: str = Field(min_length=6, max_length=10)
+    # Allow 6 (TOTP) to 11 (backup code formatted as "XXXXX-XXXXX") characters.
+    # Service strips dashes before hash comparison.
+    code: str = Field(min_length=6, max_length=11)
 
 
 class LoginResponse(BaseModel):
