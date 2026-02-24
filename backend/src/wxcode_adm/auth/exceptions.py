@@ -116,3 +116,88 @@ class EmailAlreadyExistsError(AppError):
             message="An account with this email already exists",
             status_code=409,
         )
+
+
+# ---------------------------------------------------------------------------
+# Phase 6: OAuth and MFA exceptions
+# ---------------------------------------------------------------------------
+
+
+class OAuthEmailUnavailableError(AuthError):
+    """
+    Raised when GitHub's API fails to return an email address for the user.
+
+    This can occur when a GitHub account has no primary email set, or when
+    the /user and /user/emails endpoints both return no usable email.
+    HTTP 400 — bad request (OAuth provider did not supply required data).
+    """
+
+    def __init__(self) -> None:
+        super().__init__(
+            error_code="OAUTH_EMAIL_UNAVAILABLE",
+            message="Could not retrieve email address from OAuth provider",
+            status_code=400,
+        )
+
+
+class OAuthLinkRequiredError(AppError):
+    """
+    Raised when an OAuth email matches an existing password account.
+
+    Per locked decision: prompt password confirmation to link the provider
+    instead of auto-linking (prevents account takeover via OAuth).
+    HTTP 409 — resource conflict.
+    """
+
+    def __init__(self) -> None:
+        super().__init__(
+            error_code="OAUTH_LINK_REQUIRED",
+            message="An account with this email exists. Enter your password to link this provider.",
+            status_code=409,
+        )
+
+
+class OAuthProviderAlreadyLinkedError(AppError):
+    """
+    Raised when an OAuth-only user tries to sign in with a different provider.
+
+    Per locked decision: one OAuth provider per account. The user must unlink
+    the existing provider before linking a different one.
+    HTTP 409 — resource conflict.
+    """
+
+    def __init__(self) -> None:
+        super().__init__(
+            error_code="OAUTH_PROVIDER_ALREADY_LINKED",
+            message="This provider is already linked to another account",
+            status_code=409,
+        )
+
+
+class MfaRequiredError(AppError):
+    """
+    Raised when a user tries to access a tenant that enforces MFA but the
+    user has not completed MFA enrollment.
+    HTTP 403 — authenticated but not yet authorized.
+    """
+
+    def __init__(self) -> None:
+        super().__init__(
+            error_code="MFA_REQUIRED",
+            message="MFA setup is required for this tenant",
+            status_code=403,
+        )
+
+
+class MfaInvalidCodeError(AuthError):
+    """
+    Raised when a submitted TOTP code or backup code is invalid.
+    HTTP 401 — authentication failure.
+    """
+
+    def __init__(self) -> None:
+        super().__init__(
+            error_code="MFA_INVALID_CODE",
+            message="Invalid MFA code",
+            status_code=401,
+        )

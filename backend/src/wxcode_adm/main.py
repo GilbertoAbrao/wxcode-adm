@@ -117,6 +117,13 @@ def create_app() -> FastAPI:
     app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
     app.add_middleware(SlowAPIASGIMiddleware)
 
+    # --- Session Middleware (Phase 6 -- OAuth) ---
+    # Required by authlib for OAuth state and PKCE code_verifier storage.
+    # Must be added AFTER SlowAPI and BEFORE CORS so session data is available
+    # to all OAuth redirect/callback handlers.
+    from starlette.middleware.sessions import SessionMiddleware  # noqa: PLC0415
+    app.add_middleware(SessionMiddleware, secret_key=settings.SESSION_SECRET_KEY.get_secret_value())
+
     # --- CORS Middleware ---
     app.add_middleware(
         CORSMiddleware,

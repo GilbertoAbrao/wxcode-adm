@@ -82,6 +82,12 @@ class Tenant(TimestampMixin, Base):
         index=True,
         nullable=False,
     )
+    # Phase 6: whether MFA is required for all members of this tenant
+    mfa_enforced: Mapped[bool] = mapped_column(
+        Boolean,
+        default=False,
+        nullable=False,
+    )
 
     memberships: Mapped[list["TenantMembership"]] = relationship(
         back_populates="tenant",

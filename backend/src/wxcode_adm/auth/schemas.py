@@ -107,3 +107,127 @@ class ResetPasswordResponse(BaseModel):
     """Response body for POST /api/v1/auth/reset-password."""
 
     message: str
+
+
+# ---------------------------------------------------------------------------
+# Phase 6: OAuth and MFA schemas
+# ---------------------------------------------------------------------------
+
+
+class OAuthCallbackResponse(BaseModel):
+    """
+    Response returned after a successful OAuth login or account link confirm.
+
+    is_new_user: True if this is the first time this user has signed in.
+    needs_onboarding: True if the user has no tenant memberships and was not
+        invited — they should be directed to the workspace creation flow.
+    """
+
+    access_token: str
+    refresh_token: str
+    token_type: str = "bearer"
+    is_new_user: bool
+    needs_onboarding: bool
+
+
+class OAuthLinkResponse(BaseModel):
+    """
+    Response returned when an OAuth email matches an existing password account.
+
+    Per locked decision: the frontend must prompt the user to enter their
+    password to confirm ownership and link the provider.
+
+    link_token: short-lived Redis token (TTL = MFA_PENDING_TTL_SECONDS) that
+        encodes {user_id, provider, provider_user_id} for the link confirm step.
+    """
+
+    link_required: bool = True
+    link_token: str
+    email: str
+    provider: str
+
+
+class OAuthLinkConfirmRequest(BaseModel):
+    """Request body for POST /api/v1/auth/oauth/link/confirm."""
+
+    link_token: str
+    password: str
+
+
+class MfaEnrollBeginResponse(BaseModel):
+    """
+    Response for GET /api/v1/auth/mfa/enroll — begins TOTP enrollment.
+
+    secret: base32 TOTP secret to store in the authenticator app.
+    qr_code: base64-encoded PNG of the QR code for scanning.
+    provisioning_uri: otpauth:// URI for manual entry in authenticator apps.
+    """
+
+    secret: str
+    qr_code: str
+    provisioning_uri: str
+
+
+class MfaEnrollConfirmRequest(BaseModel):
+    """Request body for POST /api/v1/auth/mfa/enroll/confirm."""
+
+    code: str = Field(min_length=6, max_length=6)
+
+
+class MfaEnrollConfirmResponse(BaseModel):
+    """
+    Response for POST /api/v1/auth/mfa/enroll/confirm — completes enrollment.
+
+    backup_codes: plain-text codes shown ONCE at enrollment.
+        The user must save these — they are not stored in plain text.
+    """
+
+    backup_codes: list[str]
+
+
+class MfaVerifyRequest(BaseModel):
+    """
+    Request body for POST /api/v1/auth/mfa/verify — second-factor challenge.
+
+    mfa_token: the pending token issued by login() when MFA is required.
+    code: 6-digit TOTP code or up to 10-char backup code.
+    trust_device: if True, a TrustedDevice token is issued so MFA is
+        skipped on this device for TRUSTED_DEVICE_TTL_DAYS days.
+    """
+
+    mfa_token: str
+    code: str = Field(min_length=6, max_length=10)
+    trust_device: bool = False
+
+
+class MfaStatusResponse(BaseModel):
+    """Response for GET /api/v1/auth/mfa/status."""
+
+    mfa_enabled: bool
+
+
+class MfaDisableRequest(BaseModel):
+    """Request body for POST /api/v1/auth/mfa/disable."""
+
+    code: str = Field(min_length=6, max_length=10)
+
+
+class LoginResponse(BaseModel):
+    """
+    Response body for POST /api/v1/auth/login — supports two-stage MFA flow.
+
+    When MFA is NOT required:
+        access_token and refresh_token are populated; mfa_required=False.
+
+    When MFA IS required (user has mfa_enabled=True):
+        mfa_required=True; mfa_token is a short-lived Redis pending token;
+        access_token and refresh_token are None — issued after MFA verify.
+
+    Note: TokenResponse remains for the /refresh endpoint (always returns tokens).
+    """
+
+    access_token: str | None = None
+    refresh_token: str | None = None
+    token_type: str = "bearer"
+    mfa_required: bool = False
+    mfa_token: str | None = None

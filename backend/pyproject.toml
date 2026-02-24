@@ -21,6 +21,10 @@ dependencies = [
     "python-slugify==8.0.4",
     # Phase 4 -- Billing
     "stripe[async]==14.3.0",
+    # Phase 6 -- OAuth and MFA
+    "authlib==1.6.8",
+    "pyotp==2.9.0",
+    "qrcode[pil]==8.2",
 ]
 
 [project.optional-dependencies]

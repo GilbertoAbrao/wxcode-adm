@@ -61,6 +61,19 @@ class Settings(BaseSettings):
     # --- Frontend ---
     FRONTEND_URL: str = "http://localhost:3060"
 
+    # --- OAuth (Phase 6 -- OAuth and MFA) ---
+    GOOGLE_CLIENT_ID: str = ""
+    GOOGLE_CLIENT_SECRET: SecretStr = SecretStr("")
+    GITHUB_CLIENT_ID: str = ""
+    GITHUB_CLIENT_SECRET: SecretStr = SecretStr("")
+    # SessionMiddleware secret for authlib state + PKCE code_verifier storage
+    # REQUIRED — no default; generate a strong random value for production
+    SESSION_SECRET_KEY: SecretStr
+
+    # --- MFA (Phase 6 -- OAuth and MFA) ---
+    MFA_PENDING_TTL_SECONDS: int = 300  # 5 minutes for MFA pending token
+    TRUSTED_DEVICE_TTL_DAYS: int = 30
+
 
 # Module-level singleton — raises ValidationError at import if env vars missing
 settings = Settings()
