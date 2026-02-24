@@ -7,18 +7,23 @@ This module provides two routers:
    - GET /.well-known/jwks.json — RSA public key in JWKS format (RFC 5785)
 
 2. `auth_api_router` — Mounted at /api/v1/auth, provides:
-   - POST /signup                — Create account and send verification email
-   - POST /verify-email          — Verify email with OTP code
-   - POST /resend-verification   — Resend OTP with 60-second cooldown
-   - POST /login                 — Authenticate and receive access+refresh tokens
-   - POST /refresh               — Rotate refresh token and get new access token
-   - POST /logout                — Invalidate refresh token and blacklist access token
-   - POST /forgot-password       — Initiate password reset (enumeration-safe)
-   - POST /reset-password        — Complete password reset with signed token
+   - POST /signup                      — Create account and send verification email
+   - POST /verify-email                — Verify email with OTP code
+   - POST /resend-verification         — Resend OTP with 60-second cooldown
+   - POST /login                       — Authenticate and receive access+refresh tokens
+   - POST /refresh                     — Rotate refresh token and get new access token
+   - POST /logout                      — Invalidate refresh token and blacklist access token
+   - POST /forgot-password             — Initiate password reset (enumeration-safe)
+   - POST /reset-password              — Complete password reset with signed token
+   - GET  /oauth/{provider}/login      — OAuth redirect to Google or GitHub
+   - GET  /oauth/{provider}/callback   — OAuth callback — exchange code, resolve account
+   - POST /oauth/link/confirm          — Confirm account link with password
 
 The JWKS endpoint MUST remain at domain root per RFC 5785 — external services
 (e.g., wxcode engine) fetch this URL to verify JWTs issued by wxcode-adm.
 """
+
+from typing import Union
 
 from fastapi import APIRouter, Depends, Header, Request
 from redis.asyncio import Redis
@@ -30,12 +35,16 @@ from wxcode_adm.auth import service
 from wxcode_adm.auth.dependencies import require_verified
 from wxcode_adm.auth.jwks import build_jwks_response
 from wxcode_adm.auth.models import User
+from wxcode_adm.auth.oauth import oauth
 from wxcode_adm.auth.schemas import (
     ForgotPasswordRequest,
     ForgotPasswordResponse,
     LoginRequest,
     LogoutRequest,
     MessageResponse,
+    OAuthCallbackResponse,
+    OAuthLinkConfirmRequest,
+    OAuthLinkResponse,
     RefreshRequest,
     ResendVerificationRequest,
     ResendVerificationResponse,
@@ -47,6 +56,7 @@ from wxcode_adm.auth.schemas import (
     VerifyEmailRequest,
     VerifyEmailResponse,
 )
+from wxcode_adm.common.exceptions import AppError
 from wxcode_adm.common.rate_limit import limiter
 from wxcode_adm.config import settings
 from wxcode_adm.dependencies import get_redis, get_session
@@ -320,3 +330,147 @@ async def me(
         "email": user.email,
         "email_verified": user.email_verified,
     }
+
+
+# ---------------------------------------------------------------------------
+# Phase 6: OAuth routes
+# ---------------------------------------------------------------------------
+
+
+_VALID_PROVIDERS = {"google", "github"}
+
+
+@auth_api_router.get("/oauth/{provider}/login")
+@limiter.limit(settings.RATE_LIMIT_AUTH)
+async def oauth_login(
+    request: Request,
+    provider: str,
+    db: AsyncSession = Depends(get_session),
+    redis: Redis = Depends(get_redis),
+):
+    """
+    Redirect the user to the OAuth provider's authorization page.
+
+    Validates the provider name, retrieves the authlib OAuth client, and
+    returns a redirect response to the provider's consent/auth screen.
+    SessionMiddleware is required — authlib stores the OAuth state and
+    PKCE code_verifier in the session.
+
+    - Returns 302 redirect to Google or GitHub on success.
+    - Returns 400 if provider is not 'google' or 'github'.
+    """
+    if provider not in _VALID_PROVIDERS:
+        raise AppError(
+            error_code="OAUTH_UNKNOWN_PROVIDER",
+            message=f"Unknown OAuth provider: {provider}. Must be 'google' or 'github'.",
+            status_code=400,
+        )
+    client = oauth.create_client(provider)
+    if client is None:
+        raise AppError(
+            error_code="OAUTH_PROVIDER_NOT_CONFIGURED",
+            message=f"OAuth provider '{provider}' is not configured.",
+            status_code=400,
+        )
+    redirect_uri = str(request.url_for("oauth_callback", provider=provider))
+    return await client.authorize_redirect(request, redirect_uri)
+
+
+@auth_api_router.get(
+    "/oauth/{provider}/callback",
+    response_model=Union[OAuthCallbackResponse, OAuthLinkResponse],
+    name="oauth_callback",
+)
+@limiter.limit(settings.RATE_LIMIT_AUTH)
+async def oauth_callback(
+    request: Request,
+    provider: str,
+    db: AsyncSession = Depends(get_session),
+    redis: Redis = Depends(get_redis),
+) -> Union[OAuthCallbackResponse, OAuthLinkResponse]:
+    """
+    Handle the OAuth provider callback after user authorization.
+
+    Exchanges the authorization code for an access token, extracts user
+    information, and resolves the account (new user / link required / login).
+
+    - Returns OAuthCallbackResponse with JWT tokens on success (new or existing user).
+    - Returns OAuthLinkResponse when the email matches an existing password account.
+    - Returns 400 if provider is unknown or email is unavailable.
+    - Returns 409 if user already has a different OAuth provider linked.
+    """
+    if provider not in _VALID_PROVIDERS:
+        raise AppError(
+            error_code="OAUTH_UNKNOWN_PROVIDER",
+            message=f"Unknown OAuth provider: {provider}. Must be 'google' or 'github'.",
+            status_code=400,
+        )
+    client = oauth.create_client(provider)
+    if client is None:
+        raise AppError(
+            error_code="OAUTH_PROVIDER_NOT_CONFIGURED",
+            message=f"OAuth provider '{provider}' is not configured.",
+            status_code=400,
+        )
+
+    token = await client.authorize_access_token(request)
+
+    if provider == "google":
+        email, provider_user_id = await service.get_google_userinfo(token)
+    else:
+        email, provider_user_id = await service.get_github_email(client, token)
+
+    result = await service.resolve_oauth_account(
+        db, redis, provider, email, provider_user_id
+    )
+
+    await write_audit(
+        db,
+        action="oauth_login",
+        resource_type="session",
+        ip_address=request.client.host if request.client else None,
+        details={"provider": provider, "email": email},
+    )
+
+    return result
+
+
+@auth_api_router.post(
+    "/oauth/link/confirm",
+    response_model=OAuthCallbackResponse,
+)
+@limiter.limit(settings.RATE_LIMIT_AUTH)
+async def oauth_link_confirm(
+    request: Request,
+    body: OAuthLinkConfirmRequest,
+    db: AsyncSession = Depends(get_session),
+    redis: Redis = Depends(get_redis),
+) -> OAuthCallbackResponse:
+    """
+    Confirm an OAuth account link by verifying the user's password.
+
+    After receiving an OAuthLinkResponse, the frontend prompts the user to
+    enter their password. This endpoint verifies the password, links the
+    OAuth provider to the existing account, and issues new JWT tokens.
+
+    - Returns OAuthCallbackResponse with JWT tokens on success.
+    - Returns 401 if link_token is expired or invalid.
+    - Returns 401 if password is incorrect.
+    """
+    token_response = await service.confirm_oauth_link(
+        db, redis, body.link_token, body.password
+    )
+
+    await write_audit(
+        db,
+        action="oauth_link",
+        resource_type="session",
+        ip_address=request.client.host if request.client else None,
+    )
+
+    return OAuthCallbackResponse(
+        access_token=token_response.access_token,
+        refresh_token=token_response.refresh_token,
+        is_new_user=False,
+        needs_onboarding=False,
+    )

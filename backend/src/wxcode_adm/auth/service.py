@@ -10,6 +10,11 @@ Contains business logic for:
 - logout: invalidate refresh token and blacklist access token in Redis
 - forgot_password: enqueue reset email (enumeration-safe, always succeeds)
 - reset_password: verify token, update password, revoke all sessions
+- _issue_tokens: reusable helper — revoke old sessions, issue new token pair
+- get_github_email: extract email from GitHub OAuth token (handles private emails)
+- get_google_userinfo: extract email/sub from Google OIDC token
+- resolve_oauth_account: state machine for new-user / link-required / existing login
+- confirm_oauth_link: confirm account link with password verification
 
 Redis OTP key pattern:
   auth:otp:{user_id}          — the 6-digit code (TTL 600s)
@@ -19,9 +24,13 @@ Redis OTP key pattern:
 Redis blacklist/replay key patterns:
   auth:blacklist:jti:{jti}    — blacklisted access token jti (TTL = remaining token lifetime)
   auth:replay:{sha256}        — shadow key mapping consumed refresh token hash to user_id
+
+Redis OAuth link pattern:
+  auth:oauth_link:{token}     — JSON {user_id, provider, provider_user_id} (TTL = MFA_PENDING_TTL_SECONDS)
 """
 
 import hashlib
+import json
 import logging
 import secrets
 import uuid
@@ -39,16 +48,20 @@ from wxcode_adm.auth.exceptions import (
     EmailNotVerifiedError,
     InvalidCredentialsError,
     InvalidTokenError,
+    OAuthEmailUnavailableError,
+    OAuthProviderAlreadyLinkedError,
     ReplayDetectedError,
     TokenExpiredError,
 )
 from wxcode_adm.auth.jwt import create_access_token
-from wxcode_adm.auth.models import RefreshToken, User
+from wxcode_adm.auth.models import OAuthAccount, RefreshToken, User
 from wxcode_adm.auth.password import hash_password, verify_password
 from wxcode_adm.auth.schemas import (
     ForgotPasswordRequest,
     LoginRequest,
     LogoutRequest,
+    OAuthCallbackResponse,
+    OAuthLinkResponse,
     RefreshRequest,
     ResetPasswordRequest,
     ResendVerificationRequest,
@@ -414,29 +427,11 @@ async def login(
             message="Please verify your email before logging in",
         )
 
-    # Single-session enforcement — revoke all existing refresh tokens
-    existing_result = await db.execute(
-        select(RefreshToken.token).where(RefreshToken.user_id == user.id)
-    )
-    old_tokens = [row[0] for row in existing_result.all()]
-    if old_tokens:
-        await _write_shadow_keys_bulk(redis, old_tokens, str(user.id))
-    await db.execute(delete(RefreshToken).where(RefreshToken.user_id == user.id))
-
-    # Issue new tokens
-    access_token = create_access_token(str(user.id))
-    refresh_token_str = secrets.token_urlsafe(32)
-    db.add(
-        RefreshToken(
-            token=refresh_token_str,
-            user_id=user.id,
-            expires_at=datetime.now(timezone.utc)
-            + timedelta(days=settings.REFRESH_TOKEN_TTL_DAYS),
-        )
-    )
+    # Issue new tokens via shared helper (enforces single-session policy)
+    token_response = await _issue_tokens(db, redis, user)
 
     logger.info(f"User logged in: {user.email} (id={user.id})")
-    return TokenResponse(access_token=access_token, refresh_token=refresh_token_str)
+    return token_response
 
 
 async def refresh(
@@ -627,3 +622,303 @@ async def reset_password(db: AsyncSession, body: ResetPasswordRequest) -> None:
     await db.execute(delete(RefreshToken).where(RefreshToken.user_id == user.id))
 
     logger.info(f"Password reset completed for: {user.email} (id={user.id})")
+
+
+# ---------------------------------------------------------------------------
+# Phase 6: Token issuance helper (shared by login, OAuth, and MFA verify)
+# ---------------------------------------------------------------------------
+
+
+async def _issue_tokens(db: AsyncSession, redis: Redis, user: User) -> TokenResponse:
+    """
+    Issue a new access + refresh token pair for a user.
+
+    Enforces single-session policy: all existing refresh tokens for the user
+    are revoked and shadow keys are written for replay detection.
+
+    This helper is shared by login(), resolve_oauth_account(), and
+    confirm_oauth_link() to avoid duplicating token issuance logic.
+    """
+    # Single-session enforcement — revoke all existing refresh tokens
+    existing_result = await db.execute(
+        select(RefreshToken.token).where(RefreshToken.user_id == user.id)
+    )
+    old_tokens = [row[0] for row in existing_result.all()]
+    if old_tokens:
+        await _write_shadow_keys_bulk(redis, old_tokens, str(user.id))
+    await db.execute(delete(RefreshToken).where(RefreshToken.user_id == user.id))
+
+    # Issue new tokens
+    access_token = create_access_token(str(user.id))
+    refresh_token_str = secrets.token_urlsafe(32)
+    db.add(
+        RefreshToken(
+            token=refresh_token_str,
+            user_id=user.id,
+            expires_at=datetime.now(timezone.utc)
+            + timedelta(days=settings.REFRESH_TOKEN_TTL_DAYS),
+        )
+    )
+
+    return TokenResponse(access_token=access_token, refresh_token=refresh_token_str)
+
+
+# ---------------------------------------------------------------------------
+# Phase 6: OAuth service functions
+# ---------------------------------------------------------------------------
+
+
+async def get_github_email(client: object, token: dict) -> tuple[str, str]:
+    """
+    Extract email and provider_user_id from a GitHub OAuth token.
+
+    GitHub users may have a private email, so we fall back to the
+    /user/emails endpoint and select the primary email when the profile
+    email field is None.
+
+    Args:
+        client: authlib OAuth client for GitHub
+        token: token dict from authorize_access_token
+
+    Returns:
+        Tuple of (email, provider_user_id)
+
+    Raises:
+        OAuthEmailUnavailableError: if no email can be found
+    """
+    resp = await client.get("user", token=token)
+    profile = resp.json()
+    provider_user_id = str(profile["id"])
+    email = profile.get("email")
+
+    if not email:
+        # GitHub user has private email — fetch /user/emails
+        emails_resp = await client.get("user/emails", token=token)
+        emails = emails_resp.json()
+        # Select primary email from the list
+        for entry in emails:
+            if entry.get("primary"):
+                email = entry.get("email")
+                break
+
+    if not email:
+        raise OAuthEmailUnavailableError()
+
+    return email, provider_user_id
+
+
+async def get_google_userinfo(token: dict) -> tuple[str, str]:
+    """
+    Extract email and provider_user_id from a Google OIDC token.
+
+    Google includes userinfo in the token dict when using the OIDC
+    server_metadata_url flow. We verify email_verified before trusting the email.
+
+    Args:
+        token: token dict from authorize_access_token (includes userinfo)
+
+    Returns:
+        Tuple of (email, provider_user_id)
+
+    Raises:
+        OAuthEmailUnavailableError: if email is missing or not verified
+    """
+    userinfo = token.get("userinfo") or token
+    email = userinfo.get("email")
+    email_verified = userinfo.get("email_verified", False)
+    sub = userinfo.get("sub")
+
+    if not email or not email_verified:
+        raise OAuthEmailUnavailableError()
+
+    if not sub:
+        raise OAuthEmailUnavailableError()
+
+    return email, str(sub)
+
+
+async def resolve_oauth_account(
+    db: AsyncSession,
+    redis: Redis,
+    provider: str,
+    email: str,
+    provider_user_id: str,
+) -> OAuthCallbackResponse | OAuthLinkResponse:
+    """
+    Account resolution state machine for OAuth sign-in.
+
+    Three cases:
+    1. OAuthAccount exists for (provider, provider_user_id) → login existing user.
+    2. OAuthAccount not found; User exists by email with password_hash → link_required.
+    3. OAuthAccount not found; User exists by email without password_hash → provider conflict.
+    4. Neither found → create new User + OAuthAccount, enqueue verification email.
+
+    Args:
+        db: async database session
+        redis: Redis client
+        provider: 'google' or 'github'
+        email: email address from OAuth provider
+        provider_user_id: unique user ID from the OAuth provider
+
+    Returns:
+        OAuthCallbackResponse on successful login or new account creation.
+        OAuthLinkResponse when password confirmation is required.
+
+    Raises:
+        OAuthProviderAlreadyLinkedError: if user has another OAuth provider already linked.
+    """
+    # Case 1: Existing OAuthAccount → login
+    oauth_result = await db.execute(
+        select(OAuthAccount).where(
+            OAuthAccount.provider == provider,
+            OAuthAccount.provider_user_id == provider_user_id,
+        )
+    )
+    oauth_account = oauth_result.scalar_one_or_none()
+    if oauth_account is not None:
+        user_result = await db.execute(
+            select(User).where(User.id == oauth_account.user_id)
+        )
+        user = user_result.scalar_one()
+        token_response = await _issue_tokens(db, redis, user)
+        # Determine if user needs onboarding (no tenant memberships)
+        needs_onboarding = len(user.memberships) == 0
+        logger.info(f"OAuth login for existing user: {user.email} via {provider}")
+        return OAuthCallbackResponse(
+            access_token=token_response.access_token,
+            refresh_token=token_response.refresh_token,
+            is_new_user=False,
+            needs_onboarding=needs_onboarding,
+        )
+
+    # Case 2 / 3: Check for existing user by email
+    user_result = await db.execute(select(User).where(User.email == email))
+    existing_user = user_result.scalar_one_or_none()
+
+    if existing_user is not None:
+        if existing_user.password_hash is not None:
+            # Case 2: Password account exists → require link confirmation
+            link_token = secrets.token_urlsafe(32)
+            link_data = json.dumps({
+                "user_id": str(existing_user.id),
+                "provider": provider,
+                "provider_user_id": provider_user_id,
+            })
+            await redis.set(
+                f"auth:oauth_link:{link_token}",
+                link_data,
+                ex=settings.MFA_PENDING_TTL_SECONDS,
+            )
+            logger.info(
+                f"OAuth link required for {email} via {provider} "
+                f"(existing password account)"
+            )
+            return OAuthLinkResponse(
+                link_token=link_token,
+                email=email,
+                provider=provider,
+            )
+        else:
+            # Case 3: OAuth-only user with a different provider → conflict
+            raise OAuthProviderAlreadyLinkedError()
+
+    # Case 4: New user — create account and OAuthAccount
+    new_user = User(
+        email=email,
+        password_hash=None,
+        email_verified=False,
+        mfa_enabled=False,
+    )
+    db.add(new_user)
+    await db.flush()  # Assigns new_user.id
+
+    db.add(
+        OAuthAccount(
+            user_id=new_user.id,
+            provider=provider,
+            provider_user_id=provider_user_id,
+        )
+    )
+
+    # Generate OTP and enqueue verification email (same as signup flow)
+    code = await create_verification_code(redis, str(new_user.id))
+    pool = await get_arq_pool()
+    try:
+        await pool.enqueue_job(
+            "send_verification_email", str(new_user.id), new_user.email, code
+        )
+    finally:
+        await pool.aclose()
+
+    token_response = await _issue_tokens(db, redis, new_user)
+    logger.info(f"New user created via OAuth: {email} (provider={provider})")
+    return OAuthCallbackResponse(
+        access_token=token_response.access_token,
+        refresh_token=token_response.refresh_token,
+        is_new_user=True,
+        needs_onboarding=True,
+    )
+
+
+async def confirm_oauth_link(
+    db: AsyncSession,
+    redis: Redis,
+    link_token: str,
+    password: str,
+) -> TokenResponse:
+    """
+    Confirm an OAuth account link by verifying the user's password.
+
+    Retrieves the pending link data from Redis, verifies the user's password,
+    creates the OAuthAccount to link the provider, and issues new tokens.
+
+    Args:
+        db: async database session
+        redis: Redis client
+        link_token: the short-lived Redis token from OAuthLinkResponse
+        password: the user's current password for ownership confirmation
+
+    Returns:
+        TokenResponse with new access + refresh tokens.
+
+    Raises:
+        InvalidTokenError: if the link_token is not found in Redis.
+        InvalidCredentialsError: if the password does not match.
+    """
+    # Retrieve link data from Redis
+    raw = await redis.get(f"auth:oauth_link:{link_token}")
+    if raw is None:
+        raise InvalidTokenError()
+
+    link_data = json.loads(raw if isinstance(raw, str) else raw.decode())
+    user_id = uuid.UUID(link_data["user_id"])
+    provider = link_data["provider"]
+    provider_user_id = link_data["provider_user_id"]
+
+    # Load user and verify password
+    user_result = await db.execute(select(User).where(User.id == user_id))
+    user = user_result.scalar_one_or_none()
+    if user is None:
+        raise InvalidTokenError()
+
+    if not verify_password(password, user.password_hash):
+        raise InvalidCredentialsError()
+
+    # Create the OAuthAccount link
+    db.add(
+        OAuthAccount(
+            user_id=user.id,
+            provider=provider,
+            provider_user_id=provider_user_id,
+        )
+    )
+
+    # Delete the Redis link token (single-use)
+    await redis.delete(f"auth:oauth_link:{link_token}")
+
+    logger.info(
+        f"OAuth account linked: {user.email} -> {provider} "
+        f"(provider_user_id={provider_user_id})"
+    )
+
+    return await _issue_tokens(db, redis, user)
