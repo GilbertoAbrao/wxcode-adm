@@ -223,6 +223,11 @@ class LoginResponse(BaseModel):
         mfa_required=True; mfa_token is a short-lived Redis pending token;
         access_token and refresh_token are None — issued after MFA verify.
 
+    When the user is in a tenant that enforces MFA but has not enrolled:
+        mfa_required=True; mfa_setup_required=True; mfa_token is set.
+        The frontend should redirect to MFA enrollment (/auth/mfa/enroll).
+        After enrollment the user must log in again to complete authentication.
+
     Note: TokenResponse remains for the /refresh endpoint (always returns tokens).
     """
 
@@ -231,3 +236,4 @@ class LoginResponse(BaseModel):
     token_type: str = "bearer"
     mfa_required: bool = False
     mfa_token: str | None = None
+    mfa_setup_required: bool = False

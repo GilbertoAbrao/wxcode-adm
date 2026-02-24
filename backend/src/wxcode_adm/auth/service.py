@@ -464,10 +464,36 @@ async def login(
             message="Please verify your email before logging in",
         )
 
+    # Phase 6: Check if the user is in any tenant that enforces MFA.
+    # Lazy import to avoid circular import (auth.service -> tenants.service -> auth.models).
+    from wxcode_adm.tenants.service import get_enforcing_tenants_for_user  # noqa: PLC0415
+    enforcing_tenants = await get_enforcing_tenants_for_user(db, user.id)
+
+    # Enforcement branch: user is in an enforcing tenant but has NO MFA enrolled.
+    # Must prompt them to set up MFA before issuing tokens.
+    if enforcing_tenants and not user.mfa_enabled:
+        mfa_token = secrets.token_urlsafe(32)
+        import json as _json  # noqa: PLC0415
+        await redis.set(
+            f"auth:mfa_pending:{mfa_token}",
+            _json.dumps({"user_id": str(user.id), "setup_required": True}),
+            ex=settings.MFA_PENDING_TTL_SECONDS,
+        )
+        logger.info(
+            f"MFA setup required for login: {user.email} (id={user.id}) "
+            f"— in {len(enforcing_tenants)} enforcing tenant(s)"
+        )
+        return {
+            "mfa_required": True,
+            "mfa_token": mfa_token,
+            "mfa_setup_required": True,
+        }
+
     # MFA branch: check if MFA is enabled on this account
     if user.mfa_enabled:
-        # Check whether the client carries a valid trusted device token
-        if device_token and await is_device_trusted(db, str(user.id), device_token):
+        # Per locked decision: "No remember-device when tenant enforces MFA"
+        # Only check trusted device if the user is NOT in any enforcing tenant.
+        if not enforcing_tenants and device_token and await is_device_trusted(db, str(user.id), device_token):
             # Trusted device — skip MFA and issue tokens directly
             token_response = await _issue_tokens(db, redis, user)
             logger.info(
@@ -479,7 +505,7 @@ async def login(
                 "refresh_token": token_response.refresh_token,
             }
 
-        # Device not trusted — issue an MFA pending token
+        # Device not trusted (or in enforcing tenant — always require TOTP)
         mfa_token = secrets.token_urlsafe(32)
         await redis.set(
             f"auth:mfa_pending:{mfa_token}",
@@ -491,7 +517,7 @@ async def login(
         )
         return {"mfa_required": True, "mfa_token": mfa_token}
 
-    # MFA not enabled — issue tokens directly
+    # MFA not enabled and no enforcing tenants — issue tokens directly
     token_response = await _issue_tokens(db, redis, user)
 
     logger.info(f"User logged in: {user.email} (id={user.id})")
@@ -582,13 +608,33 @@ async def logout(
 # ---------------------------------------------------------------------------
 
 
+def _reset_salt(user: User) -> str:
+    """
+    Return the itsdangerous salt to use for this user's password reset token.
+
+    For users with a password (password_hash is set), use the hash as salt so
+    that changing the password automatically invalidates the reset token.
+
+    For OAuth-only users (password_hash is None), use a stable fixed salt based
+    on the user's ID. After they set a password via reset_password(), their
+    new password_hash becomes the salt, so the old token is invalidated.
+
+    Args:
+        user: The User whose reset token salt to compute.
+
+    Returns:
+        A non-empty string to use as the itsdangerous salt.
+    """
+    return user.password_hash if user.password_hash else f"no-password-{user.id}"
+
+
 def generate_reset_token(email: str, pw_hash: str) -> str:
     """
     Generate a signed, time-limited password reset token.
 
-    The user's current password_hash is used as the per-token salt so that
-    changing the password automatically invalidates this token (single-use
-    enforcement without storing token state).
+    The user's current password_hash (or fixed salt for OAuth-only users) is
+    used as the per-token salt so that changing the password automatically
+    invalidates this token (single-use enforcement without storing token state).
     """
     return reset_serializer.dumps(email, salt=pw_hash)
 
@@ -597,7 +643,8 @@ def verify_reset_token(token: str, pw_hash: str) -> str:
     """
     Verify a password reset token and return the email address it encodes.
 
-    - Validates HMAC signature using the user's current password_hash as salt.
+    - Validates HMAC signature using the user's current password_hash (or
+      fixed salt for OAuth-only users) as salt.
     - Enforces 24-hour expiry (86400 seconds).
     - If the password has already been changed (different pw_hash), the HMAC
       will not match — this is how single-use is enforced.
@@ -642,7 +689,8 @@ async def forgot_password(
         # Return silently — do not reveal whether email exists
         return
 
-    token = generate_reset_token(body.email, user.password_hash)
+    # Use _reset_salt to handle OAuth-only users (nullable password_hash)
+    token = generate_reset_token(body.email, _reset_salt(user))
     reset_link = f"{settings.ALLOWED_ORIGINS[0]}/reset-password?token={token}"
 
     pool = await get_arq_pool()
@@ -679,9 +727,9 @@ async def reset_password(db: AsyncSession, body: ResetPasswordRequest) -> None:
     if user is None:
         raise InvalidTokenError()
 
-    # Step 3: Full token verification with pw_hash as salt
+    # Step 3: Full token verification with pw_hash (or OAuth-only salt) as salt
     # (validates signature, expiry, and single-use enforcement)
-    verify_reset_token(body.token, user.password_hash)
+    verify_reset_token(body.token, _reset_salt(user))
 
     # Step 4: Update password
     user.password_hash = hash_password(body.new_password)
@@ -918,13 +966,27 @@ async def resolve_oauth_account(
     finally:
         await pool.aclose()
 
+    # Per locked decision: "Skip workspace creation if already invited to a tenant"
+    # Check whether there are pending invitations for this email — if yes, the
+    # user will be auto-joined via auto_join_pending_invitations after email
+    # verification, so needs_onboarding should be False to skip workspace creation.
+    from wxcode_adm.tenants.models import Invitation  # noqa: PLC0415
+    inv_result = await db.execute(
+        select(Invitation).where(
+            Invitation.email == email,
+            Invitation.accepted_at.is_(None),
+        )
+    )
+    pending_invitations = inv_result.scalars().all()
+    needs_onboarding = len(pending_invitations) == 0
+
     token_response = await _issue_tokens(db, redis, new_user)
     logger.info(f"New user created via OAuth: {email} (provider={provider})")
     return OAuthCallbackResponse(
         access_token=token_response.access_token,
         refresh_token=token_response.refresh_token,
         is_new_user=True,
-        needs_onboarding=True,
+        needs_onboarding=needs_onboarding,
     )
 
 
@@ -1282,11 +1344,27 @@ async def mfa_verify(
         MfaInvalidCodeError: TOTP or backup code verification failed.
     """
     # 1. Retrieve mfa_pending token from Redis
-    raw_user_id = await redis.get(f"auth:mfa_pending:{mfa_token}")
-    if raw_user_id is None:
+    raw_value = await redis.get(f"auth:mfa_pending:{mfa_token}")
+    if raw_value is None:
         raise InvalidTokenError()
 
-    user_id_str = raw_user_id if isinstance(raw_user_id, str) else raw_user_id.decode()
+    raw_str = raw_value if isinstance(raw_value, str) else raw_value.decode()
+
+    # Parse the Redis value — may be a plain user_id string (normal MFA flow)
+    # or a JSON object {"user_id": "...", "setup_required": true} (enforcement flow).
+    try:
+        pending_data = json.loads(raw_str)
+        user_id_str = pending_data["user_id"]
+        if pending_data.get("setup_required"):
+            # User needs to enroll in MFA first — cannot proceed with mfa_verify
+            raise AppError(
+                error_code="MFA_SETUP_REQUIRED",
+                message="You must complete MFA enrollment before logging in",
+                status_code=403,
+            )
+    except (json.JSONDecodeError, KeyError):
+        # Plain string format — normal MFA flow (backward compat)
+        user_id_str = raw_str
 
     # 2. Load user
     user_result = await db.execute(
