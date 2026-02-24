@@ -53,6 +53,7 @@ Progress: [█████████████████████] 85%
 | Phase 04-billing-core P03 | 4 | 2 tasks | 5 files |
 | Phase 04-billing-core P05 | 7 | 2 tasks | 4 files |
 | Phase 05-platform-security P03 | 3 | 2 tasks | 13 files |
+| Phase 05-platform-security P01 | 4 | 2 tasks | 8 files |
 
 ## Accumulated Context
 
@@ -134,6 +135,10 @@ Recent decisions affecting current work:
 - [Phase 04-05]: Stripe client must be mocked in both stripe_client_module and billing_service_module — service.py copies the reference at import time
 - [Phase 04-05]: Free plan seeded in test_db fixture so all workspace-creating tests work without explicit setup — bootstrap_free_subscription requires it
 - [Phase 04-05]: tasks.worker.get_arq_pool patched at source module so billing service lazy import picks up mock
+- [05-01]: SlowAPIASGIMiddleware (not SlowAPIMiddleware) required for async FastAPI — non-ASGI variant silently fails with async handlers
+- [05-01]: Route decorator order counterintuitive: @router.post() FIRST, @limiter.limit() SECOND — reverse order silently breaks rate limiting
+- [05-01]: All endpoint functions must accept request: Request as first parameter — slowapi uses it for IP extraction; missing it silently skips limit
+- [05-01]: JWKS and health endpoints use @limiter.exempt — public key retrieval and infrastructure checks must never count against rate limits
 - [Phase 05-platform-security]: FastMail singleton constructed once in common/mail.py, imported lazily inside try/except by senders
 - [Phase 05-platform-security]: html_template + plain_template params used (not template_name) so fastapi-mail produces multipart/alternative MIME structure
 - [Phase 05-platform-security]: Email templates use {{ variable }} directly (not {{ body.variable }}) — fastapi-mail 1.6.2 passes template_body dict at top level via render(**template_data)
@@ -151,5 +156,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-24
-Stopped at: Completed 05-03-PLAN.md — FastMail singleton + 9 branded email templates + 4 refactored email senders (3 of 4 plans done in Phase 5)
-Resume file: .planning/phases/05-platform-security/05-04-PLAN.md (Phase 5 Plan 4 — next plan)
+Stopped at: Completed 05-01-PLAN.md — slowapi rate limiting: 5/min brute-force protection on 5 auth endpoints, JWKS+health exempt, 60/min global default (PLAT-03 verified)
+Resume file: .planning/phases/05-platform-security/ (Phase 5 plans 02-04 already completed in prior session)
