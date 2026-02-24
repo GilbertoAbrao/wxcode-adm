@@ -136,14 +136,16 @@ Plans:
   4. When MFA is enabled on the account, the login flow prompts for a TOTP code after password validation and rejects login without a valid code or backup code
   5. Tenant Owner can enforce MFA for all tenant members; members without MFA set up are prompted to enroll before completing login
   6. User can mark a device as trusted for 30 days; trusted devices skip the TOTP prompt until the trust period expires
-**Plans**: TBD
+**Plans**: 5 plans
+
+**Phase requirement IDs (every ID MUST appear in a plan's `requirements` field):** AUTH-08, AUTH-09, AUTH-10, AUTH-11, AUTH-12, AUTH-13
 
 Plans:
-- [ ] 06-01: authlib OAuth2 integration, Google sign-in (PKCE, state CSRF, email_verified check)
-- [ ] 06-02: GitHub sign-in (PKCE, state CSRF, account-linking guard)
-- [ ] 06-03: TOTP enrollment (pyotp, QR code, backup codes), MFA model
-- [ ] 06-04: TOTP verification in login flow, backup code redemption, replay protection
-- [ ] 06-05: Tenant MFA enforcement (require_mfa dependency), remember-device (30-day cookie)
+- [ ] 06-01-PLAN.md — Foundation (deps, models, oauth registry, SessionMiddleware) + Google/GitHub OAuth sign-in
+- [ ] 06-02-PLAN.md — TOTP MFA enrollment (pyotp, QR code, backup codes, enable/disable)
+- [ ] 06-03-PLAN.md — Two-stage MFA login, TOTP verification, backup code redemption, trusted device cookie
+- [ ] 06-04-PLAN.md — Tenant MFA enforcement toggle, session revocation, OAuth-only user flows
+- [ ] 06-05-PLAN.md — Alembic migration 005, integration tests for all 6 success criteria
 
 ### Phase 7: User Account
 **Goal**: Users can manage their own profile and sessions, and are seamlessly redirected to the wxcode application after login with their access token embedded in the redirect
