@@ -9,12 +9,12 @@ See: .planning/PROJECT.md (updated 2026-02-22)
 
 ## Current Position
 
-Phase: 6 of 8 (OAuth and MFA) — In Progress
-Plan: 4 of 5 in current phase (06-04 complete — tenant MFA enforcement toggle, login flow integration, OAuth-only user password reset)
-Status: Plan 06-04 complete — Owner PATCH /tenants/current/mfa-enforcement toggle; immediate non-MFA session revocation; mfa_setup_required login signal; _reset_salt for OAuth-only users; all 90 tests passing
-Last activity: 2026-02-24 — Plan 06-04 complete: tenant MFA enforcement done (4 of 5)
+Phase: 6 of 8 (OAuth and MFA) — Complete
+Plan: 5 of 5 in current phase (06-05 complete — Alembic migration 005, 24 integration tests all 6 success criteria, 114 tests passing)
+Status: Plan 06-05 complete — migration 005 (oauth_accounts, mfa_backup_codes, trusted_devices, altered users/tenants); all 114 tests passing (90+24)
+Last activity: 2026-02-24 — Plan 06-05 complete: migration + integration tests (5 of 5)
 
-Progress: [████████████████████████] 88%
+Progress: [████████████████████████████] 96%
 
 ## Performance Metrics
 
@@ -59,6 +59,7 @@ Progress: [███████████████████████
 | Phase 06-oauth-and-mfa P02 | 7 | 2 tasks | 2 files |
 | Phase 06-oauth-and-mfa P03 | 3 | 2 tasks | 2 files |
 | Phase 06-oauth-and-mfa P04 | 4 | 2 tasks | 5 files |
+| Phase 06-oauth-and-mfa P05 | 8 | 2 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -174,6 +175,9 @@ Recent decisions affecting current work:
 - [06-04]: Trusted device check skipped entirely when user is in any enforcing tenant — always require TOTP for enforcing tenants
 - [06-04]: OAuth new user needs_onboarding=False when pending invitations exist — auto_join_pending_invitations handles workspace assignment after email verification
 - [06-04]: _reset_salt() uses f"no-password-{user.id}" for OAuth-only users (null password_hash) — becomes invalidated after reset_password sets a real hash
+- [06-05]: resolve_oauth_account case 1 uses explicit TenantMembership count query instead of user.memberships lazy load — SQLAlchemy 2.0 async sessions cannot lazy-load relationships
+- [06-05]: generate_backup_codes hashes raw.replace('-','') not raw — token_urlsafe can generate dashes; verification also strips all dashes so hashes must match
+- [06-05]: MfaDisableRequest and MfaVerifyRequest code max_length increased to 11 (from 10) — formatted backup codes "XXXXX-XXXXX" are 11 chars
 
 ### Pending Todos
 
@@ -188,5 +192,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-24
-Stopped at: Completed 06-04-PLAN.md — tenant MFA enforcement toggle, login flow enforcement integration, mfa_setup_required signal, OAuth-only password reset; all 90 tests passing
-Resume file: .planning/ (Phase 6 plan 4 complete, plan 5 is next — OAuth routes final integration)
+Stopped at: Completed 06-05-PLAN.md — Alembic migration 005 (oauth_accounts, mfa_backup_codes, trusted_devices); 24 integration tests for all 6 Phase 6 success criteria; 114 tests passing
+Resume file: .planning/ (Phase 6 complete — all 5 plans done; Phase 7 is next)
