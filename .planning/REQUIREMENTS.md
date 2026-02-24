@@ -16,8 +16,8 @@ Requirements for initial release. Each maps to roadmap phases.
 - [x] **AUTH-05**: User receives JWT RS256 access token + refresh token on login
 - [x] **AUTH-06**: Refresh token rotation with revocation on logout
 - [x] **AUTH-07**: JWKS endpoint exposes public key for wxcode to validate tokens locally
-- [ ] **AUTH-08**: User can sign in with Google via OAuth 2.0 (PKCE)
-- [ ] **AUTH-09**: User can sign in with GitHub via OAuth 2.0 (PKCE)
+- [x] **AUTH-08**: User can sign in with Google via OAuth 2.0 (PKCE)
+- [x] **AUTH-09**: User can sign in with GitHub via OAuth 2.0 (PKCE)
 - [ ] **AUTH-10**: User can enable MFA via TOTP (QR code setup + backup codes)
 - [ ] **AUTH-11**: User is prompted for TOTP code on login when MFA enabled
 - [ ] **AUTH-12**: Tenant owner can enforce MFA for all tenant members
@@ -128,8 +128,8 @@ Which phases cover which requirements. Updated during roadmap creation.
 | AUTH-05 | Phase 2 | Complete |
 | AUTH-06 | Phase 2 | Complete |
 | AUTH-07 | Phase 2 | Complete |
-| AUTH-08 | Phase 6 | Pending |
-| AUTH-09 | Phase 6 | Pending |
+| AUTH-08 | Phase 6 | Complete |
+| AUTH-09 | Phase 6 | Complete |
 | AUTH-10 | Phase 6 | Pending |
 | AUTH-11 | Phase 6 | Pending |
 | AUTH-12 | Phase 6 | Pending |

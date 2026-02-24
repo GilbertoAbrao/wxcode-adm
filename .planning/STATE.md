@@ -5,14 +5,14 @@
 See: .planning/PROJECT.md (updated 2026-02-22)
 
 **Core value:** Controlar acesso seguro a plataforma WXCODE com identidade, permissoes por tenant e cobranca recorrente — sem executar nenhuma operacao do wxcode engine.
-**Current focus:** Phase 5 — Platform Security
+**Current focus:** Phase 6 — OAuth and MFA
 
 ## Current Position
 
-Phase: 5 of 8 (Platform Security) — Complete
-Plan: 4 of 4 in current phase (05-04 complete — Alembic migration 004 for audit_logs, 17 integration tests for PLAT-03/04/05, all 90 tests passing)
-Status: Plan 05-04 complete — migration 004 creates audit_logs table, test_platform_security.py with 17 tests covers all Phase 5 success criteria (rate limiting, audit log, email templates)
-Last activity: 2026-02-24 — Plan 05-04 complete: Phase 5 fully done (4 of 4 plans)
+Phase: 6 of 8 (OAuth and MFA) — In Progress
+Plan: 1 of 4 in current phase (06-01 complete — authlib OAuth registry, OAuthAccount/MfaBackupCode/TrustedDevice models, Google+GitHub OAuth routes, account resolution state machine, all 90 tests passing)
+Status: Plan 06-01 complete — Phase 6 OAuth infrastructure foundation: OAuth redirect/callback routes, account linking flow, all Phase 6 models and schemas, SessionMiddleware wired
+Last activity: 2026-02-24 — Plan 06-01 complete: OAuth and MFA infrastructure foundation done (1 of 4)
 
 Progress: [████████████████████████] 88%
 
@@ -151,6 +151,12 @@ Recent decisions affecting current work:
 - [05-04]: Original app.state.limiter must be reused for tests (not replaced) — @limiter.exempt registers in original limiter's _exempt_routes; new Limiter instance loses all exempt routes
 - [05-04]: headers_enabled=True on Limiter singleton — production behavior: 429 responses include Retry-After header for proper client backoff
 - [05-04]: Email tests patch wxcode_adm.common.mail.fast_mail directly — lazy imports always use the singleton from common.mail; auth/tenants/billing.email modules don't have fast_mail as module attribute
+- [06-01]: User.password_hash nullable (Option B) — OAuth-only accounts have no password; avoids a separate OAuthUser discriminator table; enables Phase 7 password-add flow
+- [06-01]: Conditional OAuth provider registration — guards prevent authlib crashing on startup when OAuth credentials are not configured in dev mode
+- [06-01]: Link token stored in Redis (auth:oauth_link:{token}, TTL = MFA_PENDING_TTL_SECONDS) — avoids a DB table for ephemeral account-linking state
+- [06-01]: One OAuth provider per account — OAuthProviderAlreadyLinkedError raised if user already has a different OAuth provider; user must unlink first
+- [06-01]: _issue_tokens extracted from login() — shared single-session token issuance helper reused in OAuth, MFA verify, and login flows
+- [06-01]: SESSION_SECRET_KEY required with no default — prevents accidental weak session key; added to .env for dev
 
 ### Pending Todos
 
@@ -165,5 +171,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-24
-Stopped at: Completed 05-04-PLAN.md — migration 004 for audit_logs, 17 integration tests for PLAT-03/04/05, all Phase 5 plans done (4/4)
-Resume file: .planning/ (Phase 5 complete, Phase 6 is next)
+Stopped at: Completed 06-01-PLAN.md — authlib OAuth registry, Google+GitHub routes, account resolution state machine, Phase 6 models/schemas; all 90 tests pass
+Resume file: .planning/ (Phase 6 plan 1 complete, plan 2 is next — MFA enrollment)

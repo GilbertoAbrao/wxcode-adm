@@ -141,7 +141,7 @@ Plans:
 **Phase requirement IDs (every ID MUST appear in a plan's `requirements` field):** AUTH-08, AUTH-09, AUTH-10, AUTH-11, AUTH-12, AUTH-13
 
 Plans:
-- [ ] 06-01-PLAN.md — Foundation (deps, models, oauth registry, SessionMiddleware) + Google/GitHub OAuth sign-in
+- [x] 06-01-PLAN.md — Foundation (deps, models, oauth registry, SessionMiddleware) + Google/GitHub OAuth sign-in
 - [ ] 06-02-PLAN.md — TOTP MFA enrollment (pyotp, QR code, backup codes, enable/disable)
 - [ ] 06-03-PLAN.md — Two-stage MFA login, TOTP verification, backup code redemption, trusted device cookie
 - [ ] 06-04-PLAN.md — Tenant MFA enforcement toggle, session revocation, OAuth-only user flows
@@ -194,6 +194,6 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8
 | 3. Multi-Tenancy and RBAC | 5/5 | Complete    | 2026-02-23 |
 | 4. Billing Core | 4/5 | In Progress|  |
 | 5. Platform Security | 4/4 | Complete    | 2026-02-24 |
-| 6. OAuth and MFA | 0/5 | Not started | - |
+| 6. OAuth and MFA | 1/5 | In Progress | - |
 | 7. User Account | 0/4 | Not started | - |
 | 8. Super-Admin | 0/4 | Not started | - |
