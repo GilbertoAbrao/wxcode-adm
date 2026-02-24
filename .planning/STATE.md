@@ -9,12 +9,12 @@ See: .planning/PROJECT.md (updated 2026-02-22)
 
 ## Current Position
 
-Phase: 5 of 8 (Platform Security) — In Progress
-Plan: 3 of 4 in current phase (05-02 complete — immutable audit log subsystem, write_audit wired into 24 write endpoints across auth/tenants/billing, arq cron retention purge)
-Status: Plan 05-02 complete — audit_logs table (append-only), write_audit() helper, purge cron at 2 AM UTC, GET /admin/audit-logs super-admin endpoint, all write endpoints instrumented (PLAT-04 verified)
-Last activity: 2026-02-24 — Plan 05-02 complete: audit subsystem + endpoint instrumentation, Phase 5 plans 01/02/03 done (3 of 4)
+Phase: 5 of 8 (Platform Security) — Complete
+Plan: 4 of 4 in current phase (05-04 complete — Alembic migration 004 for audit_logs, 17 integration tests for PLAT-03/04/05, all 90 tests passing)
+Status: Plan 05-04 complete — migration 004 creates audit_logs table, test_platform_security.py with 17 tests covers all Phase 5 success criteria (rate limiting, audit log, email templates)
+Last activity: 2026-02-24 — Plan 05-04 complete: Phase 5 fully done (4 of 4 plans)
 
-Progress: [█████████████████████] 85%
+Progress: [████████████████████████] 88%
 
 ## Performance Metrics
 
@@ -55,6 +55,7 @@ Progress: [█████████████████████] 85%
 | Phase 05-platform-security P03 | 3 | 2 tasks | 13 files |
 | Phase 05-platform-security P01 | 4 | 2 tasks | 8 files |
 | Phase 05-platform-security P02 | 7 | 3 tasks | 11 files |
+| Phase 05-platform-security P04 | 8 | 2 tasks | 7 files |
 
 ## Accumulated Context
 
@@ -146,6 +147,10 @@ Recent decisions affecting current work:
 - [Phase 05-platform-security]: AuditLog has no TimestampMixin and no updated_at — append-only table semantics enforced at model level
 - [Phase 05-platform-security]: write_audit does NOT commit — caller's session commit includes audit entry atomically with business data
 - [Phase 05-platform-security]: login audit lookup queries User.id by email (indexed) after successful login — only runs on success, lightweight
+- [05-04]: JSONB SQLite compat: patch Base.metadata JSONB columns to JSON + strip server_default before create_all; restore after — SQLAlchemy JSONB does NOT auto-fallback
+- [05-04]: Original app.state.limiter must be reused for tests (not replaced) — @limiter.exempt registers in original limiter's _exempt_routes; new Limiter instance loses all exempt routes
+- [05-04]: headers_enabled=True on Limiter singleton — production behavior: 429 responses include Retry-After header for proper client backoff
+- [05-04]: Email tests patch wxcode_adm.common.mail.fast_mail directly — lazy imports always use the singleton from common.mail; auth/tenants/billing.email modules don't have fast_mail as module attribute
 
 ### Pending Todos
 
@@ -160,5 +165,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-24
-Stopped at: Completed 05-01-PLAN.md — slowapi rate limiting: 5/min brute-force protection on 5 auth endpoints, JWKS+health exempt, 60/min global default (PLAT-03 verified)
-Resume file: .planning/phases/05-platform-security/ (Phase 5 plans 02-04 already completed in prior session)
+Stopped at: Completed 05-04-PLAN.md — migration 004 for audit_logs, 17 integration tests for PLAT-03/04/05, all Phase 5 plans done (4/4)
+Resume file: .planning/ (Phase 5 complete, Phase 6 is next)
