@@ -18,7 +18,7 @@ Requirements for initial release. Each maps to roadmap phases.
 - [x] **AUTH-07**: JWKS endpoint exposes public key for wxcode to validate tokens locally
 - [x] **AUTH-08**: User can sign in with Google via OAuth 2.0 (PKCE)
 - [x] **AUTH-09**: User can sign in with GitHub via OAuth 2.0 (PKCE)
-- [ ] **AUTH-10**: User can enable MFA via TOTP (QR code setup + backup codes)
+- [x] **AUTH-10**: User can enable MFA via TOTP (QR code setup + backup codes)
 - [ ] **AUTH-11**: User is prompted for TOTP code on login when MFA enabled
 - [ ] **AUTH-12**: Tenant owner can enforce MFA for all tenant members
 - [ ] **AUTH-13**: User can skip MFA on remembered devices (30-day)
@@ -130,7 +130,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | AUTH-07 | Phase 2 | Complete |
 | AUTH-08 | Phase 6 | Complete |
 | AUTH-09 | Phase 6 | Complete |
-| AUTH-10 | Phase 6 | Pending |
+| AUTH-10 | Phase 6 | Complete |
 | AUTH-11 | Phase 6 | Pending |
 | AUTH-12 | Phase 6 | Pending |
 | AUTH-13 | Phase 6 | Pending |

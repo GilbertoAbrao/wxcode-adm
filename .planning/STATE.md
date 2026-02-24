@@ -10,9 +10,9 @@ See: .planning/PROJECT.md (updated 2026-02-22)
 ## Current Position
 
 Phase: 6 of 8 (OAuth and MFA) — In Progress
-Plan: 1 of 4 in current phase (06-01 complete — authlib OAuth registry, OAuthAccount/MfaBackupCode/TrustedDevice models, Google+GitHub OAuth routes, account resolution state machine, all 90 tests passing)
-Status: Plan 06-01 complete — Phase 6 OAuth infrastructure foundation: OAuth redirect/callback routes, account linking flow, all Phase 6 models and schemas, SessionMiddleware wired
-Last activity: 2026-02-24 — Plan 06-01 complete: OAuth and MFA infrastructure foundation done (1 of 4)
+Plan: 2 of 5 in current phase (06-02 complete — TOTP MFA enrollment service functions + 4 enrollment API routes, pyotp QR code generation, 10 argon2id backup codes)
+Status: Plan 06-02 complete — MFA enrollment endpoints: begin enrollment (QR code + secret), confirm (backup codes), disable (TOTP or backup code), status check; all 90 tests passing
+Last activity: 2026-02-24 — Plan 06-02 complete: TOTP MFA enrollment flow done (2 of 5)
 
 Progress: [████████████████████████] 88%
 
@@ -56,6 +56,7 @@ Progress: [███████████████████████
 | Phase 05-platform-security P01 | 4 | 2 tasks | 8 files |
 | Phase 05-platform-security P02 | 7 | 3 tasks | 11 files |
 | Phase 05-platform-security P04 | 8 | 2 tasks | 7 files |
+| Phase 06-oauth-and-mfa P02 | 7 | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -157,6 +158,9 @@ Recent decisions affecting current work:
 - [06-01]: One OAuth provider per account — OAuthProviderAlreadyLinkedError raised if user already has a different OAuth provider; user must unlink first
 - [06-01]: _issue_tokens extracted from login() — shared single-session token issuance helper reused in OAuth, MFA verify, and login flows
 - [06-01]: SESSION_SECRET_KEY required with no default — prevents accidental weak session key; added to .env for dev
+- [Phase 06-oauth-and-mfa]: generate_backup_codes returns (plaintext_formatted, hashed) tuple so router never sees hashes and service never stores plaintext
+- [Phase 06-oauth-and-mfa]: mfa_disable tries TOTP first (O(1)) then iterates unused backup codes (O(n)) — performance ordering
+- [Phase 06-oauth-and-mfa]: MFA enrollment two-step: begin stores temp mfa_secret without setting mfa_enabled; confirm sets mfa_enabled=True after TOTP verification
 
 ### Pending Todos
 
@@ -166,10 +170,10 @@ None yet.
 
 - [Research]: MongoDB CVE-2025-14847 (MongoBleed) — must verify patched version (8.0.17+, 7.0.28+, or 6.0.27+) before any data is stored. Address in Phase 1.
 - [Research]: Stripe Billing Meters API (post-2025-03-31 deprecation of legacy usage records) — verify exact event format and idempotency requirements during Phase 4 planning.
-- [Research]: qrcode version 8.2 is MEDIUM confidence (search result, not direct PyPI fetch) — verify with pip install "qrcode[pil]" during Phase 6.
+- [Research]: qrcode version 8.2 RESOLVED — installed qrcode[pil]==8.2 + pyotp==2.9.0 successfully in Phase 6 plan 02; QR generation verified working.
 
 ## Session Continuity
 
 Last session: 2026-02-24
-Stopped at: Completed 06-01-PLAN.md — authlib OAuth registry, Google+GitHub routes, account resolution state machine, Phase 6 models/schemas; all 90 tests pass
-Resume file: .planning/ (Phase 6 plan 1 complete, plan 2 is next — MFA enrollment)
+Stopped at: Completed 06-02-PLAN.md — TOTP MFA enrollment service functions and 4 API routes; all 90 tests passing
+Resume file: .planning/ (Phase 6 plan 2 complete, plan 3 is next — Alembic migration for OAuth/MFA tables)
