@@ -10,9 +10,9 @@ See: .planning/PROJECT.md (updated 2026-02-22)
 ## Current Position
 
 Phase: 6 of 8 (OAuth and MFA) — In Progress
-Plan: 2 of 5 in current phase (06-02 complete — TOTP MFA enrollment service functions + 4 enrollment API routes, pyotp QR code generation, 10 argon2id backup codes)
-Status: Plan 06-02 complete — MFA enrollment endpoints: begin enrollment (QR code + secret), confirm (backup codes), disable (TOTP or backup code), status check; all 90 tests passing
-Last activity: 2026-02-24 — Plan 06-02 complete: TOTP MFA enrollment flow done (2 of 5)
+Plan: 3 of 5 in current phase (06-03 complete — two-stage MFA login flow, POST /auth/mfa/verify endpoint, TOTP replay prevention, trusted device cookie)
+Status: Plan 06-03 complete — MFA login flow: login returns mfa_required+mfa_token; mfa/verify validates TOTP/backup code; trusted device 30-day cookie; all 90 tests passing
+Last activity: 2026-02-24 — Plan 06-03 complete: two-stage MFA login done (3 of 5)
 
 Progress: [████████████████████████] 88%
 
@@ -57,6 +57,7 @@ Progress: [███████████████████████
 | Phase 05-platform-security P02 | 7 | 3 tasks | 11 files |
 | Phase 05-platform-security P04 | 8 | 2 tasks | 7 files |
 | Phase 06-oauth-and-mfa P02 | 7 | 2 tasks | 2 files |
+| Phase 06-oauth-and-mfa P03 | 3 | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -161,6 +162,11 @@ Recent decisions affecting current work:
 - [Phase 06-oauth-and-mfa]: generate_backup_codes returns (plaintext_formatted, hashed) tuple so router never sees hashes and service never stores plaintext
 - [Phase 06-oauth-and-mfa]: mfa_disable tries TOTP first (O(1)) then iterates unused backup codes (O(n)) — performance ordering
 - [Phase 06-oauth-and-mfa]: MFA enrollment two-step: begin stores temp mfa_secret without setting mfa_enabled; confirm sets mfa_enabled=True after TOTP verification
+- [06-03]: login() return type is dict (not Pydantic model) — router shapes LoginResponse; keeps service HTTP-agnostic and reusable
+- [06-03]: TOTP replay check only applies to 6-digit numeric codes — backup codes skip replay detection (DB-level single-use via used_at)
+- [06-03]: POST /auth/mfa/verify returns JSONResponse (not Pydantic model) — required to call response.set_cookie() on the response object
+- [06-03]: login audit uses login_mfa_pending action when MFA required — differentiates partial auth from full logins in audit trail
+- [06-03]: is_device_trusted() accepts str user_id — avoids UUID/str conversion at call site; consistent with other Redis key patterns using str(user.id)
 
 ### Pending Todos
 
@@ -175,5 +181,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-24
-Stopped at: Completed 06-02-PLAN.md — TOTP MFA enrollment service functions and 4 API routes; all 90 tests passing
-Resume file: .planning/ (Phase 6 plan 2 complete, plan 3 is next — Alembic migration for OAuth/MFA tables)
+Stopped at: Completed 06-03-PLAN.md — two-stage MFA login flow, POST /auth/mfa/verify, TOTP replay prevention, trusted device cookie; all 90 tests passing
+Resume file: .planning/ (Phase 6 plan 3 complete, plan 4 is next — tenant MFA enforcement)
