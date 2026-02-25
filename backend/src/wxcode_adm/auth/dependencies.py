@@ -4,7 +4,8 @@ FastAPI auth dependencies for wxcode-adm.
 Provides:
 - oauth2_scheme: OAuth2PasswordBearer scheme configured for /api/v1/auth/login
 - get_current_user: extracts and validates a JWT Bearer token, checks Redis blacklist,
-  and returns the active User instance
+  writes per-request last_active timestamp to Redis, and returns the active User instance
+- get_current_jti: extracts the JTI from the current access token for session tracking
 - require_verified: wraps get_current_user and additionally enforces email verification
 
 Usage:
@@ -13,9 +14,13 @@ Usage:
     @router.get("/profile")
     async def profile(user: User = Depends(require_verified)):
         ...
+
+Redis key patterns:
+    auth:session:last_active:{jti} — ISO 8601 timestamp, TTL = ACCESS_TOKEN_TTL_HOURS
 """
 
 import uuid
+from datetime import datetime, timezone
 
 from fastapi import Depends
 from fastapi.security import OAuth2PasswordBearer
@@ -26,6 +31,7 @@ from wxcode_adm.auth.exceptions import EmailNotVerifiedError, InvalidTokenError
 from wxcode_adm.auth.jwt import decode_access_token
 from wxcode_adm.auth.models import User
 from wxcode_adm.auth.service import is_token_blacklisted
+from wxcode_adm.config import settings
 from wxcode_adm.dependencies import get_redis, get_session
 
 # ---------------------------------------------------------------------------
@@ -43,6 +49,24 @@ oauth2_scheme = OAuth2PasswordBearer(
 # ---------------------------------------------------------------------------
 
 
+async def get_current_jti(
+    token: str = Depends(oauth2_scheme),
+) -> str:
+    """Extract JTI from the current access token for session tracking.
+
+    Returns:
+        The JTI string from the access token payload.
+
+    Raises:
+        InvalidTokenError: if the token is missing or has no jti claim.
+    """
+    payload = decode_access_token(token)
+    jti = payload.get("jti")
+    if not jti:
+        raise InvalidTokenError()
+    return jti
+
+
 async def get_current_user(
     token: str = Depends(oauth2_scheme),
     db: AsyncSession = Depends(get_session),
@@ -56,6 +80,7 @@ async def get_current_user(
     2. Extract 'sub' (user_id UUID) and 'jti' from payload.
     3. Check Redis blacklist — raise InvalidTokenError if jti is blacklisted.
     4. Load User from database — raise InvalidTokenError if not found or inactive.
+    5. Write per-request last_active timestamp to Redis (locked decision: Redis write per request).
 
     Returns:
         The authenticated User instance.
@@ -86,6 +111,15 @@ async def get_current_user(
     user: User | None = await db.get(User, user_uuid)
     if user is None or not user.is_active:
         raise InvalidTokenError()
+
+    # 5. Per-request last_active update (locked decision: Redis write per request)
+    # TTL matches access token lifetime so stale keys auto-expire
+    now_iso = datetime.now(timezone.utc).isoformat()
+    await redis.setex(
+        f"auth:session:last_active:{jti}",
+        int(settings.ACCESS_TOKEN_TTL_HOURS * 3600),
+        now_iso,
+    )
 
     return user
 

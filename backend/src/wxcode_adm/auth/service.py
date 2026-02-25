@@ -73,8 +73,8 @@ from wxcode_adm.auth.exceptions import (
     ReplayDetectedError,
     TokenExpiredError,
 )
-from wxcode_adm.auth.jwt import create_access_token
-from wxcode_adm.auth.models import MfaBackupCode, OAuthAccount, RefreshToken, TrustedDevice, User
+from wxcode_adm.auth.jwt import create_access_token, decode_access_token
+from wxcode_adm.auth.models import MfaBackupCode, OAuthAccount, RefreshToken, TrustedDevice, User, UserSession
 from wxcode_adm.auth.password import hash_password, verify_password
 from wxcode_adm.auth.schemas import (
     ForgotPasswordRequest,
@@ -745,15 +745,78 @@ async def reset_password(db: AsyncSession, body: ResetPasswordRequest) -> None:
 # ---------------------------------------------------------------------------
 
 
-async def _issue_tokens(db: AsyncSession, redis: Redis, user: User) -> TokenResponse:
+def parse_session_metadata(
+    user_agent_str: str | None = None,
+    ip_address: str | None = None,
+) -> dict:
+    """Parse User-Agent and geolocate IP into session metadata dict.
+
+    Args:
+        user_agent_str: raw User-Agent header string (optional)
+        ip_address: client IP address (optional)
+
+    Returns:
+        Dict with keys: user_agent, device_type, browser_name, browser_version,
+        ip_address, city. All values are strings or None.
+    """
+    meta: dict = {
+        "user_agent": user_agent_str,
+        "device_type": None,
+        "browser_name": None,
+        "browser_version": None,
+        "ip_address": ip_address,
+        "city": None,
+    }
+    if user_agent_str:
+        from user_agents import parse as parse_ua  # noqa: PLC0415
+        ua = parse_ua(user_agent_str)
+        if ua.is_mobile:
+            meta["device_type"] = "Mobile"
+        elif ua.is_tablet:
+            meta["device_type"] = "Tablet"
+        elif ua.is_pc:
+            meta["device_type"] = "Desktop"
+        else:
+            meta["device_type"] = "Other"
+        meta["browser_name"] = ua.browser.family
+        meta["browser_version"] = ua.browser.version_string
+    if ip_address and settings.GEOLITE2_DB_PATH:
+        try:
+            import geoip2.database  # noqa: PLC0415
+            with geoip2.database.Reader(settings.GEOLITE2_DB_PATH) as reader:
+                response = reader.city(ip_address)
+                meta["city"] = response.city.name
+        except Exception:
+            pass  # Private IPs, missing DB, etc.
+    return meta
+
+
+async def _issue_tokens(
+    db: AsyncSession,
+    redis: Redis,
+    user: User,
+    *,
+    user_agent: str | None = None,
+    ip_address: str | None = None,
+) -> TokenResponse:
     """
     Issue a new access + refresh token pair for a user.
 
     Enforces single-session policy: all existing refresh tokens for the user
     are revoked and shadow keys are written for replay detection.
 
+    Creates a UserSession row with parsed User-Agent and geolocated IP
+    alongside the new RefreshToken for rich session metadata tracking.
+
     This helper is shared by login(), resolve_oauth_account(), and
     confirm_oauth_link() to avoid duplicating token issuance logic.
+
+    Args:
+        db: async database session
+        redis: Redis client
+        user: the User for whom to issue tokens
+        user_agent: raw User-Agent header string (optional, keyword-only)
+        ip_address: client IP address (optional, keyword-only)
     """
     # Single-session enforcement — revoke all existing refresh tokens
     existing_result = await db.execute(
@@ -767,14 +830,31 @@ async def _issue_tokens(db: AsyncSession, redis: Redis, user: User) -> TokenResp
     # Issue new tokens
     access_token = create_access_token(str(user.id))
     refresh_token_str = secrets.token_urlsafe(32)
-    db.add(
-        RefreshToken(
-            token=refresh_token_str,
-            user_id=user.id,
-            expires_at=datetime.now(timezone.utc)
-            + timedelta(days=settings.REFRESH_TOKEN_TTL_DAYS),
-        )
+    rt = RefreshToken(
+        token=refresh_token_str,
+        user_id=user.id,
+        expires_at=datetime.now(timezone.utc)
+        + timedelta(days=settings.REFRESH_TOKEN_TTL_DAYS),
     )
+    db.add(rt)
+    await db.flush()  # Assigns rt.id so we can use it for UserSession FK
+
+    # Extract JTI from the access token for UserSession association
+    payload = decode_access_token(access_token)
+    jti = payload["jti"]
+
+    # Parse session metadata (User-Agent, IP geolocation)
+    meta = parse_session_metadata(user_agent, ip_address)
+
+    # Create UserSession row linked 1:1 to the RefreshToken
+    session_record = UserSession(
+        refresh_token_id=rt.id,
+        user_id=user.id,
+        access_token_jti=jti,
+        last_active_at=datetime.now(timezone.utc),
+        **meta,
+    )
+    db.add(session_record)
 
     return TokenResponse(access_token=access_token, refresh_token=refresh_token_str)
 
