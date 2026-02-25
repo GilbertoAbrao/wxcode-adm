@@ -24,6 +24,8 @@ This module provides two routers:
    - DELETE /mfa                       — Disable MFA (TOTP or backup code required)
    - GET  /mfa/status                  — Check MFA enrollment status
 
+Note: GET /auth/me has been moved to GET /users/me (users router) in Phase 7.
+
 The JWKS endpoint MUST remain at domain root per RFC 5785 — external services
 (e.g., wxcode engine) fetch this URL to verify JWTs issued by wxcode-adm.
 """
@@ -404,32 +406,6 @@ async def reset_password(
         ip_address=request.client.host if request.client else None,
     )
     return ResetPasswordResponse(message="Password has been reset successfully")
-
-
-@auth_api_router.get("/me")
-async def me(
-    user: User = Depends(require_verified),
-) -> dict:
-    """
-    Return the current authenticated and verified user's basic information.
-
-    This endpoint is protected by the full dependency chain:
-    get_current_user (JWT validation + blacklist check) → require_verified
-    (email verification enforcement).
-
-    - Returns 401 if no/invalid Bearer token is provided.
-    - Returns 401 if the access token has been blacklisted (logged out).
-    - Returns 403 if the user's email is not verified.
-    - Returns 200 with id, email, email_verified on success.
-
-    Note: this endpoint will be refined in Phase 7 (User Account) to include
-    additional profile fields.
-    """
-    return {
-        "id": str(user.id),
-        "email": user.email,
-        "email_verified": user.email_verified,
-    }
 
 
 # ---------------------------------------------------------------------------

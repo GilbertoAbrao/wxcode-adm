@@ -190,6 +190,10 @@ def create_app() -> FastAPI:
     from wxcode_adm.audit.router import audit_router  # noqa: PLC0415
     app.include_router(audit_router, prefix=settings.API_V1_PREFIX)
 
+    # Users router (Phase 7): user profile management
+    from wxcode_adm.users.router import users_router  # noqa: PLC0415
+    app.include_router(users_router, prefix=settings.API_V1_PREFIX)
+
     return app
 
 

@@ -12,7 +12,7 @@ SC7: JWKS endpoint returns valid RSA public key
 
 Additional:
 - Duplicate signup returns 409
-- Protected /auth/me endpoint requires auth and email verification
+- Protected /users/me endpoint requires auth and email verification (moved from /auth/me in Phase 7)
 - Single-session enforcement on login
 
 Note: The `client` fixture yields a 4-tuple: (http_client, fake_redis, app, test_db).
@@ -304,9 +304,9 @@ async def test_logout_invalidates_tokens(client):
     access_token = tokens["access_token"]
     refresh_token = tokens["refresh_token"]
 
-    # Verify /me works before logout
+    # Verify /me works before logout (now at /users/me per Phase 7)
     r = await c.get(
-        "/api/v1/auth/me",
+        "/api/v1/users/me",
         headers={"Authorization": f"Bearer {access_token}"},
     )
     assert r.status_code == 200
@@ -321,7 +321,7 @@ async def test_logout_invalidates_tokens(client):
 
     # /me should now return 401 (access token blacklisted)
     r = await c.get(
-        "/api/v1/auth/me",
+        "/api/v1/users/me",
         headers={"Authorization": f"Bearer {access_token}"},
     )
     assert r.status_code == 401
@@ -411,26 +411,26 @@ async def test_jwks_endpoint_returns_valid_key(client):
 
 
 # ---------------------------------------------------------------------------
-# Protected /auth/me endpoint
+# Protected /users/me endpoint (moved from /auth/me in Phase 7)
 # ---------------------------------------------------------------------------
 
 
 async def test_me_endpoint_requires_auth(client):
-    """GET /auth/me without token returns 401."""
+    """GET /users/me without token returns 401."""
     c, redis, app, db = client
 
-    r = await c.get("/api/v1/auth/me")
+    r = await c.get("/api/v1/users/me")
     assert r.status_code == 401
 
 
 async def test_me_endpoint_returns_user_info(client):
-    """GET /auth/me with valid token returns correct user info."""
+    """GET /users/me with valid token returns correct user info."""
     c, redis, app, db = client
 
     tokens = await _signup_verify_login(c, redis, "metest@test.com", "password123")
 
     r = await c.get(
-        "/api/v1/auth/me",
+        "/api/v1/users/me",
         headers={"Authorization": f"Bearer {tokens['access_token']}"},
     )
     assert r.status_code == 200
@@ -438,10 +438,14 @@ async def test_me_endpoint_returns_user_info(client):
     assert data["email"] == "metest@test.com"
     assert data["email_verified"] is True
     assert "id" in data
+    # Phase 7: also includes display_name, avatar_url, mfa_enabled
+    assert "display_name" in data
+    assert "avatar_url" in data
+    assert "mfa_enabled" in data
 
 
 async def test_me_endpoint_rejects_unverified_user(client):
-    """GET /auth/me returns 403 when email is not verified (require_verified enforcement)."""
+    """GET /users/me returns 403 when email is not verified (require_verified enforcement)."""
     c, redis, app, db = client
 
     # Signup without verifying
@@ -455,7 +459,7 @@ async def test_me_endpoint_rejects_unverified_user(client):
     access_token = create_access_token(str(user.id))
 
     r = await c.get(
-        "/api/v1/auth/me",
+        "/api/v1/users/me",
         headers={"Authorization": f"Bearer {access_token}"},
     )
     assert r.status_code == 403
