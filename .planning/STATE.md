@@ -9,12 +9,12 @@ See: .planning/PROJECT.md (updated 2026-02-22)
 
 ## Current Position
 
-Phase: 7 of 8 (User Account) — In Progress
-Plan: 3 of 4 in current phase (07-03 complete — session listing/revocation endpoints, wxcode one-time code redirect, session metadata wired into all auth flows; 114 tests passing)
-Status: Plan 07-03 complete — session management, wxcode code exchange, all auth flows populate UserSession metadata
-Last activity: 2026-02-25 — Plan 07-03 complete: session management and wxcode redirect (3 of 4)
+Phase: 7 of 8 (User Account) — COMPLETE
+Plan: 4 of 4 in current phase (07-04 complete — Alembic migration 006, 15 integration tests covering all 4 USER success criteria; 129 tests passing)
+Status: Phase 7 complete — all 4 plans done; UserSession, profile management, session management, wxcode redirect, migration 006, tests all delivered
+Last activity: 2026-02-25 — Plan 07-04 complete: Alembic migration 006 and integration tests (4 of 4 — Phase 7 complete)
 
-Progress: [████████████████████████████] 96%
+Progress: [█████████████████████████████] 98%
 
 ## Performance Metrics
 
@@ -63,6 +63,7 @@ Progress: [███████████████████████
 | Phase 07 P01 | 12 | 2 tasks | 6 files |
 | Phase 07 P02 | 4 | 2 tasks | 6 files |
 | Phase 07 P03 | 8 | 2 tasks | 6 files |
+| Phase 07 P04 | 3 | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -193,6 +194,8 @@ Recent decisions affecting current work:
 - [Phase 07]: [07-03]: wxcode GETDEL for atomic code consumption — single-use enforcement even under concurrent requests
 - [Phase 07]: [07-03]: refresh() updates UserSession in-place on token rotation — preserves session history, keeps single-session count
 - [Phase 07]: [07-03]: get_redirect_url returns (url, tenant_id) tuple — router updates last_used_tenant_id to keep service HTTP-agnostic
+- [Phase 07]: [07-04]: Migration 006 uses explicit op.f() constraint naming convention consistent with 005
+- [Phase 07]: [07-04]: wxcode test sets tenant.wxcode_url via direct DB update (test_db fixture)
 
 ### Pending Todos
 
@@ -207,5 +210,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-25
-Stopped at: Completed 07-03-PLAN.md — session management endpoints, wxcode one-time code exchange, session metadata wired into all auth flows; 114 tests passing
-Resume file: .planning/ (Phase 7 Plan 03 complete — Plan 04 is next)
+Stopped at: Completed 07-04-PLAN.md — Alembic migration 006, 15 integration tests covering all 4 USER success criteria; 129 tests passing; Phase 7 complete
+Resume file: .planning/ (Phase 7 complete — Phase 8 is next)
