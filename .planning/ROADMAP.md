@@ -156,13 +156,15 @@ Plans:
   2. User can change their password by providing their current password; the old password is rejected after the change
   3. User can view a list of their active sessions (device, IP, last active) and revoke any individual session or all sessions except the current one
   4. After a successful login, the user is redirected to the wxcode application URL with the access token embedded as a query parameter or fragment; wxcode receives a valid JWT and grants access without a second login
-**Plans**: TBD
+**Plans**: 4 plans
+
+**Phase requirement IDs (every ID MUST appear in a plan's `requirements` field):** USER-01, USER-02, USER-03, USER-04
 
 Plans:
-- [ ] 07-01: User profile endpoints (GET/PATCH), avatar handling
-- [ ] 07-02: Password change endpoint (current password verification, token invalidation)
-- [ ] 07-03: Session listing and revocation (Redis session metadata, revoke by session ID)
-- [ ] 07-04: Post-login redirect flow to wxcode with access token handoff
+- [ ] 07-01-PLAN.md — UserSession model, new User/Tenant columns, _issue_tokens session metadata persistence, per-request last_active tracking
+- [ ] 07-02-PLAN.md — User profile endpoints (GET/PATCH /users/me), avatar upload, password change with session invalidation
+- [ ] 07-03-PLAN.md — Session listing and revocation endpoints, wxcode one-time code exchange redirect flow
+- [ ] 07-04-PLAN.md — Alembic migration 006, integration tests for all 4 success criteria
 
 ### Phase 8: Super-Admin
 **Goal**: The platform super-admin (Gilberto) can view, suspend, and manage all tenants and users across the platform, and has a live MRR dashboard to track revenue health — all through endpoints isolated from the tenant-facing API
@@ -185,7 +187,7 @@ Plans:
 ## Progress
 
 **Execution Order:**
-Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8
+Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7 -> 8
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
