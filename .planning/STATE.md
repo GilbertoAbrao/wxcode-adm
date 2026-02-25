@@ -10,9 +10,9 @@ See: .planning/PROJECT.md (updated 2026-02-22)
 ## Current Position
 
 Phase: 7 of 8 (User Account) — In Progress
-Plan: 1 of 4 in current phase (07-01 complete — UserSession model, User/Tenant profile columns, parse_session_metadata, _issue_tokens session persistence, per-request last_active Redis tracking; 114 tests passing)
-Status: Plan 07-01 complete — UserSession model with rich metadata; User.display_name/avatar_url/last_used_tenant_id; Tenant.wxcode_url; per-request Redis last_active tracking; all 114 tests passing
-Last activity: 2026-02-25 — Plan 07-01 complete: Phase 7 foundation (1 of 4)
+Plan: 2 of 4 in current phase (07-02 complete — users module with GET/PATCH /users/me, POST /users/me/avatar, POST /users/me/change-password; Pillow avatar resizing; current session preservation on password change; 114 tests passing)
+Status: Plan 07-02 complete — users profile CRUD, avatar upload, password change with session invalidation; /auth/me replaced by /users/me
+Last activity: 2026-02-25 — Plan 07-02 complete: user profile management (2 of 4)
 
 Progress: [████████████████████████████] 96%
 
@@ -61,6 +61,7 @@ Progress: [███████████████████████
 | Phase 06-oauth-and-mfa P04 | 4 | 2 tasks | 5 files |
 | Phase 06-oauth-and-mfa P05 | 8 | 2 tasks | 5 files |
 | Phase 07 P01 | 12 | 2 tasks | 6 files |
+| Phase 07 P02 | 4 | 2 tasks | 6 files |
 
 ## Accumulated Context
 
@@ -183,6 +184,10 @@ Recent decisions affecting current work:
 - [Phase 07]: [07-01]: GEOLITE2_DB_PATH empty string disables geolocation gracefully — no crash if MMDB file not present
 - [Phase 07]: [07-01]: per-request last_active uses Redis SETEX with ACCESS_TOKEN_TTL_HOURS TTL — stale keys auto-expire
 - [Phase 07]: [07-01]: _issue_tokens flushes RefreshToken before creating UserSession so rt.id FK is available within the same transaction
+- [Phase 07]: [07-02]: change_password queries UserSession by user_id for access_token_jti to blacklist — avoids token reconstruction; Redis SET with ACCESS_TOKEN_TTL_HOURS TTL
+- [Phase 07]: [07-02]: current_jti preservation matches UserSession.access_token_jti == current_jti to find RefreshToken FK and exclude it from bulk DELETE — keeps current session alive after password change
+- [Phase 07]: [07-02]: GET /auth/me removed from auth/router.py — superseded by GET /users/me which returns richer UserProfileResponse (display_name, avatar_url, mfa_enabled)
+- [Phase 07]: [07-02]: Avatar stored at AVATAR_UPLOAD_DIR/{user.id}.jpg, served via relative path /avatars/{user.id}.jpg — per research recommendation
 
 ### Pending Todos
 
@@ -197,5 +202,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-25
-Stopped at: Completed 07-01-PLAN.md — UserSession model, User/Tenant profile columns, parse_session_metadata, _issue_tokens session persistence, per-request last_active Redis tracking; 114 tests passing
-Resume file: .planning/ (Phase 7 Plan 01 complete — Plans 02-04 are next)
+Stopped at: Completed 07-02-PLAN.md — users module with GET/PATCH /users/me, POST /users/me/avatar, POST /users/me/change-password; Pillow avatar resizing; current session preservation on password change; 114 tests passing
+Resume file: .planning/ (Phase 7 Plan 02 complete — Plans 03-04 are next)

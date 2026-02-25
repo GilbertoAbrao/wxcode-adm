@@ -64,7 +64,7 @@ Requirements for initial release. Each maps to roadmap phases.
 ### User Account
 
 - [x] **USER-01**: User can view and edit profile (name, email, avatar)
-- [ ] **USER-02**: User can change password (requires current password)
+- [x] **USER-02**: User can change password (requires current password)
 - [x] **USER-03**: User can list and revoke active sessions
 - [x] **USER-04**: User is redirected to wxcode with access token after login
 
@@ -158,7 +158,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | SADM-04 | Phase 8 | Pending |
 | SADM-05 | Phase 8 | Pending |
 | USER-01 | Phase 7 | Complete |
-| USER-02 | Phase 7 | Pending |
+| USER-02 | Phase 7 | Complete |
 | USER-03 | Phase 7 | Complete |
 | USER-04 | Phase 7 | Complete |
 
