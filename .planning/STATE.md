@@ -10,9 +10,9 @@ See: .planning/PROJECT.md (updated 2026-02-22)
 ## Current Position
 
 Phase: 7 of 8 (User Account) — In Progress
-Plan: 2 of 4 in current phase (07-02 complete — users module with GET/PATCH /users/me, POST /users/me/avatar, POST /users/me/change-password; Pillow avatar resizing; current session preservation on password change; 114 tests passing)
-Status: Plan 07-02 complete — users profile CRUD, avatar upload, password change with session invalidation; /auth/me replaced by /users/me
-Last activity: 2026-02-25 — Plan 07-02 complete: user profile management (2 of 4)
+Plan: 3 of 4 in current phase (07-03 complete — session listing/revocation endpoints, wxcode one-time code redirect, session metadata wired into all auth flows; 114 tests passing)
+Status: Plan 07-03 complete — session management, wxcode code exchange, all auth flows populate UserSession metadata
+Last activity: 2026-02-25 — Plan 07-03 complete: session management and wxcode redirect (3 of 4)
 
 Progress: [████████████████████████████] 96%
 
@@ -62,6 +62,7 @@ Progress: [███████████████████████
 | Phase 06-oauth-and-mfa P05 | 8 | 2 tasks | 5 files |
 | Phase 07 P01 | 12 | 2 tasks | 6 files |
 | Phase 07 P02 | 4 | 2 tasks | 6 files |
+| Phase 07 P03 | 8 | 2 tasks | 6 files |
 
 ## Accumulated Context
 
@@ -188,6 +189,10 @@ Recent decisions affecting current work:
 - [Phase 07]: [07-02]: current_jti preservation matches UserSession.access_token_jti == current_jti to find RefreshToken FK and exclude it from bulk DELETE — keeps current session alive after password change
 - [Phase 07]: [07-02]: GET /auth/me removed from auth/router.py — superseded by GET /users/me which returns richer UserProfileResponse (display_name, avatar_url, mfa_enabled)
 - [Phase 07]: [07-02]: Avatar stored at AVATAR_UPLOAD_DIR/{user.id}.jpg, served via relative path /avatars/{user.id}.jpg — per research recommendation
+- [Phase 07]: [07-03]: blacklist_jti() added as separate helper — direct JTI write to Redis without JWT decode; cleaner for session revocation
+- [Phase 07]: [07-03]: wxcode GETDEL for atomic code consumption — single-use enforcement even under concurrent requests
+- [Phase 07]: [07-03]: refresh() updates UserSession in-place on token rotation — preserves session history, keeps single-session count
+- [Phase 07]: [07-03]: get_redirect_url returns (url, tenant_id) tuple — router updates last_used_tenant_id to keep service HTTP-agnostic
 
 ### Pending Todos
 
@@ -202,5 +207,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-25
-Stopped at: Completed 07-02-PLAN.md — users module with GET/PATCH /users/me, POST /users/me/avatar, POST /users/me/change-password; Pillow avatar resizing; current session preservation on password change; 114 tests passing
-Resume file: .planning/ (Phase 7 Plan 02 complete — Plans 03-04 are next)
+Stopped at: Completed 07-03-PLAN.md — session management endpoints, wxcode one-time code exchange, session metadata wired into all auth flows; 114 tests passing
+Resume file: .planning/ (Phase 7 Plan 03 complete — Plan 04 is next)
