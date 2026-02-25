@@ -24,6 +24,10 @@ Contains business logic for:
 - create_trusted_device: generate and store a trusted device token (DB + cookie value)
 - is_device_trusted: check whether a device token matches a valid TrustedDevice row
 - revoke_trusted_devices: delete all TrustedDevice rows for a user
+- blacklist_jti: blacklist a JTI directly (without full JWT decode)
+- create_wxcode_code: generate and store a one-time wxcode authorization code in Redis
+- exchange_wxcode_code: atomically consume a wxcode code and return token data
+- get_redirect_url: resolve the wxcode_url for the user's last-used tenant
 
 Redis OTP key pattern:
   auth:otp:{user_id}          — the 6-digit code (TTL 600s)
@@ -42,6 +46,9 @@ Redis MFA pending key pattern:
 
 Redis MFA replay prevention pattern:
   auth:mfa:used:{user_id}     — TOTP code value (TTL = 60s; prevents same code reuse)
+
+Redis wxcode one-time code pattern:
+  auth:wxcode_code:{code}     — JSON {user_id, access_token, refresh_token} (TTL = WXCODE_CODE_TTL = 30s)
 """
 
 import base64
@@ -440,6 +447,8 @@ async def login(
     redis: Redis,
     body: LoginRequest,
     device_token: str | None = None,
+    user_agent: str | None = None,
+    ip_address: str | None = None,
 ) -> dict:
     """
     Authenticate a user and issue a new access + refresh token pair.
@@ -514,7 +523,9 @@ async def login(
         # Only check trusted device if the user is NOT in any enforcing tenant.
         if not enforcing_tenants and device_token and await is_device_trusted(db, str(user.id), device_token):
             # Trusted device — skip MFA and issue tokens directly
-            token_response = await _issue_tokens(db, redis, user)
+            token_response = await _issue_tokens(
+                db, redis, user, user_agent=user_agent, ip_address=ip_address
+            )
             logger.info(
                 f"User logged in via trusted device: {user.email} (id={user.id})"
             )
@@ -537,7 +548,9 @@ async def login(
         return {"mfa_required": True, "mfa_token": mfa_token}
 
     # MFA not enabled and no enforcing tenants — issue tokens directly
-    token_response = await _issue_tokens(db, redis, user)
+    token_response = await _issue_tokens(
+        db, redis, user, user_agent=user_agent, ip_address=ip_address
+    )
 
     logger.info(f"User logged in: {user.email} (id={user.id})")
     return {
@@ -548,7 +561,11 @@ async def login(
 
 
 async def refresh(
-    db: AsyncSession, redis: Redis, body: RefreshRequest
+    db: AsyncSession,
+    redis: Redis,
+    body: RefreshRequest,
+    user_agent: str | None = None,
+    ip_address: str | None = None,
 ) -> TokenResponse:
     """
     Rotate a refresh token: consume the old one and issue a new access +
@@ -557,6 +574,9 @@ async def refresh(
     - Replay detection: if the token was already consumed (shadow key exists),
       perform full logout and raise ReplayDetectedError.
     - Expiry check: delete the row and raise TokenExpiredError if expired.
+
+    Phase 7: updates the linked UserSession with new access_token_jti and
+    optionally refreshes metadata (user_agent, ip_address) if provided.
     """
     result = await db.execute(
         select(RefreshToken).where(RefreshToken.token == body.refresh_token)
@@ -581,21 +601,57 @@ async def refresh(
     # Write shadow key for the consumed token before deleting it
     await _write_shadow_key(redis, row.token, str(row.user_id))
 
-    # Rotation: delete old row and create new one
+    # Capture the old RefreshToken.id for UserSession update before deleting
+    old_rt_id = row.id
     user_id = row.user_id
+
+    # Rotation: delete old RefreshToken and create new one
     await db.delete(row)
+    await db.flush()  # Ensure delete is flushed before creating new row
+
     new_token_str = secrets.token_urlsafe(32)
-    db.add(
-        RefreshToken(
-            token=new_token_str,
-            user_id=user_id,
-            expires_at=datetime.now(timezone.utc)
-            + timedelta(days=settings.REFRESH_TOKEN_TTL_DAYS),
-        )
+    new_rt = RefreshToken(
+        token=new_token_str,
+        user_id=user_id,
+        expires_at=datetime.now(timezone.utc)
+        + timedelta(days=settings.REFRESH_TOKEN_TTL_DAYS),
     )
+    db.add(new_rt)
+    await db.flush()  # Assigns new_rt.id for UserSession FK update
 
     # Issue new access token
     access_token = create_access_token(str(user_id))
+    new_jti = decode_access_token(access_token)["jti"]
+
+    # Update the UserSession: update refresh_token_id FK and access_token_jti
+    # This keeps the session alive after token rotation (same logical session).
+    session_result = await db.execute(
+        select(UserSession).where(UserSession.refresh_token_id == old_rt_id)
+    )
+    session_record = session_result.scalar_one_or_none()
+    if session_record is not None:
+        session_record.refresh_token_id = new_rt.id
+        session_record.access_token_jti = new_jti
+        # Update metadata if provided (refreshed session may come from different device)
+        if user_agent is not None:
+            meta = parse_session_metadata(user_agent, ip_address)
+            session_record.user_agent = meta["user_agent"]
+            session_record.device_type = meta["device_type"]
+            session_record.browser_name = meta["browser_name"]
+            session_record.browser_version = meta["browser_version"]
+            session_record.ip_address = meta["ip_address"]
+            session_record.city = meta["city"]
+    else:
+        # No UserSession exists for this RefreshToken (pre-Phase-7 token).
+        # Create a new UserSession so all active sessions have metadata.
+        meta = parse_session_metadata(user_agent, ip_address)
+        db.add(UserSession(
+            refresh_token_id=new_rt.id,
+            user_id=user_id,
+            access_token_jti=new_jti,
+            last_active_at=datetime.now(timezone.utc),
+            **meta,
+        ))
 
     logger.info(f"Token refreshed for user_id={user_id}")
     return TokenResponse(access_token=access_token, refresh_token=new_token_str)
@@ -879,6 +935,119 @@ async def _issue_tokens(
 
 
 # ---------------------------------------------------------------------------
+# Phase 7: wxcode one-time authorization code helpers
+# ---------------------------------------------------------------------------
+
+
+async def create_wxcode_code(
+    redis: Redis,
+    user_id: str,
+    access_token: str,
+    refresh_token: str,
+) -> str:
+    """
+    Generate and store a one-time wxcode authorization code in Redis.
+
+    The code is a random URL-safe string stored with a short TTL
+    (settings.WXCODE_CODE_TTL, default 30s). The wxcode backend exchanges
+    this code for the actual JWT tokens via POST /auth/wxcode/exchange.
+
+    Token never appears in a URL — only the short-lived authorization code does.
+
+    Args:
+        redis: Redis client
+        user_id: the user's ID string
+        access_token: the issued JWT access token
+        refresh_token: the issued refresh token string
+
+    Returns:
+        The one-time authorization code string.
+    """
+    code = secrets.token_urlsafe(32)
+    payload = json.dumps({
+        "user_id": user_id,
+        "access_token": access_token,
+        "refresh_token": refresh_token,
+    })
+    await redis.set(
+        f"auth:wxcode_code:{code}",
+        payload,
+        ex=settings.WXCODE_CODE_TTL,
+    )
+    return code
+
+
+async def exchange_wxcode_code(redis: Redis, code: str) -> dict | None:
+    """
+    Atomically consume a one-time wxcode authorization code.
+
+    Uses Redis GETDEL for atomic consumption — the key is deleted in the same
+    operation, making the code single-use even under concurrent requests.
+
+    Args:
+        redis: Redis client
+        code: the one-time authorization code from the redirect URL
+
+    Returns:
+        Dict with user_id, access_token, refresh_token — or None if the code
+        is expired, already used, or never existed.
+    """
+    raw = await redis.getdel(f"auth:wxcode_code:{code}")
+    if raw is None:
+        return None
+    data = json.loads(raw if isinstance(raw, str) else raw.decode())
+    return data
+
+
+async def get_redirect_url(
+    db: AsyncSession, user: "User"
+) -> tuple[str | None, "uuid.UUID | None"]:
+    """
+    Resolve the wxcode application URL for the user.
+
+    Resolution order:
+    1. If user.last_used_tenant_id is set, query that Tenant and return
+       tenant.wxcode_url if not None.
+    2. Otherwise, query the user's most recent TenantMembership
+       (ORDER BY created_at DESC LIMIT 1), load the Tenant, and return
+       tenant.wxcode_url.
+    3. If no memberships or no wxcode_url configured, return (None, None).
+
+    Returns:
+        Tuple of (wxcode_url, tenant_id) where both may be None.
+    """
+    from wxcode_adm.tenants.models import Tenant, TenantMembership  # noqa: PLC0415
+
+    if user.last_used_tenant_id is not None:
+        tenant_result = await db.execute(
+            select(Tenant).where(Tenant.id == user.last_used_tenant_id)
+        )
+        tenant = tenant_result.scalar_one_or_none()
+        if tenant is not None and tenant.wxcode_url:
+            return tenant.wxcode_url, tenant.id
+
+    # Fall back to most recent membership
+    membership_result = await db.execute(
+        select(TenantMembership)
+        .where(TenantMembership.user_id == user.id)
+        .order_by(TenantMembership.created_at.desc())
+        .limit(1)
+    )
+    membership = membership_result.scalar_one_or_none()
+    if membership is None:
+        return None, None
+
+    tenant_result = await db.execute(
+        select(Tenant).where(Tenant.id == membership.tenant_id)
+    )
+    tenant = tenant_result.scalar_one_or_none()
+    if tenant is None or not tenant.wxcode_url:
+        return None, None
+
+    return tenant.wxcode_url, tenant.id
+
+
+# ---------------------------------------------------------------------------
 # Phase 6: OAuth service functions
 # ---------------------------------------------------------------------------
 
@@ -958,6 +1127,8 @@ async def resolve_oauth_account(
     provider: str,
     email: str,
     provider_user_id: str,
+    user_agent: str | None = None,
+    ip_address: str | None = None,
 ) -> OAuthCallbackResponse | OAuthLinkResponse:
     """
     Account resolution state machine for OAuth sign-in.
@@ -995,7 +1166,9 @@ async def resolve_oauth_account(
             select(User).where(User.id == oauth_account.user_id)
         )
         user = user_result.scalar_one()
-        token_response = await _issue_tokens(db, redis, user)
+        token_response = await _issue_tokens(
+            db, redis, user, user_agent=user_agent, ip_address=ip_address
+        )
         # Determine if user needs onboarding — use explicit async query to avoid
         # lazy-loading the memberships relationship on the async session
         # (lazy loads raise MissingGreenlet on async sessions in SQLAlchemy 2.0).
@@ -1085,7 +1258,9 @@ async def resolve_oauth_account(
     pending_invitations = inv_result.scalars().all()
     needs_onboarding = len(pending_invitations) == 0
 
-    token_response = await _issue_tokens(db, redis, new_user)
+    token_response = await _issue_tokens(
+        db, redis, new_user, user_agent=user_agent, ip_address=ip_address
+    )
     logger.info(f"New user created via OAuth: {email} (provider={provider})")
     return OAuthCallbackResponse(
         access_token=token_response.access_token,
@@ -1100,6 +1275,8 @@ async def confirm_oauth_link(
     redis: Redis,
     link_token: str,
     password: str,
+    user_agent: str | None = None,
+    ip_address: str | None = None,
 ) -> TokenResponse:
     """
     Confirm an OAuth account link by verifying the user's password.
@@ -1156,7 +1333,7 @@ async def confirm_oauth_link(
         f"(provider_user_id={provider_user_id})"
     )
 
-    return await _issue_tokens(db, redis, user)
+    return await _issue_tokens(db, redis, user, user_agent=user_agent, ip_address=ip_address)
 
 
 # ---------------------------------------------------------------------------
@@ -1420,6 +1597,8 @@ async def mfa_verify(
     mfa_token: str,
     code: str,
     trust_device: bool = False,
+    user_agent: str | None = None,
+    ip_address: str | None = None,
 ) -> dict:
     """
     Complete a two-stage MFA login by verifying a TOTP code or backup code.
@@ -1520,8 +1699,10 @@ async def mfa_verify(
     # 5. Consume the mfa_pending token
     await redis.delete(f"auth:mfa_pending:{mfa_token}")
 
-    # 6. Issue tokens
-    token_response = await _issue_tokens(db, redis, user)
+    # 6. Issue tokens (Phase 7: pass session metadata from HTTP request)
+    token_response = await _issue_tokens(
+        db, redis, user, user_agent=user_agent, ip_address=ip_address
+    )
 
     result: dict = {
         "access_token": token_response.access_token,

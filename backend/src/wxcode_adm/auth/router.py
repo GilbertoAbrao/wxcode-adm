@@ -70,6 +70,8 @@ from wxcode_adm.auth.schemas import (
     TokenResponse,
     VerifyEmailRequest,
     VerifyEmailResponse,
+    WxcodeExchangeRequest,
+    WxcodeExchangeResponse,
 )
 from wxcode_adm.common.exceptions import AppError
 from wxcode_adm.common.rate_limit import limiter
@@ -200,6 +202,8 @@ async def login(
 
     When MFA is not enabled:
     - Returns LoginResponse with access_token and refresh_token.
+    - If the user's tenant has a wxcode_url configured, returns wxcode_redirect_url
+      and wxcode_code so the frontend can redirect to wxcode with a one-time code.
 
     - Returns 401 if email not found, password incorrect, or account inactive.
     - Returns 403 if email has not been verified.
@@ -208,37 +212,72 @@ async def login(
     # Extract trusted device cookie (may be None — backward compatible)
     device_token = request.cookies.get("wxcode_trusted_device")
 
-    result = await service.login(db, redis, body, device_token=device_token)
+    # Extract session metadata from HTTP request (Phase 7 — rich session tracking)
+    user_agent_str = request.headers.get("User-Agent")
+    client_ip = request.client.host if request.client else None
+
+    result = await service.login(
+        db, redis, body,
+        device_token=device_token,
+        user_agent=user_agent_str,
+        ip_address=client_ip,
+    )
 
     # Lightweight user lookup to capture actor_id in audit log.
     # Uses indexed email column — only runs on successful authentication.
-    user_result = await db.execute(select(User.id).where(User.email == body.email))
-    user_row = user_result.scalar_one_or_none()
+    user_result = await db.execute(
+        select(User).where(User.email == body.email)
+    )
+    user_obj = user_result.scalar_one_or_none()
 
     if result.get("mfa_required"):
         # MFA pending — log intermediate action (no tokens issued yet)
-        if user_row:
+        if user_obj:
             await write_audit(
                 db,
-                actor_id=user_row,
+                actor_id=user_obj.id,
                 action="login_mfa_pending",
                 resource_type="session",
-                ip_address=request.client.host if request.client else None,
+                ip_address=client_ip,
             )
-        return LoginResponse(mfa_required=True, mfa_token=result["mfa_token"])
+        return LoginResponse(
+            mfa_required=True,
+            mfa_token=result["mfa_token"],
+            mfa_setup_required=result.get("mfa_setup_required", False),
+        )
 
-    # Tokens issued — log full login
-    if user_row:
+    # Tokens issued — log full login and resolve wxcode redirect
+    if user_obj:
         await write_audit(
             db,
-            actor_id=user_row,
+            actor_id=user_obj.id,
             action="login",
             resource_type="session",
-            ip_address=request.client.host if request.client else None,
+            ip_address=client_ip,
         )
+
+    # Phase 7: wxcode redirect — resolve tenant wxcode_url for one-time code
+    wxcode_redirect_url: str | None = None
+    wxcode_code: str | None = None
+    if user_obj:
+        redirect_url, tenant_id = await service.get_redirect_url(db, user_obj)
+        if redirect_url:
+            wxcode_code = await service.create_wxcode_code(
+                redis,
+                str(user_obj.id),
+                result["access_token"],
+                result["refresh_token"],
+            )
+            wxcode_redirect_url = redirect_url
+            # Update last_used_tenant_id for future redirect targeting (locked decision)
+            if tenant_id is not None:
+                user_obj.last_used_tenant_id = tenant_id
+
     return LoginResponse(
         access_token=result["access_token"],
         refresh_token=result["refresh_token"],
+        wxcode_redirect_url=wxcode_redirect_url,
+        wxcode_code=wxcode_code,
     )
 
 
@@ -266,8 +305,14 @@ async def mfa_verify(
       within 60 seconds (replay prevention).
     - Rate limited: same limit as other auth endpoints (brute-force protection).
     """
+    # Extract session metadata from HTTP request (Phase 7 — rich session tracking)
+    user_agent_str = request.headers.get("User-Agent")
+    client_ip = request.client.host if request.client else None
+
     result = await service.mfa_verify(
-        db, redis, body.mfa_token, body.code, body.trust_device
+        db, redis, body.mfa_token, body.code, body.trust_device,
+        user_agent=user_agent_str,
+        ip_address=client_ip,
     )
 
     # Write audit entry on successful MFA verification
@@ -275,7 +320,7 @@ async def mfa_verify(
         db,
         action="mfa_verify_success",
         resource_type="session",
-        ip_address=request.client.host if request.client else None,
+        ip_address=client_ip,
     )
 
     # Build JSON response with tokens
@@ -284,6 +329,16 @@ async def mfa_verify(
         "refresh_token": result["refresh_token"],
         "token_type": "bearer",
     }
+
+    # Phase 7: wxcode redirect — include if user has tenant with wxcode_url
+    # Note: mfa_verify does not have access to the user object here, but
+    # the user_id is embedded in the mfa_token. We resolve it in the response.
+    # wxcode_redirect_url and wxcode_code are passed through from service result
+    # if present (service resolves them for completeness).
+    if result.get("wxcode_redirect_url"):
+        response_data["wxcode_redirect_url"] = result["wxcode_redirect_url"]
+        response_data["wxcode_code"] = result.get("wxcode_code")
+
     response = JSONResponse(content=response_data)
 
     # Set trusted device cookie if requested and device_token was returned
@@ -316,12 +371,20 @@ async def refresh(
       this triggers full logout (all sessions revoked).
     - Returns 401 if the refresh token has expired.
     """
-    result = await service.refresh(db, redis, body)
+    # Extract session metadata from HTTP request (Phase 7 — rich session tracking)
+    user_agent_str = request.headers.get("User-Agent")
+    client_ip = request.client.host if request.client else None
+
+    result = await service.refresh(
+        db, redis, body,
+        user_agent=user_agent_str,
+        ip_address=client_ip,
+    )
     await write_audit(
         db,
         action="refresh_token",
         resource_type="session",
-        ip_address=request.client.host if request.client else None,
+        ip_address=client_ip,
     )
     return result
 
@@ -406,6 +469,54 @@ async def reset_password(
         ip_address=request.client.host if request.client else None,
     )
     return ResetPasswordResponse(message="Password has been reset successfully")
+
+
+# ---------------------------------------------------------------------------
+# Phase 7: wxcode one-time code exchange endpoint
+# ---------------------------------------------------------------------------
+
+
+@auth_api_router.post("/wxcode/exchange", response_model=WxcodeExchangeResponse)
+@limiter.limit(settings.RATE_LIMIT_AUTH)
+async def wxcode_exchange(
+    request: Request,
+    body: WxcodeExchangeRequest,
+    db: AsyncSession = Depends(get_session),
+    redis: Redis = Depends(get_redis),
+) -> WxcodeExchangeResponse:
+    """
+    Exchange a one-time wxcode authorization code for JWT tokens.
+
+    Called server-to-server by the wxcode backend after the user is redirected
+    to wxcode with a ?code= query parameter. The code is atomically consumed
+    (GETDEL) — replaying the same code returns 401.
+
+    No JWT authentication required — this is a server-to-server call.
+    Rate limited to prevent brute-force code guessing.
+
+    - Returns 200 with access_token and refresh_token on success.
+    - Returns 401 (INVALID_CODE) if the code is expired, already used, or invalid.
+    """
+    result = await service.exchange_wxcode_code(redis, body.code)
+    if result is None:
+        raise AppError(
+            error_code="INVALID_CODE",
+            message="Authorization code is invalid or expired",
+            status_code=401,
+        )
+
+    await write_audit(
+        db,
+        action="wxcode_exchange",
+        resource_type="session",
+        ip_address=request.client.host if request.client else None,
+        details={"user_id": result["user_id"]},
+    )
+
+    return WxcodeExchangeResponse(
+        access_token=result["access_token"],
+        refresh_token=result["refresh_token"],
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -496,15 +607,21 @@ async def oauth_callback(
     else:
         email, provider_user_id = await service.get_github_email(client, token)
 
+    # Extract session metadata from HTTP request (Phase 7 — rich session tracking)
+    user_agent_str = request.headers.get("User-Agent")
+    client_ip = request.client.host if request.client else None
+
     result = await service.resolve_oauth_account(
-        db, redis, provider, email, provider_user_id
+        db, redis, provider, email, provider_user_id,
+        user_agent=user_agent_str,
+        ip_address=client_ip,
     )
 
     await write_audit(
         db,
         action="oauth_login",
         resource_type="session",
-        ip_address=request.client.host if request.client else None,
+        ip_address=client_ip,
         details={"provider": provider, "email": email},
     )
 
@@ -533,15 +650,21 @@ async def oauth_link_confirm(
     - Returns 401 if link_token is expired or invalid.
     - Returns 401 if password is incorrect.
     """
+    # Extract session metadata from HTTP request (Phase 7 — rich session tracking)
+    user_agent_str = request.headers.get("User-Agent")
+    client_ip = request.client.host if request.client else None
+
     token_response = await service.confirm_oauth_link(
-        db, redis, body.link_token, body.password
+        db, redis, body.link_token, body.password,
+        user_agent=user_agent_str,
+        ip_address=client_ip,
     )
 
     await write_audit(
         db,
         action="oauth_link",
         resource_type="session",
-        ip_address=request.client.host if request.client else None,
+        ip_address=client_ip,
     )
 
     return OAuthCallbackResponse(

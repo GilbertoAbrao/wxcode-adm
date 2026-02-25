@@ -232,6 +232,10 @@ class LoginResponse(BaseModel):
         The frontend should redirect to MFA enrollment (/auth/mfa/enroll).
         After enrollment the user must log in again to complete authentication.
 
+    Phase 7: wxcode_redirect_url and wxcode_code are set when the user's tenant
+        has a wxcode_url configured. The frontend uses these to redirect:
+        window.location.href = `${wxcode_redirect_url}?code=${wxcode_code}`
+
     Note: TokenResponse remains for the /refresh endpoint (always returns tokens).
     """
 
@@ -241,3 +245,29 @@ class LoginResponse(BaseModel):
     mfa_required: bool = False
     mfa_token: str | None = None
     mfa_setup_required: bool = False
+    # Phase 7: wxcode redirect — set when tenant has wxcode_url configured
+    wxcode_redirect_url: str | None = None
+    wxcode_code: str | None = None
+
+
+# ---------------------------------------------------------------------------
+# Phase 7 Plan 03: wxcode exchange schemas
+# ---------------------------------------------------------------------------
+
+
+class WxcodeExchangeRequest(BaseModel):
+    """Request body for POST /api/v1/auth/wxcode/exchange.
+
+    Called server-to-server by the wxcode backend to exchange a one-time
+    authorization code for JWT access and refresh tokens.
+    """
+
+    code: str
+
+
+class WxcodeExchangeResponse(BaseModel):
+    """Response body for POST /api/v1/auth/wxcode/exchange."""
+
+    access_token: str
+    refresh_token: str
+    token_type: str = "bearer"
