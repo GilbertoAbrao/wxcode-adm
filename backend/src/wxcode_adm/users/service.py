@@ -6,6 +6,9 @@ Contains business logic for:
 - update_profile: update display_name and/or email (with email re-verification)
 - upload_avatar: validate, resize, and save JPEG avatar to filesystem
 - change_password: verify current password, hash new password, invalidate other sessions
+- list_sessions: return all active sessions with rich metadata for the user
+- revoke_session: blacklist a single session JTI and delete its RefreshToken
+- revoke_all_other_sessions: bulk-revoke all sessions except the current one
 """
 
 from __future__ import annotations
@@ -293,3 +296,232 @@ async def change_password(
         f"Password changed for user {user.id} — "
         f"other sessions invalidated (current_jti={'preserved' if current_jti else 'none'})"
     )
+
+
+# ---------------------------------------------------------------------------
+# Phase 7 Plan 03: Session management service functions
+# ---------------------------------------------------------------------------
+
+
+async def list_sessions(
+    db: AsyncSession,
+    redis: Redis,
+    user: User,
+    current_jti: str,
+) -> list[dict]:
+    """
+    Return all active sessions for a user with rich metadata.
+
+    Steps:
+    1. Query all UserSession rows for user.id joined with RefreshToken to confirm
+       the session is still active (RefreshToken row must exist via FK).
+    2. For each session, check Redis key auth:session:last_active:{jti} for the
+       freshest last_active timestamp. Falls back to session.last_active_at from DB.
+    3. Mark is_current = (session.access_token_jti == current_jti).
+    4. Return sorted by last_active_at descending (most recent first).
+
+    Args:
+        db: async database session
+        redis: Redis client
+        user: the authenticated User
+        current_jti: the JTI of the current request's access token
+
+    Returns:
+        List of session dicts with id, device_type, browser_name, browser_version,
+        ip_address, city, last_active_at, is_current, created_at.
+    """
+    # Query UserSession rows joined with RefreshToken (inner join = active sessions only)
+    from wxcode_adm.auth.models import RefreshToken  # noqa: PLC0415 (avoid circular at module level)
+
+    result = await db.execute(
+        select(UserSession)
+        .join(RefreshToken, RefreshToken.id == UserSession.refresh_token_id)
+        .where(UserSession.user_id == user.id)
+    )
+    sessions = result.scalars().all()
+
+    session_dicts: list[dict] = []
+    for session_record in sessions:
+        jti = session_record.access_token_jti
+
+        # Check Redis for real-time last_active (falls back to DB value if not set)
+        redis_last_active = await redis.get(f"auth:session:last_active:{jti}")
+        if redis_last_active is not None:
+            last_active_str = (
+                redis_last_active
+                if isinstance(redis_last_active, str)
+                else redis_last_active.decode()
+            )
+        elif session_record.last_active_at is not None:
+            last_active_str = session_record.last_active_at.isoformat()
+        else:
+            last_active_str = None
+
+        session_dicts.append({
+            "id": str(session_record.id),
+            "device_type": session_record.device_type,
+            "browser_name": session_record.browser_name,
+            "browser_version": session_record.browser_version,
+            "ip_address": session_record.ip_address,
+            "city": session_record.city,
+            "last_active_at": last_active_str,
+            "is_current": jti == current_jti,
+            "created_at": session_record.created_at.isoformat(),
+        })
+
+    # Sort by last_active_at descending (most recent first).
+    # None values sort to the end.
+    session_dicts.sort(
+        key=lambda s: s["last_active_at"] or "",
+        reverse=True,
+    )
+
+    return session_dicts
+
+
+async def revoke_session(
+    db: AsyncSession,
+    redis: Redis,
+    user: User,
+    session_id: str,
+    current_jti: str,
+) -> None:
+    """
+    Revoke a single session by session_id.
+
+    Steps:
+    1. Load UserSession by id AND user_id (ownership check). Raise NotFoundError if missing.
+    2. Prevent self-revocation (locked decision): raise AppError(400) if session is current.
+    3. Blacklist the access token JTI in Redis immediately.
+    4. Delete the RefreshToken row (CASCADE deletes UserSession via FK).
+
+    Args:
+        db: async database session
+        redis: Redis client
+        user: the authenticated User
+        session_id: UUID string of the session to revoke
+        current_jti: the JTI of the current request's access token
+
+    Raises:
+        NotFoundError: session not found or does not belong to this user.
+        AppError(400, CANNOT_REVOKE_CURRENT): attempt to revoke the current session.
+    """
+    from wxcode_adm.common.exceptions import NotFoundError  # noqa: PLC0415
+    import uuid as _uuid  # noqa: PLC0415
+
+    try:
+        session_uuid = _uuid.UUID(session_id)
+    except ValueError:
+        raise NotFoundError(
+            error_code="SESSION_NOT_FOUND",
+            message="Session not found",
+        )
+
+    result = await db.execute(
+        select(UserSession).where(
+            UserSession.id == session_uuid,
+            UserSession.user_id == user.id,
+        )
+    )
+    session_record = result.scalar_one_or_none()
+    if session_record is None:
+        raise NotFoundError(
+            error_code="SESSION_NOT_FOUND",
+            message="Session not found",
+        )
+
+    # Locked decision: prevent accidental self-revocation
+    if session_record.access_token_jti == current_jti:
+        raise AppError(
+            error_code="CANNOT_REVOKE_CURRENT",
+            message="Cannot revoke your current session. Use logout instead.",
+            status_code=400,
+        )
+
+    # Blacklist the JTI in Redis immediately (direct write — we have the JTI)
+    from wxcode_adm.auth.service import blacklist_jti  # noqa: PLC0415
+
+    await blacklist_jti(redis, session_record.access_token_jti)
+
+    # Delete the RefreshToken row — CASCADE deletes UserSession via FK
+    from wxcode_adm.auth.models import RefreshToken  # noqa: PLC0415
+
+    await db.execute(
+        delete(RefreshToken).where(RefreshToken.id == session_record.refresh_token_id)
+    )
+
+    logger.info(
+        f"Session revoked for user {user.id}: session_id={session_id}"
+    )
+
+
+async def revoke_all_other_sessions(
+    db: AsyncSession,
+    redis: Redis,
+    user: User,
+    current_jti: str,
+) -> int:
+    """
+    Revoke all sessions for a user EXCEPT the current one.
+
+    Steps:
+    1. Query all UserSession rows for user.id WHERE access_token_jti != current_jti.
+    2. For each, blacklist the JTI in Redis.
+    3. Find the current session's refresh_token_id (to exclude from DELETE).
+    4. Delete all RefreshToken rows for user.id EXCEPT the current one.
+    5. Return count of revoked sessions.
+
+    Args:
+        db: async database session
+        redis: Redis client
+        user: the authenticated User
+        current_jti: the JTI of the current request's access token (preserved)
+
+    Returns:
+        Number of sessions revoked.
+    """
+    from wxcode_adm.auth.service import blacklist_jti  # noqa: PLC0415
+    from wxcode_adm.auth.models import RefreshToken  # noqa: PLC0415
+
+    # Find other sessions (all except current)
+    other_sessions_result = await db.execute(
+        select(UserSession).where(
+            UserSession.user_id == user.id,
+            UserSession.access_token_jti != current_jti,
+        )
+    )
+    other_sessions = other_sessions_result.scalars().all()
+
+    # Blacklist each JTI in Redis
+    for session_record in other_sessions:
+        await blacklist_jti(redis, session_record.access_token_jti)
+
+    revoked_count = len(other_sessions)
+
+    # Find the current session's RefreshToken FK to exclude from DELETE
+    current_session_result = await db.execute(
+        select(UserSession).where(
+            UserSession.user_id == user.id,
+            UserSession.access_token_jti == current_jti,
+        )
+    )
+    current_session = current_session_result.scalar_one_or_none()
+
+    if current_session is not None:
+        # Delete all RefreshTokens for this user EXCEPT the current session's
+        await db.execute(
+            delete(RefreshToken).where(
+                RefreshToken.user_id == user.id,
+                RefreshToken.id != current_session.refresh_token_id,
+            )
+        )
+    else:
+        # No current session found (edge case) — delete all
+        await db.execute(
+            delete(RefreshToken).where(RefreshToken.user_id == user.id)
+        )
+
+    logger.info(
+        f"Revoked {revoked_count} other sessions for user {user.id}"
+    )
+    return revoked_count

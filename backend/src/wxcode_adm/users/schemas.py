@@ -7,6 +7,9 @@ response serialization. They cover:
 - PATCH /users/me — UpdateProfileRequest / UpdateProfileResponse
 - POST /users/me/avatar — AvatarUploadResponse
 - POST /users/me/change-password — ChangePasswordRequest / ChangePasswordResponse
+- GET /users/me/sessions — SessionListResponse
+- DELETE /users/me/sessions/{session_id} — RevokeSessionResponse
+- DELETE /users/me/sessions — RevokeAllSessionsResponse
 """
 
 from pydantic import BaseModel, ConfigDict, EmailStr, Field
@@ -57,3 +60,41 @@ class ChangePasswordResponse(BaseModel):
     """POST /users/me/change-password response."""
 
     message: str
+
+
+# ---------------------------------------------------------------------------
+# Phase 7 Plan 03: Session management schemas
+# ---------------------------------------------------------------------------
+
+
+class SessionResponse(BaseModel):
+    """Individual session in the sessions list."""
+
+    id: str              # UserSession.id (UUID as string)
+    device_type: str | None
+    browser_name: str | None
+    browser_version: str | None
+    ip_address: str | None
+    city: str | None
+    last_active_at: str | None  # ISO 8601 timestamp
+    is_current: bool     # True if this session matches the requesting JTI
+    created_at: str      # ISO 8601 timestamp
+
+
+class SessionListResponse(BaseModel):
+    """GET /users/me/sessions response."""
+
+    sessions: list[SessionResponse]
+
+
+class RevokeSessionResponse(BaseModel):
+    """DELETE /users/me/sessions/{session_id} response."""
+
+    message: str
+
+
+class RevokeAllSessionsResponse(BaseModel):
+    """DELETE /users/me/sessions response."""
+
+    message: str
+    revoked_count: int

@@ -2,10 +2,13 @@
 Users router for wxcode-adm.
 
 Provides user profile management endpoints:
-- GET  /users/me                  — Return current user's profile
-- PATCH /users/me                 — Update display_name and/or email
-- POST /users/me/avatar           — Upload and replace avatar image
-- POST /users/me/change-password  — Change password with current password verification
+- GET  /users/me                       — Return current user's profile
+- PATCH /users/me                      — Update display_name and/or email
+- POST /users/me/avatar                — Upload and replace avatar image
+- POST /users/me/change-password       — Change password with current password verification
+- GET  /users/me/sessions              — List all active sessions with rich metadata
+- DELETE /users/me/sessions/{id}       — Revoke a specific session immediately
+- DELETE /users/me/sessions            — Revoke all other sessions (keep current)
 
 All endpoints require email verification (require_verified dependency).
 Password change endpoint is rate-limited to prevent brute-force attacks.
@@ -31,6 +34,10 @@ from wxcode_adm.users.schemas import (
     AvatarUploadResponse,
     ChangePasswordRequest,
     ChangePasswordResponse,
+    RevokeAllSessionsResponse,
+    RevokeSessionResponse,
+    SessionListResponse,
+    SessionResponse,
     UpdateProfileRequest,
     UpdateProfileResponse,
     UserProfileResponse,
@@ -178,3 +185,105 @@ async def change_password(
     )
 
     return ChangePasswordResponse(message="Password changed successfully")
+
+
+# ---------------------------------------------------------------------------
+# Phase 7 Plan 03: Session management endpoints
+# ---------------------------------------------------------------------------
+
+
+@users_router.get("/me/sessions", response_model=SessionListResponse)
+async def list_sessions(
+    request: Request,
+    db: AsyncSession = Depends(get_session),
+    redis: Redis = Depends(get_redis),
+    user: User = Depends(require_verified),
+    jti: str = Depends(get_current_jti),
+) -> SessionListResponse:
+    """
+    Return all active sessions for the current user with rich metadata.
+
+    Each session includes device type, browser, IP address, city, and
+    last active timestamp (from Redis for real-time accuracy). The current
+    session is tagged with is_current=True.
+
+    Sessions are sorted by last_active_at descending (most recent first).
+
+    - Returns 401 if not authenticated.
+    - Returns 403 if email is not verified.
+    """
+    session_dicts = await service.list_sessions(db, redis, user, jti)
+    sessions = [SessionResponse(**s) for s in session_dicts]
+    return SessionListResponse(sessions=sessions)
+
+
+@users_router.delete("/me/sessions/{session_id}", response_model=RevokeSessionResponse)
+async def revoke_session(
+    request: Request,
+    session_id: str,
+    db: AsyncSession = Depends(get_session),
+    redis: Redis = Depends(get_redis),
+    user: User = Depends(require_verified),
+    jti: str = Depends(get_current_jti),
+) -> RevokeSessionResponse:
+    """
+    Revoke a specific session by session ID.
+
+    The session's access token JTI is immediately blacklisted in Redis so
+    requests using that token are rejected without waiting for expiry.
+
+    - Returns 404 if the session is not found or does not belong to this user.
+    - Returns 400 if attempting to revoke the current session (use logout instead).
+    - Writes audit entry: action="session_revoke".
+
+    - Returns 401 if not authenticated.
+    - Returns 403 if email is not verified.
+    """
+    await service.revoke_session(db, redis, user, session_id, jti)
+
+    await write_audit(
+        db,
+        actor_id=user.id,
+        action="session_revoke",
+        resource_type="session",
+        ip_address=request.client.host if request.client else None,
+        details={"session_id": session_id},
+    )
+
+    return RevokeSessionResponse(message="Session revoked")
+
+
+@users_router.delete("/me/sessions", response_model=RevokeAllSessionsResponse)
+async def revoke_all_sessions(
+    request: Request,
+    db: AsyncSession = Depends(get_session),
+    redis: Redis = Depends(get_redis),
+    user: User = Depends(require_verified),
+    jti: str = Depends(get_current_jti),
+) -> RevokeAllSessionsResponse:
+    """
+    Revoke all sessions for the current user EXCEPT the current session.
+
+    Each revoked session's access token JTI is immediately blacklisted in
+    Redis. The current session is preserved so the user remains logged in.
+
+    - Writes audit entry: action="session_revoke_all".
+
+    - Returns 401 if not authenticated.
+    - Returns 403 if email is not verified.
+    """
+    count = await service.revoke_all_other_sessions(db, redis, user, jti)
+
+    await write_audit(
+        db,
+        actor_id=user.id,
+        action="session_revoke_all",
+        resource_type="session",
+        ip_address=request.client.host if request.client else None,
+        details={"revoked_count": count},
+    )
+
+    return RevokeAllSessionsResponse(
+        message="All other sessions revoked",
+        revoked_count=count,
+    )

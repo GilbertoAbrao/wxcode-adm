@@ -351,6 +351,25 @@ async def blacklist_access_token(redis: Redis, token: str) -> None:
         await redis.set(f"auth:blacklist:jti:{jti}", "1", ex=remaining)
 
 
+async def blacklist_jti(redis: Redis, jti: str) -> None:
+    """
+    Blacklist an access token JTI directly in Redis.
+
+    Used when we have the JTI from a UserSession row (e.g., session revocation)
+    rather than a full JWT string. Writes the Redis blacklist key with TTL
+    equal to ACCESS_TOKEN_TTL_HOURS * 3600 seconds so stale keys auto-expire.
+
+    Args:
+        redis: Redis client
+        jti: the JTI string to blacklist
+    """
+    await redis.set(
+        f"auth:blacklist:jti:{jti}",
+        "1",
+        ex=int(settings.ACCESS_TOKEN_TTL_HOURS * 3600),
+    )
+
+
 async def is_token_blacklisted(redis: Redis, jti: str) -> bool:
     """Return True if the given jti has been blacklisted in Redis."""
     return await redis.exists(f"auth:blacklist:jti:{jti}") > 0
