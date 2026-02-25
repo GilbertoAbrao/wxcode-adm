@@ -12,6 +12,12 @@ Phase 6 additions:
 - OAuthAccount — links a User to a Google or GitHub OAuth identity
 - MfaBackupCode — hashed one-time backup codes for TOTP recovery
 - TrustedDevice — long-lived device trust tokens that skip MFA prompts
+
+Phase 7 additions:
+- User.display_name — user-facing name (optional)
+- User.avatar_url — relative path to avatar file (optional)
+- User.last_used_tenant_id — for default tenant resolution in wxcode redirect
+- UserSession — rich session metadata attached 1:1 to each RefreshToken
 """
 
 import uuid
@@ -71,6 +77,24 @@ class User(TimestampMixin, Base):
     )
     mfa_secret: Mapped[str | None] = mapped_column(
         String(64),
+        nullable=True,
+        default=None,
+    )
+
+    # Phase 7: User profile fields
+    display_name: Mapped[str | None] = mapped_column(
+        String(255),
+        nullable=True,
+        default=None,
+    )
+    avatar_url: Mapped[str | None] = mapped_column(
+        String(512),
+        nullable=True,
+        default=None,
+    )
+    # For default tenant resolution in wxcode redirect
+    last_used_tenant_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("tenants.id", ondelete="SET NULL"),
         nullable=True,
         default=None,
     )
@@ -229,3 +253,49 @@ class TrustedDevice(TimestampMixin, Base):
 
     def __repr__(self) -> str:
         return f"TrustedDevice(id={self.id!r}, user_id={self.user_id!r})"
+
+
+class UserSession(TimestampMixin, Base):
+    """
+    Rich session metadata attached 1:1 to each RefreshToken.
+
+    Created by _issue_tokens alongside each new RefreshToken. Stores the
+    access token JTI for immediate blacklisting on revocation, plus parsed
+    User-Agent, client IP, and geolocated city.
+
+    last_active_at is updated per-request via Redis (dependencies.py) and
+    periodically synced to DB. The Redis key auth:session:last_active:{jti}
+    provides real-time last_active without DB writes on every request.
+
+    Uses simple String columns (no JSONB) for SQLite test compatibility
+    per Phase 5 decision [05-04].
+    """
+
+    __tablename__ = "user_sessions"
+
+    refresh_token_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("refresh_tokens.id", ondelete="CASCADE"),
+        unique=True,
+        nullable=False,
+        index=True,
+    )
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    access_token_jti: Mapped[str] = mapped_column(
+        String(64), nullable=False, unique=True
+    )
+    user_agent: Mapped[str | None] = mapped_column(String(512), nullable=True)
+    device_type: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    browser_name: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    browser_version: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    ip_address: Mapped[str | None] = mapped_column(String(45), nullable=True)
+    city: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    last_active_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+
+    def __repr__(self) -> str:
+        return f"UserSession(id={self.id!r}, user_id={self.user_id!r})"

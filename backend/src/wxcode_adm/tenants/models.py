@@ -88,6 +88,12 @@ class Tenant(TimestampMixin, Base):
         default=False,
         nullable=False,
     )
+    # Phase 7: per-tenant wxcode application URL (custom domains / whitelabel)
+    wxcode_url: Mapped[Optional[str]] = mapped_column(
+        String(2048),
+        nullable=True,
+        default=None,
+    )
 
     memberships: Mapped[list["TenantMembership"]] = relationship(
         back_populates="tenant",

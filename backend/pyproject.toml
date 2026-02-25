@@ -25,6 +25,10 @@ dependencies = [
     "authlib==1.6.8",
     "pyotp==2.9.0",
     "qrcode[pil]==8.2",
+    # Phase 7 -- User Account
+    "user-agents==2.2.0",
+    "geoip2==5.2.0",
+    "Pillow==11.2.1",
 ]
 
 [project.optional-dependencies]

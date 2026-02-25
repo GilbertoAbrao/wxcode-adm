@@ -74,6 +74,11 @@ class Settings(BaseSettings):
     MFA_PENDING_TTL_SECONDS: int = 300  # 5 minutes for MFA pending token
     TRUSTED_DEVICE_TTL_DAYS: int = 30
 
+    # --- Phase 7 -- User Account ---
+    GEOLITE2_DB_PATH: str = ""  # empty string = geolocation disabled (no crash if MMDB missing)
+    WXCODE_CODE_TTL: int = 30  # one-time authorization code TTL in seconds
+    AVATAR_UPLOAD_DIR: str = "/app/avatars"  # local filesystem path for avatar storage
+
 
 # Module-level singleton — raises ValidationError at import if env vars missing
 settings = Settings()
