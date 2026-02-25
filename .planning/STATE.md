@@ -5,14 +5,14 @@
 See: .planning/PROJECT.md (updated 2026-02-22)
 
 **Core value:** Controlar acesso seguro a plataforma WXCODE com identidade, permissoes por tenant e cobranca recorrente — sem executar nenhuma operacao do wxcode engine.
-**Current focus:** Phase 6 — OAuth and MFA
+**Current focus:** Phase 7 — User Account
 
 ## Current Position
 
-Phase: 6 of 8 (OAuth and MFA) — Complete
-Plan: 5 of 5 in current phase (06-05 complete — Alembic migration 005, 24 integration tests all 6 success criteria, 114 tests passing)
-Status: Plan 06-05 complete — migration 005 (oauth_accounts, mfa_backup_codes, trusted_devices, altered users/tenants); all 114 tests passing (90+24)
-Last activity: 2026-02-24 — Plan 06-05 complete: migration + integration tests (5 of 5)
+Phase: 7 of 8 (User Account) — In Progress
+Plan: 1 of 4 in current phase (07-01 complete — UserSession model, User/Tenant profile columns, parse_session_metadata, _issue_tokens session persistence, per-request last_active Redis tracking; 114 tests passing)
+Status: Plan 07-01 complete — UserSession model with rich metadata; User.display_name/avatar_url/last_used_tenant_id; Tenant.wxcode_url; per-request Redis last_active tracking; all 114 tests passing
+Last activity: 2026-02-25 — Plan 07-01 complete: Phase 7 foundation (1 of 4)
 
 Progress: [████████████████████████████] 96%
 
@@ -60,6 +60,7 @@ Progress: [███████████████████████
 | Phase 06-oauth-and-mfa P03 | 3 | 2 tasks | 2 files |
 | Phase 06-oauth-and-mfa P04 | 4 | 2 tasks | 5 files |
 | Phase 06-oauth-and-mfa P05 | 8 | 2 tasks | 5 files |
+| Phase 07 P01 | 12 | 2 tasks | 6 files |
 
 ## Accumulated Context
 
@@ -178,6 +179,10 @@ Recent decisions affecting current work:
 - [06-05]: resolve_oauth_account case 1 uses explicit TenantMembership count query instead of user.memberships lazy load — SQLAlchemy 2.0 async sessions cannot lazy-load relationships
 - [06-05]: generate_backup_codes hashes raw.replace('-','') not raw — token_urlsafe can generate dashes; verification also strips all dashes so hashes must match
 - [06-05]: MfaDisableRequest and MfaVerifyRequest code max_length increased to 11 (from 10) — formatted backup codes "XXXXX-XXXXX" are 11 chars
+- [Phase 07]: [07-01]: UserSession uses simple String columns (no JSONB) for SQLite test compatibility per Phase 5 decision [05-04]
+- [Phase 07]: [07-01]: GEOLITE2_DB_PATH empty string disables geolocation gracefully — no crash if MMDB file not present
+- [Phase 07]: [07-01]: per-request last_active uses Redis SETEX with ACCESS_TOKEN_TTL_HOURS TTL — stale keys auto-expire
+- [Phase 07]: [07-01]: _issue_tokens flushes RefreshToken before creating UserSession so rt.id FK is available within the same transaction
 
 ### Pending Todos
 
@@ -191,6 +196,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-02-24
-Stopped at: Completed 06-05-PLAN.md — Alembic migration 005 (oauth_accounts, mfa_backup_codes, trusted_devices); 24 integration tests for all 6 Phase 6 success criteria; 114 tests passing
-Resume file: .planning/ (Phase 6 complete — all 5 plans done; Phase 7 is next)
+Last session: 2026-02-25
+Stopped at: Completed 07-01-PLAN.md — UserSession model, User/Tenant profile columns, parse_session_metadata, _issue_tokens session persistence, per-request last_active Redis tracking; 114 tests passing
+Resume file: .planning/ (Phase 7 Plan 01 complete — Plans 02-04 are next)
