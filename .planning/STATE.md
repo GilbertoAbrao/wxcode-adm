@@ -10,9 +10,9 @@ See: .planning/PROJECT.md (updated 2026-02-22)
 ## Current Position
 
 Phase: 8 of 8 (Super-Admin) — In Progress
-Plan: 1 of 4 in current phase (08-01 complete — admin-audience JWT, require_admin dependency, IP allowlist, login/refresh/logout endpoints, enforcement hooks; 129 tests passing)
-Status: Phase 8 in progress — Plan 01 (Foundation) done; Plans 02-04 remaining
-Last activity: 2026-02-26 — Plan 08-01 complete: admin foundation (2 of 4 — Phase 8 in progress)
+Plan: 2 of 4 in current phase (08-02 complete — tenant management endpoints: list/detail/suspend/reactivate/soft-delete; 129 tests passing)
+Status: Phase 8 in progress — Plans 01-02 done; Plans 03-04 remaining
+Last activity: 2026-02-26 — Plan 08-02 complete: tenant management (3 of 4 — Phase 8 in progress)
 
 Progress: [█████████████████████████████] 98%
 
@@ -65,6 +65,7 @@ Progress: [███████████████████████
 | Phase 07 P03 | 8 | 2 tasks | 6 files |
 | Phase 07 P04 | 3 | 2 tasks | 2 files |
 | Phase 08-super-admin P01 | 5 | 2 tasks | 10 files |
+| Phase 08-super-admin P02 | 3 | 2 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -200,6 +201,8 @@ Recent decisions affecting current work:
 - [Phase 08-super-admin]: [08-01]: Admin refresh does NOT use shadow key replay detection — IP allowlist provides additional protection at login gate
 - [Phase 08-super-admin]: [08-01]: hasattr() guards in enforcement hooks ensure existing tests pass before migration 007 adds columns to Tenant/TenantMembership/User
 - [Phase 08-super-admin]: [08-01]: Admin router reuses RefreshToken model (no separate AdminRefreshToken table); admin tokens identified by aud=wxcode-adm-admin claim
+- [Phase 08-super-admin]: [08-02]: getattr() guards for is_suspended/is_deleted in service — columns not on model until Plan 08-04 migration 007; attribute assignment works at Python level, SQLAlchemy persists once column exists
+- [Phase 08-super-admin]: [08-02]: suspend_tenant deletes RefreshTokens AND blacklists UserSession JTIs for immediate invalidation; soft_delete_tenant skips session invalidation (enforcement hook handles it on next request)
 
 ### Pending Todos
 
@@ -214,5 +217,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-26
-Stopped at: Completed 08-01-PLAN.md — admin-audience JWT, require_admin dependency, IP allowlist, login/refresh/logout endpoints, enforcement hooks; 129 tests passing; Phase 8 Plan 1 complete
-Resume file: .planning/ (Phase 8 in progress — Plans 02-04 remaining)
+Stopped at: Completed 08-02-PLAN.md — tenant management endpoints (list/detail/suspend/reactivate/soft-delete); 129 tests passing; Phase 8 Plan 2 complete
+Resume file: .planning/ (Phase 8 in progress — Plans 03-04 remaining)
