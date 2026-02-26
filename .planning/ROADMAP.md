@@ -176,13 +176,15 @@ Plans:
   3. Super-admin can search users by email, view their tenant membership and account status, block a user (immediate session invalidation), or force a password reset
   4. Super-admin MRR dashboard shows active subscription count, monthly recurring revenue, and plan distribution, all derived from live Stripe subscription data
   5. Super-admin endpoints are protected by a separate JWT audience claim (aud: "wxcode-adm-admin") and reject any token issued for tenant users — tenant JWTs cannot access admin endpoints even with correct credentials
-**Plans**: TBD
+**Plans**: 4 plans
+
+**Phase requirement IDs (every ID MUST appear in a plan's `requirements` field):** SADM-01, SADM-02, SADM-03, SADM-04, SADM-05
 
 Plans:
-- [ ] 08-01: Super-admin JWT audience (aud claim), super-admin auth dependency, IP guard
-- [ ] 08-02: Tenant list, tenant suspend, tenant soft-delete endpoints
-- [ ] 08-03: User list (search by email), user block, force password reset endpoints
-- [ ] 08-04: MRR dashboard (Stripe subscription query, plan distribution aggregation)
+- [ ] 08-01-PLAN.md — Admin module foundation: JWT audience isolation (aud claim), require_admin dependency, IP allowlist guard, admin login/refresh/logout, enforcement hooks in get_tenant_context and get_current_user
+- [ ] 08-02-PLAN.md — Tenant management: list tenants (paginated, filtered by plan/status), tenant detail, suspend with session invalidation, reactivate, soft-delete
+- [ ] 08-03-PLAN.md — User management: search users (email/name/tenant filter), user detail with memberships and sessions, per-tenant block/unblock, force password reset
+- [ ] 08-04-PLAN.md — MRR dashboard (on-demand aggregation from local DB), Alembic migration 007, integration tests for all 5 success criteria
 
 ## Progress
 
