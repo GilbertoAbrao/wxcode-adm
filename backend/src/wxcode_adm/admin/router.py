@@ -6,6 +6,13 @@ Provides super-admin authentication endpoints:
 - POST /admin/refresh  — rotate admin refresh token
 - POST /admin/logout   — invalidate admin session
 
+Tenant management endpoints (Plan 02):
+- GET  /admin/tenants                       — list tenants (paginated, filterable)
+- GET  /admin/tenants/{tenant_id}           — get tenant detail
+- POST /admin/tenants/{tenant_id}/suspend   — suspend tenant (invalidates sessions)
+- POST /admin/tenants/{tenant_id}/reactivate — reactivate suspended tenant
+- DELETE /admin/tenants/{tenant_id}          — soft-delete tenant
+
 IP allowlist enforcement:
     If ADMIN_ALLOWED_IPS is set (non-empty), only requests from listed IPs
     are allowed to reach the login endpoint. Empty string = no restriction
@@ -25,15 +32,23 @@ endpoints — slowapi uses it for IP extraction.
 
 from __future__ import annotations
 
+import uuid
+
 from pydantic import BaseModel
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Depends, Query, Request
 from redis.asyncio import Redis
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from wxcode_adm.admin import service as admin_service
 from wxcode_adm.admin.dependencies import require_admin
 from wxcode_adm.admin.jwt import decode_admin_access_token
-from wxcode_adm.admin.schemas import AdminLoginRequest, AdminTokenResponse
+from wxcode_adm.admin.schemas import (
+    AdminActionRequest,
+    AdminLoginRequest,
+    AdminTokenResponse,
+    TenantDetailResponse,
+    TenantListResponse,
+)
 from wxcode_adm.auth.models import User
 from wxcode_adm.common.exceptions import ForbiddenError
 from wxcode_adm.common.rate_limit import limiter
@@ -57,7 +72,7 @@ class LogoutBody(BaseModel):
 
 
 # ---------------------------------------------------------------------------
-# Endpoints
+# Authentication endpoints (Plan 01)
 # ---------------------------------------------------------------------------
 
 
@@ -143,3 +158,117 @@ async def admin_logout(
         access_token_jti=jti,
     )
     return {"message": "Logged out"}
+
+
+# ---------------------------------------------------------------------------
+# Tenant management endpoints (Plan 02)
+# ---------------------------------------------------------------------------
+
+
+@admin_router.get("/tenants", response_model=TenantListResponse)
+async def list_tenants(
+    request: Request,
+    limit: int = Query(default=20, ge=1, le=100),
+    offset: int = Query(default=0, ge=0),
+    plan_slug: str | None = Query(default=None),
+    status: str | None = Query(default=None, description="active | suspended | deleted"),
+    admin: User = Depends(require_admin),
+    db: AsyncSession = Depends(get_session),
+) -> TenantListResponse:
+    """
+    List all tenants with pagination and optional filtering.
+
+    Filters:
+    - plan_slug: filter by billing plan slug
+    - status: 'active', 'suspended', 'deleted', or None for all
+    """
+    items, total = await admin_service.list_tenants(
+        db=db,
+        limit=limit,
+        offset=offset,
+        plan_slug=plan_slug,
+        status=status,
+    )
+    return TenantListResponse(items=items, total=total)
+
+
+@admin_router.get("/tenants/{tenant_id}", response_model=TenantDetailResponse)
+async def get_tenant_detail(
+    request: Request,
+    tenant_id: uuid.UUID,
+    admin: User = Depends(require_admin),
+    db: AsyncSession = Depends(get_session),
+) -> TenantDetailResponse:
+    """
+    Get full detail for a specific tenant including subscription and member count.
+    """
+    detail = await admin_service.get_tenant_detail(db=db, tenant_id=tenant_id)
+    return TenantDetailResponse(**detail)
+
+
+@admin_router.post("/tenants/{tenant_id}/suspend")
+async def suspend_tenant(
+    request: Request,
+    tenant_id: uuid.UUID,
+    body: AdminActionRequest,
+    admin: User = Depends(require_admin),
+    db: AsyncSession = Depends(get_session),
+    redis: Redis = Depends(get_redis),
+) -> dict:
+    """
+    Suspend a tenant. All member sessions are invalidated immediately.
+
+    Requires a reason string for audit trail.
+    """
+    await admin_service.suspend_tenant(
+        db=db,
+        redis=redis,
+        tenant_id=tenant_id,
+        reason=body.reason,
+        actor_id=admin.id,
+    )
+    return {"message": "Tenant suspended", "tenant_id": str(tenant_id)}
+
+
+@admin_router.post("/tenants/{tenant_id}/reactivate")
+async def reactivate_tenant(
+    request: Request,
+    tenant_id: uuid.UUID,
+    body: AdminActionRequest,
+    admin: User = Depends(require_admin),
+    db: AsyncSession = Depends(get_session),
+) -> dict:
+    """
+    Reactivate a previously suspended tenant.
+
+    Requires a reason string for audit trail.
+    """
+    await admin_service.reactivate_tenant(
+        db=db,
+        tenant_id=tenant_id,
+        reason=body.reason,
+        actor_id=admin.id,
+    )
+    return {"message": "Tenant reactivated", "tenant_id": str(tenant_id)}
+
+
+@admin_router.delete("/tenants/{tenant_id}")
+async def soft_delete_tenant(
+    request: Request,
+    tenant_id: uuid.UUID,
+    body: AdminActionRequest,
+    admin: User = Depends(require_admin),
+    db: AsyncSession = Depends(get_session),
+) -> dict:
+    """
+    Soft-delete a tenant. Data is retained indefinitely (is_deleted=True).
+
+    Requires a reason string for audit trail.
+    """
+    await admin_service.soft_delete_tenant(
+        db=db,
+        tenant_id=tenant_id,
+        reason=body.reason,
+        actor_id=admin.id,
+    )
+    return {"message": "Tenant soft-deleted", "tenant_id": str(tenant_id)}
