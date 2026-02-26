@@ -10,9 +10,9 @@ See: .planning/PROJECT.md (updated 2026-02-22)
 ## Current Position
 
 Phase: 8 of 8 (Super-Admin) — In Progress
-Plan: 2 of 4 in current phase (08-02 complete — tenant management endpoints: list/detail/suspend/reactivate/soft-delete; 129 tests passing)
-Status: Phase 8 in progress — Plans 01-02 done; Plans 03-04 remaining
-Last activity: 2026-02-26 — Plan 08-02 complete: tenant management (3 of 4 — Phase 8 in progress)
+Plan: 3 of 4 in current phase (08-03 complete — user management: search, detail, block/unblock, force-reset; 5 user endpoints; 129 tests passing)
+Status: Phase 8 in progress — Plans 01-03 done; Plan 04 remaining
+Last activity: 2026-02-26 — Plan 08-03 complete: user management endpoints (4 of 4 — Phase 8 nearing completion)
 
 Progress: [█████████████████████████████] 98%
 
@@ -66,6 +66,7 @@ Progress: [███████████████████████
 | Phase 07 P04 | 3 | 2 tasks | 2 files |
 | Phase 08-super-admin P01 | 5 | 2 tasks | 10 files |
 | Phase 08-super-admin P02 | 3 | 2 tasks | 3 files |
+| Phase 08-super-admin P03 | 7 | 2 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -203,6 +204,9 @@ Recent decisions affecting current work:
 - [Phase 08-super-admin]: [08-01]: Admin router reuses RefreshToken model (no separate AdminRefreshToken table); admin tokens identified by aud=wxcode-adm-admin claim
 - [Phase 08-super-admin]: [08-02]: getattr() guards for is_suspended/is_deleted in service — columns not on model until Plan 08-04 migration 007; attribute assignment works at Python level, SQLAlchemy persists once column exists
 - [Phase 08-super-admin]: [08-02]: suspend_tenant deletes RefreshTokens AND blacklists UserSession JTIs for immediate invalidation; soft_delete_tenant skips session invalidation (enforcement hook handles it on next request)
+- [Phase 08-03]: [08-03]: block_user uses hasattr() guard for is_blocked on TenantMembership — column added by migration 007 (Plan 08-04); enforcement in get_tenant_context has hasattr guard from Plan 01
+- [Phase 08-03]: [08-03]: force_password_reset wraps arq enqueue in try/except — email failure non-blocking; forced-reset flag is authoritative enforcement mechanism
+- [Phase 08-03]: [08-03]: get_user_detail uses explicit join on Tenant (not lazy-load) — SQLAlchemy 2.0 async sessions cannot lazy-load relationships
 
 ### Pending Todos
 
@@ -217,5 +221,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-26
-Stopped at: Completed 08-02-PLAN.md — tenant management endpoints (list/detail/suspend/reactivate/soft-delete); 129 tests passing; Phase 8 Plan 2 complete
+Stopped at: Completed 08-03-PLAN.md — user management: search, block/unblock, force-reset; 5 admin user endpoints; 129 tests passing; Phase 8 Plan 3 complete
 Resume file: .planning/ (Phase 8 in progress — Plans 03-04 remaining)

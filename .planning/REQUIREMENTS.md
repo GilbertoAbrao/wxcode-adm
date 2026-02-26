@@ -57,8 +57,8 @@ Requirements for initial release. Each maps to roadmap phases.
 
 - [x] **SADM-01**: View all tenants (paginated, with plan/status/members)
 - [x] **SADM-02**: Suspend or soft-delete tenant
-- [ ] **SADM-03**: View all users (search by email, view membership/status)
-- [ ] **SADM-04**: Block user or force password reset
+- [x] **SADM-03**: View all users (search by email, view membership/status)
+- [x] **SADM-04**: Block user or force password reset
 - [ ] **SADM-05**: MRR dashboard (active subscriptions, revenue, plan distribution)
 
 ### User Account
@@ -154,8 +154,8 @@ Which phases cover which requirements. Updated during roadmap creation.
 | PLAT-05 | Phase 5 | Complete |
 | SADM-01 | Phase 8 | Complete |
 | SADM-02 | Phase 8 | Complete |
-| SADM-03 | Phase 8 | Pending |
-| SADM-04 | Phase 8 | Pending |
+| SADM-03 | Phase 8 | Complete |
+| SADM-04 | Phase 8 | Complete |
 | SADM-05 | Phase 8 | Pending |
 | USER-01 | Phase 7 | Complete |
 | USER-02 | Phase 7 | Complete |
