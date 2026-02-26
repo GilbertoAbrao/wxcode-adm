@@ -5,14 +5,14 @@
 See: .planning/PROJECT.md (updated 2026-02-22)
 
 **Core value:** Controlar acesso seguro a plataforma WXCODE com identidade, permissoes por tenant e cobranca recorrente — sem executar nenhuma operacao do wxcode engine.
-**Current focus:** Phase 7 — User Account
+**Current focus:** Phase 8 — Super-Admin
 
 ## Current Position
 
-Phase: 7 of 8 (User Account) — COMPLETE
-Plan: 4 of 4 in current phase (07-04 complete — Alembic migration 006, 15 integration tests covering all 4 USER success criteria; 129 tests passing)
-Status: Phase 7 complete — all 4 plans done; UserSession, profile management, session management, wxcode redirect, migration 006, tests all delivered
-Last activity: 2026-02-25 — Plan 07-04 complete: Alembic migration 006 and integration tests (4 of 4 — Phase 7 complete)
+Phase: 8 of 8 (Super-Admin) — In Progress
+Plan: 1 of 4 in current phase (08-01 complete — admin-audience JWT, require_admin dependency, IP allowlist, login/refresh/logout endpoints, enforcement hooks; 129 tests passing)
+Status: Phase 8 in progress — Plan 01 (Foundation) done; Plans 02-04 remaining
+Last activity: 2026-02-26 — Plan 08-01 complete: admin foundation (2 of 4 — Phase 8 in progress)
 
 Progress: [█████████████████████████████] 98%
 
@@ -64,6 +64,7 @@ Progress: [███████████████████████
 | Phase 07 P02 | 4 | 2 tasks | 6 files |
 | Phase 07 P03 | 8 | 2 tasks | 6 files |
 | Phase 07 P04 | 3 | 2 tasks | 2 files |
+| Phase 08-super-admin P01 | 5 | 2 tasks | 10 files |
 
 ## Accumulated Context
 
@@ -196,6 +197,9 @@ Recent decisions affecting current work:
 - [Phase 07]: [07-03]: get_redirect_url returns (url, tenant_id) tuple — router updates last_used_tenant_id to keep service HTTP-agnostic
 - [Phase 07]: [07-04]: Migration 006 uses explicit op.f() constraint naming convention consistent with 005
 - [Phase 07]: [07-04]: wxcode test sets tenant.wxcode_url via direct DB update (test_db fixture)
+- [Phase 08-super-admin]: [08-01]: Admin refresh does NOT use shadow key replay detection — IP allowlist provides additional protection at login gate
+- [Phase 08-super-admin]: [08-01]: hasattr() guards in enforcement hooks ensure existing tests pass before migration 007 adds columns to Tenant/TenantMembership/User
+- [Phase 08-super-admin]: [08-01]: Admin router reuses RefreshToken model (no separate AdminRefreshToken table); admin tokens identified by aud=wxcode-adm-admin claim
 
 ### Pending Todos
 
@@ -209,6 +213,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-02-25
-Stopped at: Completed 07-04-PLAN.md — Alembic migration 006, 15 integration tests covering all 4 USER success criteria; 129 tests passing; Phase 7 complete
-Resume file: .planning/ (Phase 7 complete — Phase 8 is next)
+Last session: 2026-02-26
+Stopped at: Completed 08-01-PLAN.md — admin-audience JWT, require_admin dependency, IP allowlist, login/refresh/logout endpoints, enforcement hooks; 129 tests passing; Phase 8 Plan 1 complete
+Resume file: .planning/ (Phase 8 in progress — Plans 02-04 remaining)
