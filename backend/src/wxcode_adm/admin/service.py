@@ -1,7 +1,8 @@
 """
 Admin service module for wxcode-adm.
 
-Contains business logic for super-admin authentication and tenant management:
+Contains business logic for super-admin authentication, tenant management,
+and user management:
 
 Authentication (Plan 01):
 - admin_login: authenticate a super-admin user and issue admin-audience tokens
@@ -15,16 +16,26 @@ Tenant management (Plan 02):
 - reactivate_tenant: clear is_suspended flag
 - soft_delete_tenant: set is_deleted=True (data retained indefinitely)
 
+User management (Plan 03):
+- search_users: paginated user search by email/name, filterable by tenant
+- get_user_detail: full user profile with memberships and active sessions
+- block_user: set is_blocked=True on TenantMembership (per-tenant scope)
+- unblock_user: clear is_blocked on TenantMembership (per-tenant scope)
+- force_password_reset: invalidate sessions, set flag, send reset email
+
 Admin tokens carry aud="wxcode-adm-admin" and are issued ONLY to users with
 is_superuser=True. The refresh token lifecycle reuses the same RefreshToken
 model as regular auth (no separate table needed for Phase 8).
 
 Audit actions:
-  admin_login       — successful admin authentication
-  admin_logout      — admin session termination
-  suspend_tenant    — tenant suspended (with reason)
-  reactivate_tenant — tenant reactivated (with reason)
-  soft_delete_tenant — tenant soft-deleted (with reason)
+  admin_login         — successful admin authentication
+  admin_logout        — admin session termination
+  suspend_tenant      — tenant suspended (with reason)
+  reactivate_tenant   — tenant reactivated (with reason)
+  soft_delete_tenant  — tenant soft-deleted (with reason)
+  block_user          — user blocked in a specific tenant (with reason)
+  unblock_user        — user unblocked in a specific tenant (with reason)
+  force_password_reset — admin-initiated password reset (with reason)
 """
 
 import logging
@@ -33,7 +44,7 @@ import uuid
 from datetime import datetime, timedelta, timezone
 
 from redis.asyncio import Redis
-from sqlalchemy import delete, func, select
+from sqlalchemy import delete, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from wxcode_adm.admin.jwt import create_admin_access_token
@@ -580,3 +591,365 @@ async def soft_delete_tenant(
         reason,
     )
     return tenant
+
+
+# ---------------------------------------------------------------------------
+# User management (Plan 03)
+# ---------------------------------------------------------------------------
+
+
+async def search_users(
+    db: AsyncSession,
+    limit: int = 20,
+    offset: int = 0,
+    q: str | None = None,
+    tenant_id: uuid.UUID | None = None,
+) -> tuple[list[dict], int]:
+    """
+    Return a paginated list of users, optionally filtered by search string and/or
+    tenant membership.
+
+    Args:
+        db: async database session
+        limit: max results per page (1-100)
+        offset: number of results to skip
+        q: case-insensitive search against email and display_name (optional)
+        tenant_id: filter to users who are members of this tenant (optional)
+
+    Returns:
+        Tuple of (list of user dicts matching UserListItem, total count).
+    """
+    base_q = select(User)
+    count_q = select(func.count()).select_from(User)
+
+    if q:
+        search_filter = or_(
+            User.email.ilike(f"%{q}%"),
+            User.display_name.ilike(f"%{q}%"),
+        )
+        base_q = base_q.where(search_filter)
+        count_q = count_q.where(search_filter)
+
+    if tenant_id is not None:
+        base_q = base_q.join(
+            TenantMembership, TenantMembership.user_id == User.id
+        ).where(TenantMembership.tenant_id == tenant_id)
+        count_q = count_q.join(
+            TenantMembership, TenantMembership.user_id == User.id
+        ).where(TenantMembership.tenant_id == tenant_id)
+
+    # Total count (same filters, no limit/offset)
+    count_result = await db.execute(count_q)
+    total = count_result.scalar_one()
+
+    # Paginated results
+    main_q = base_q.order_by(User.created_at.desc()).limit(limit).offset(offset)
+    rows = await db.execute(main_q)
+    users = rows.scalars().all()
+
+    items = [
+        {
+            "id": u.id,
+            "email": u.email,
+            "display_name": u.display_name,
+            "email_verified": u.email_verified,
+            "is_active": u.is_active,
+            "mfa_enabled": u.mfa_enabled,
+            "created_at": u.created_at,
+        }
+        for u in users
+    ]
+
+    return items, total
+
+
+async def get_user_detail(
+    db: AsyncSession,
+    user_id: uuid.UUID,
+) -> dict:
+    """
+    Return the full profile of a user, including all tenant memberships and
+    active sessions.
+
+    Args:
+        db: async database session
+        user_id: the user UUID to look up
+
+    Returns:
+        Dict matching UserDetailResponse shape.
+
+    Raises:
+        NotFoundError: user not found.
+    """
+    # Load user
+    user = await db.get(User, user_id)
+    if user is None:
+        raise NotFoundError(error_code="USER_NOT_FOUND", message="User not found")
+
+    # Load memberships with tenant info via join
+    membership_result = await db.execute(
+        select(TenantMembership, Tenant)
+        .join(Tenant, Tenant.id == TenantMembership.tenant_id)
+        .where(TenantMembership.user_id == user_id)
+    )
+    memberships = []
+    for m, tenant in membership_result:
+        memberships.append(
+            {
+                "tenant_id": m.tenant_id,
+                "tenant_name": tenant.name,
+                "tenant_slug": tenant.slug,
+                "role": m.role.value if hasattr(m.role, "value") else str(m.role),
+                "billing_access": m.billing_access,
+                "is_blocked": getattr(m, "is_blocked", False),
+            }
+        )
+
+    # Load active sessions
+    session_result = await db.execute(
+        select(UserSession).where(UserSession.user_id == user_id)
+    )
+    sessions = []
+    for s in session_result.scalars().all():
+        sessions.append(
+            {
+                "id": s.id,
+                "device_type": s.device_type,
+                "browser_name": s.browser_name,
+                "ip_address": s.ip_address,
+                "city": s.city,
+                "last_active_at": s.last_active_at,
+            }
+        )
+
+    return {
+        "id": user.id,
+        "email": user.email,
+        "display_name": user.display_name,
+        "avatar_url": user.avatar_url,
+        "email_verified": user.email_verified,
+        "is_active": user.is_active,
+        "is_superuser": user.is_superuser,
+        "mfa_enabled": user.mfa_enabled,
+        "created_at": user.created_at,
+        "updated_at": user.updated_at,
+        "memberships": memberships,
+        "sessions": sessions,
+    }
+
+
+async def block_user(
+    db: AsyncSession,
+    redis: Redis,
+    user_id: uuid.UUID,
+    tenant_id: uuid.UUID,
+    reason: str,
+    actor_id: uuid.UUID,
+) -> None:
+    """
+    Block a user's access to a specific tenant by setting is_blocked=True on
+    their TenantMembership.
+
+    Per-tenant scope: only this tenant is affected. The user's memberships in
+    other tenants are not changed. The enforcement hook in get_tenant_context
+    (Plan 01) checks is_blocked on every request, so the block takes effect
+    immediately on the next request.
+
+    No JTI blacklisting is needed for per-tenant block — the membership check
+    happens every request so enforcement is immediate once is_blocked=True is set.
+
+    Args:
+        db: async database session
+        redis: Redis client (reserved for future per-tenant session invalidation)
+        user_id: the user to block
+        tenant_id: the specific tenant to block them from
+        reason: required reason string for audit log
+        actor_id: the admin user performing the action
+
+    Raises:
+        NotFoundError: user is not a member of the specified tenant.
+    """
+    result = await db.execute(
+        select(TenantMembership).where(
+            TenantMembership.user_id == user_id,
+            TenantMembership.tenant_id == tenant_id,
+        )
+    )
+    membership = result.scalar_one_or_none()
+    if membership is None:
+        raise NotFoundError(
+            error_code="MEMBERSHIP_NOT_FOUND",
+            message="User is not a member of the specified tenant",
+        )
+
+    # Set block flag (column added by migration 007 in Plan 08-04)
+    membership.is_blocked = True
+
+    await write_audit(
+        db,
+        action="block_user",
+        resource_type="user",
+        actor_id=actor_id,
+        resource_id=str(user_id),
+        tenant_id=tenant_id,
+        details={"reason": reason, "tenant_id": str(tenant_id)},
+    )
+
+    logger.info(
+        "Admin block_user: user_id=%s tenant_id=%s actor_id=%s reason=%r",
+        user_id,
+        tenant_id,
+        actor_id,
+        reason,
+    )
+
+
+async def unblock_user(
+    db: AsyncSession,
+    user_id: uuid.UUID,
+    tenant_id: uuid.UUID,
+    reason: str,
+    actor_id: uuid.UUID,
+) -> None:
+    """
+    Restore a user's access to a specific tenant by clearing is_blocked on their
+    TenantMembership.
+
+    Args:
+        db: async database session
+        user_id: the user to unblock
+        tenant_id: the specific tenant to restore access for
+        reason: required reason string for audit log
+        actor_id: the admin user performing the action
+
+    Raises:
+        NotFoundError: user is not a member of the specified tenant.
+    """
+    result = await db.execute(
+        select(TenantMembership).where(
+            TenantMembership.user_id == user_id,
+            TenantMembership.tenant_id == tenant_id,
+        )
+    )
+    membership = result.scalar_one_or_none()
+    if membership is None:
+        raise NotFoundError(
+            error_code="MEMBERSHIP_NOT_FOUND",
+            message="User is not a member of the specified tenant",
+        )
+
+    # Clear block flag
+    membership.is_blocked = False
+
+    await write_audit(
+        db,
+        action="unblock_user",
+        resource_type="user",
+        actor_id=actor_id,
+        resource_id=str(user_id),
+        tenant_id=tenant_id,
+        details={"reason": reason, "tenant_id": str(tenant_id)},
+    )
+
+    logger.info(
+        "Admin unblock_user: user_id=%s tenant_id=%s actor_id=%s reason=%r",
+        user_id,
+        tenant_id,
+        actor_id,
+        reason,
+    )
+
+
+async def force_password_reset(
+    db: AsyncSession,
+    redis: Redis,
+    user_id: uuid.UUID,
+    reason: str,
+    actor_id: uuid.UUID,
+) -> None:
+    """
+    Force a password reset for a user.
+
+    Steps:
+    1. Load user — raise NotFoundError if not found.
+    2. Set password_reset_required=True (enforcement hook in get_current_user from
+       Plan 01 blocks API access until the user completes the reset).
+    3. Invalidate all sessions: blacklist each UserSession.access_token_jti in Redis
+       and delete all RefreshToken rows for this user.
+    4. Send password reset email via arq job (same path as forgot_password).
+    5. Write audit log entry.
+
+    Args:
+        db: async database session
+        redis: Redis client (for JTI blacklisting)
+        user_id: the user to force-reset
+        reason: required reason string for audit log
+        actor_id: the admin user performing the action
+
+    Raises:
+        NotFoundError: user not found.
+    """
+    # 1. Load user
+    user = await db.get(User, user_id)
+    if user is None:
+        raise NotFoundError(error_code="USER_NOT_FOUND", message="User not found")
+
+    # 2. Set forced-reset flag (column added by migration 007 in Plan 08-04)
+    user.password_reset_required = True
+
+    # 3. Invalidate all sessions
+    session_result = await db.execute(
+        select(UserSession.access_token_jti).where(UserSession.user_id == user_id)
+    )
+    jtis = [row[0] for row in session_result.fetchall()]
+    for jti in jtis:
+        await blacklist_jti(redis, jti)
+
+    # Delete all refresh tokens
+    await db.execute(delete(RefreshToken).where(RefreshToken.user_id == user_id))
+
+    # 4. Enqueue password reset email
+    # Lazy import to avoid circular dependency at module load time
+    from wxcode_adm.auth.service import generate_reset_token, _reset_salt  # noqa: PLC0415
+    from wxcode_adm.tasks.worker import get_arq_pool  # noqa: PLC0415
+
+    # Flush to make password_reset_required visible within the transaction
+    # (generate_reset_token uses the current password_hash as salt)
+    await db.flush()
+
+    # Re-load user after flush to get current state (including any hash changes)
+    await db.refresh(user)
+
+    token = generate_reset_token(user.email, _reset_salt(user))
+    reset_link = f"{settings.ALLOWED_ORIGINS[0]}/reset-password?token={token}"
+
+    try:
+        pool = await get_arq_pool()
+        try:
+            await pool.enqueue_job("send_reset_email", str(user.id), user.email, reset_link)
+        finally:
+            await pool.aclose()
+    except Exception as exc:
+        # Non-blocking: log the failure but do not roll back the forced-reset flag
+        logger.warning(
+            "force_password_reset: failed to enqueue reset email for user_id=%s: %s",
+            user_id,
+            exc,
+        )
+
+    # 5. Write audit log
+    await write_audit(
+        db,
+        action="force_password_reset",
+        resource_type="user",
+        actor_id=actor_id,
+        resource_id=str(user_id),
+        details={"reason": reason},
+    )
+
+    logger.info(
+        "Admin force_password_reset: user_id=%s actor_id=%s reason=%r",
+        user_id,
+        actor_id,
+        reason,
+    )

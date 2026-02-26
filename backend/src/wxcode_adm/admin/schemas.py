@@ -5,7 +5,9 @@ Covers:
 - AdminLoginRequest / AdminTokenResponse: admin auth endpoints (Plan 01)
 - AdminActionRequest: shared required-reason body for destructive actions
 - TenantListItem / TenantListResponse / TenantDetailResponse: tenant management (Plan 02)
-- UserListItem / UserListResponse / UserDetailResponse: user management (Plan 03)
+- UserMembershipItem / UserSessionItem / UserListItem / UserListResponse
+  / UserDetailResponse / UserBlockRequest / UserUnblockRequest
+  / UserForceResetRequest: user management endpoints (Plan 03)
 - MRRDashboardResponse: MRR metrics dashboard (Plan 04)
 
 All models use Pydantic v2 semantics.
@@ -101,24 +103,122 @@ class TenantDetailResponse(BaseModel):
 
 
 # ---------------------------------------------------------------------------
-# User management schemas (Plan 03 will use these)
+# User management schemas (Plan 03)
 # ---------------------------------------------------------------------------
 
 
-class UserListResponse(BaseModel):
-    """Placeholder: list of users for admin user management (Plan 03)."""
+class UserMembershipItem(BaseModel):
+    """
+    A single tenant membership for a user, returned in UserDetailResponse.
 
-    items: list[dict] = []
-    total: int = 0
+    Includes tenant identity, the user's role, billing access flag, and
+    whether the user is blocked in this specific tenant.
+    """
+
+    model_config = ConfigDict(from_attributes=True)
+
+    tenant_id: uuid.UUID
+    tenant_name: str
+    tenant_slug: str
+    role: str
+    billing_access: bool
+    is_blocked: bool
+
+
+class UserSessionItem(BaseModel):
+    """
+    A single active session for a user, returned in UserDetailResponse.
+
+    Fields come from UserSession model (Phase 7). last_active_at may be
+    None if not yet synced from Redis.
+    """
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    device_type: str | None
+    browser_name: str | None
+    ip_address: str | None
+    city: str | None
+    last_active_at: datetime | None
+
+
+class UserListItem(BaseModel):
+    """
+    Summary representation of a user, returned in paginated UserListResponse.
+    """
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    email: str
+    display_name: str | None
+    email_verified: bool
+    is_active: bool
+    mfa_enabled: bool
+    created_at: datetime
+
+
+class UserListResponse(BaseModel):
+    """Paginated list of users for admin user search."""
+
+    items: list[UserListItem]
+    total: int
 
 
 class UserDetailResponse(BaseModel):
-    """Placeholder: detailed user view for admin (Plan 03)."""
+    """
+    Full profile of a user including memberships and sessions.
 
-    id: str = ""
-    email: str = ""
-    is_superuser: bool = False
-    is_active: bool = True
+    Returned by GET /admin/users/{id}.
+    """
+
+    id: uuid.UUID
+    email: str
+    display_name: str | None
+    avatar_url: str | None
+    email_verified: bool
+    is_active: bool
+    is_superuser: bool
+    mfa_enabled: bool
+    created_at: datetime
+    updated_at: datetime
+    memberships: list[UserMembershipItem]
+    sessions: list[UserSessionItem]
+
+
+class UserBlockRequest(BaseModel):
+    """
+    Request body for POST /admin/users/{id}/block.
+
+    Per-tenant scope: only the user's membership in the given tenant is
+    blocked; their access to other tenants is not affected.
+    """
+
+    tenant_id: uuid.UUID
+    reason: str = Field(min_length=1, max_length=500)
+
+
+class UserUnblockRequest(BaseModel):
+    """
+    Request body for POST /admin/users/{id}/unblock.
+
+    Restores access to the specific tenant only.
+    """
+
+    tenant_id: uuid.UUID
+    reason: str = Field(min_length=1, max_length=500)
+
+
+class UserForceResetRequest(BaseModel):
+    """
+    Request body for POST /admin/users/{id}/force-reset.
+
+    Sets password_reset_required flag on the user, invalidates all active
+    sessions, and triggers a password reset email.
+    """
+
+    reason: str = Field(min_length=1, max_length=500)
 
 
 # ---------------------------------------------------------------------------

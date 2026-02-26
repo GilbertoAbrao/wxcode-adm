@@ -809,6 +809,11 @@ async def reset_password(db: AsyncSession, body: ResetPasswordRequest) -> None:
     # Step 4: Update password
     user.password_hash = hash_password(body.new_password)
 
+    # Step 4a: Clear forced-reset flag if it was set by an admin action (Plan 08-03).
+    # hasattr guard ensures this is safe before migration 007 adds the column.
+    if hasattr(user, "password_reset_required"):
+        user.password_reset_required = False
+
     # Step 5: Revoke all sessions — force re-login on all devices
     await db.execute(delete(RefreshToken).where(RefreshToken.user_id == user.id))
 
