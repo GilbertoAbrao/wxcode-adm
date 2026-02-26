@@ -31,6 +31,7 @@ from wxcode_adm.auth.exceptions import EmailNotVerifiedError, InvalidTokenError
 from wxcode_adm.auth.jwt import decode_access_token
 from wxcode_adm.auth.models import User
 from wxcode_adm.auth.service import is_token_blacklisted
+from wxcode_adm.common.exceptions import ForbiddenError
 from wxcode_adm.config import settings
 from wxcode_adm.dependencies import get_redis, get_session
 
@@ -111,6 +112,14 @@ async def get_current_user(
     user: User | None = await db.get(User, user_uuid)
     if user is None or not user.is_active:
         raise InvalidTokenError()
+
+    # 4b. Enforcement hook: password reset required (Plan 08-03 sets this flag)
+    # hasattr guard: column doesn't exist until migration 007 (Plan 08-04)
+    if hasattr(user, "password_reset_required") and user.password_reset_required:
+        raise ForbiddenError(
+            error_code="PASSWORD_RESET_REQUIRED",
+            message="Password reset required. Check your email for reset instructions.",
+        )
 
     # 5. Per-request last_active update (locked decision: Redis write per request)
     # TTL matches access token lifetime so stale keys auto-expire

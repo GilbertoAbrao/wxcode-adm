@@ -79,6 +79,12 @@ class Settings(BaseSettings):
     WXCODE_CODE_TTL: int = 30  # one-time authorization code TTL in seconds
     AVATAR_UPLOAD_DIR: str = "/app/avatars"  # local filesystem path for avatar storage
 
+    # --- Phase 8 -- Super-admin ---
+    # Comma-separated IP addresses allowed to access /api/v1/admin/login.
+    # Empty string = no IP restriction (dev-friendly default).
+    # Example: "1.2.3.4,5.6.7.8"
+    ADMIN_ALLOWED_IPS: str = ""
+
 
 # Module-level singleton — raises ValidationError at import if env vars missing
 settings = Settings()

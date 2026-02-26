@@ -31,6 +31,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from wxcode_adm.auth.dependencies import require_verified
 from wxcode_adm.auth.models import User
+from wxcode_adm.common.exceptions import ForbiddenError
 from wxcode_adm.dependencies import get_session
 from wxcode_adm.tenants.exceptions import InsufficientRoleError, NoTenantContextError, TenantNotFoundError
 from wxcode_adm.tenants.models import MemberRole, Tenant, TenantMembership
@@ -83,6 +84,19 @@ async def get_tenant_context(
     if tenant is None:
         raise TenantNotFoundError()
 
+    # Enforcement hook: deleted tenants appear as nonexistent (Plan 08-02 sets is_deleted)
+    # hasattr guard: column doesn't exist until migration 007 (Plan 08-04)
+    if hasattr(tenant, "is_deleted") and tenant.is_deleted:
+        raise TenantNotFoundError()
+
+    # Enforcement hook: suspended tenants are blocked (Plan 08-02 sets is_suspended)
+    # hasattr guard: column doesn't exist until migration 007 (Plan 08-04)
+    if hasattr(tenant, "is_suspended") and tenant.is_suspended:
+        raise ForbiddenError(
+            error_code="TENANT_SUSPENDED",
+            message="This tenant account has been suspended",
+        )
+
     # Check membership — same error as missing tenant to prevent enumeration
     membership_result = await db.execute(
         select(TenantMembership).where(
@@ -94,6 +108,14 @@ async def get_tenant_context(
 
     if membership is None:
         raise TenantNotFoundError()
+
+    # Enforcement hook: blocked users within a tenant (Plan 08-03 sets is_blocked)
+    # hasattr guard: column doesn't exist until migration 007 (Plan 08-04)
+    if hasattr(membership, "is_blocked") and membership.is_blocked:
+        raise ForbiddenError(
+            error_code="USER_BLOCKED",
+            message="Your access to this tenant has been blocked",
+        )
 
     return tenant, membership
 
