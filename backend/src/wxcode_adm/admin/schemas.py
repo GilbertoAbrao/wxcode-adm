@@ -3,16 +3,20 @@ Pydantic schemas for the wxcode-adm admin module.
 
 Covers:
 - AdminLoginRequest / AdminTokenResponse: admin auth endpoints (Plan 01)
-- Placeholder schemas for Plans 02-04: tenant management, user management,
-  MRR dashboard, and generic admin action request. These are defined now so
-  that router imports do not break as Plans 02-04 extend this file.
+- AdminActionRequest: shared required-reason body for destructive actions
+- TenantListItem / TenantListResponse / TenantDetailResponse: tenant management (Plan 02)
+- UserListItem / UserListResponse / UserDetailResponse: user management (Plan 03)
+- MRRDashboardResponse: MRR metrics dashboard (Plan 04)
 
 All models use Pydantic v2 semantics.
 """
 
 from __future__ import annotations
 
-from pydantic import BaseModel, EmailStr
+import uuid
+from datetime import datetime
+
+from pydantic import BaseModel, ConfigDict, EmailStr, Field
 
 
 # ---------------------------------------------------------------------------
@@ -45,32 +49,59 @@ class AdminTokenResponse(BaseModel):
 class AdminActionRequest(BaseModel):
     """Generic admin action body — reason is required for audit trail."""
 
-    reason: str
+    reason: str = Field(min_length=1, max_length=500)
 
 
 # ---------------------------------------------------------------------------
-# Tenant management placeholder schemas (Plans 02-03 will extend these)
+# Tenant management schemas (Plan 02)
 # ---------------------------------------------------------------------------
+
+
+class TenantListItem(BaseModel):
+    """One tenant row in the admin tenant list."""
+
+    id: uuid.UUID
+    name: str
+    slug: str
+    is_suspended: bool
+    is_deleted: bool
+    plan_name: str | None
+    plan_slug: str | None
+    member_count: int
+    created_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
 
 
 class TenantListResponse(BaseModel):
-    """Placeholder: list of tenants for admin tenant management (Plan 02)."""
+    """Paginated list of tenants for the admin tenant management view."""
 
-    items: list[dict] = []
-    total: int = 0
+    items: list[TenantListItem]
+    total: int
 
 
 class TenantDetailResponse(BaseModel):
-    """Placeholder: detailed tenant view for admin (Plan 02)."""
+    """Detailed tenant information for the admin view."""
 
-    id: str = ""
-    slug: str = ""
-    name: str = ""
-    is_suspended: bool = False
+    id: uuid.UUID
+    name: str
+    slug: str
+    is_suspended: bool
+    is_deleted: bool
+    mfa_enforced: bool
+    wxcode_url: str | None
+    plan_name: str | None
+    plan_slug: str | None
+    subscription_status: str | None
+    member_count: int
+    created_at: datetime
+    updated_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
 
 
 # ---------------------------------------------------------------------------
-# User management placeholder schemas (Plans 02-03 will extend these)
+# User management schemas (Plan 03 will use these)
 # ---------------------------------------------------------------------------
 
 
