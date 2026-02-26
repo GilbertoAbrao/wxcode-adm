@@ -7,11 +7,18 @@ Provides super-admin authentication endpoints:
 - POST /admin/logout   — invalidate admin session
 
 Tenant management endpoints (Plan 02):
-- GET  /admin/tenants                       — list tenants (paginated, filterable)
-- GET  /admin/tenants/{tenant_id}           — get tenant detail
-- POST /admin/tenants/{tenant_id}/suspend   — suspend tenant (invalidates sessions)
-- POST /admin/tenants/{tenant_id}/reactivate — reactivate suspended tenant
-- DELETE /admin/tenants/{tenant_id}          — soft-delete tenant
+- GET  /admin/tenants                         — list tenants (paginated, filterable)
+- GET  /admin/tenants/{tenant_id}             — get tenant detail
+- POST /admin/tenants/{tenant_id}/suspend     — suspend tenant (invalidates sessions)
+- POST /admin/tenants/{tenant_id}/reactivate  — reactivate suspended tenant
+- DELETE /admin/tenants/{tenant_id}           — soft-delete tenant
+
+User management endpoints (Plan 03):
+- GET  /admin/users                              — search users (paginated, by email/name/tenant)
+- GET  /admin/users/{user_id}                    — get user detail (memberships + sessions)
+- POST /admin/users/{user_id}/block              — block user in a specific tenant
+- POST /admin/users/{user_id}/unblock            — unblock user in a specific tenant
+- POST /admin/users/{user_id}/force-reset        — force password reset
 
 IP allowlist enforcement:
     If ADMIN_ALLOWED_IPS is set (non-empty), only requests from listed IPs
@@ -48,6 +55,11 @@ from wxcode_adm.admin.schemas import (
     AdminTokenResponse,
     TenantDetailResponse,
     TenantListResponse,
+    UserBlockRequest,
+    UserDetailResponse,
+    UserForceResetRequest,
+    UserListResponse,
+    UserUnblockRequest,
 )
 from wxcode_adm.auth.models import User
 from wxcode_adm.common.exceptions import ForbiddenError
@@ -272,3 +284,140 @@ async def soft_delete_tenant(
         actor_id=admin.id,
     )
     return {"message": "Tenant soft-deleted", "tenant_id": str(tenant_id)}
+
+
+# ---------------------------------------------------------------------------
+# User management endpoints (Plan 03)
+# ---------------------------------------------------------------------------
+
+
+@admin_router.get("/users", response_model=UserListResponse)
+async def list_users(
+    request: Request,
+    limit: int = Query(default=20, ge=1, le=100),
+    offset: int = Query(default=0, ge=0),
+    q: str | None = Query(default=None, description="Search by email or display name"),
+    tenant_id: uuid.UUID | None = Query(default=None, description="Filter by tenant membership"),
+    admin: User = Depends(require_admin),
+    db: AsyncSession = Depends(get_session),
+) -> UserListResponse:
+    """
+    Search and list users with pagination.
+
+    Filters:
+    - q: case-insensitive search against email and display_name
+    - tenant_id: restrict results to members of the given tenant
+    """
+    items, total = await admin_service.search_users(
+        db=db,
+        limit=limit,
+        offset=offset,
+        q=q,
+        tenant_id=tenant_id,
+    )
+    return UserListResponse(items=items, total=total)
+
+
+@admin_router.get("/users/{user_id}", response_model=UserDetailResponse)
+async def get_user_detail(
+    request: Request,
+    user_id: uuid.UUID,
+    admin: User = Depends(require_admin),
+    db: AsyncSession = Depends(get_session),
+) -> UserDetailResponse:
+    """
+    Get full profile for a specific user including all tenant memberships
+    (with roles and blocked status) and active sessions (device, IP, last_active).
+    """
+    detail = await admin_service.get_user_detail(db=db, user_id=user_id)
+    return UserDetailResponse(**detail)
+
+
+@admin_router.post("/users/{user_id}/block")
+async def block_user(
+    request: Request,
+    user_id: uuid.UUID,
+    body: UserBlockRequest,
+    admin: User = Depends(require_admin),
+    db: AsyncSession = Depends(get_session),
+    redis: Redis = Depends(get_redis),
+) -> dict:
+    """
+    Block a user's access to a specific tenant.
+
+    Per-tenant scope: only the user's membership in the given tenant is affected.
+    Their access to other tenants remains unchanged.
+
+    Requires a reason string for audit trail.
+    """
+    await admin_service.block_user(
+        db=db,
+        redis=redis,
+        user_id=user_id,
+        tenant_id=body.tenant_id,
+        reason=body.reason,
+        actor_id=admin.id,
+    )
+    return {
+        "message": "User blocked in tenant",
+        "user_id": str(user_id),
+        "tenant_id": str(body.tenant_id),
+    }
+
+
+@admin_router.post("/users/{user_id}/unblock")
+async def unblock_user(
+    request: Request,
+    user_id: uuid.UUID,
+    body: UserUnblockRequest,
+    admin: User = Depends(require_admin),
+    db: AsyncSession = Depends(get_session),
+) -> dict:
+    """
+    Restore a user's access to a specific tenant.
+
+    Requires a reason string for audit trail.
+    """
+    await admin_service.unblock_user(
+        db=db,
+        user_id=user_id,
+        tenant_id=body.tenant_id,
+        reason=body.reason,
+        actor_id=admin.id,
+    )
+    return {
+        "message": "User unblocked in tenant",
+        "user_id": str(user_id),
+        "tenant_id": str(body.tenant_id),
+    }
+
+
+@admin_router.post("/users/{user_id}/force-reset")
+async def force_password_reset(
+    request: Request,
+    user_id: uuid.UUID,
+    body: UserForceResetRequest,
+    admin: User = Depends(require_admin),
+    db: AsyncSession = Depends(get_session),
+    redis: Redis = Depends(get_redis),
+) -> dict:
+    """
+    Force a password reset for a user.
+
+    Sets password_reset_required flag, invalidates all active sessions, and
+    sends a password reset email. The user cannot access the API until they
+    complete the password reset flow.
+
+    Requires a reason string for audit trail.
+    """
+    await admin_service.force_password_reset(
+        db=db,
+        redis=redis,
+        user_id=user_id,
+        reason=body.reason,
+        actor_id=admin.id,
+    )
+    return {
+        "message": "Password reset initiated",
+        "user_id": str(user_id),
+    }
