@@ -94,6 +94,17 @@ class Tenant(TimestampMixin, Base):
         nullable=True,
         default=None,
     )
+    # Phase 8: super-admin suspension and soft-delete flags (added by migration 007)
+    is_suspended: Mapped[bool] = mapped_column(
+        Boolean,
+        default=False,
+        nullable=False,
+    )
+    is_deleted: Mapped[bool] = mapped_column(
+        Boolean,
+        default=False,
+        nullable=False,
+    )
 
     memberships: Mapped[list["TenantMembership"]] = relationship(
         back_populates="tenant",
@@ -139,6 +150,12 @@ class TenantMembership(TimestampMixin, Base):
         nullable=False,
     )
     billing_access: Mapped[bool] = mapped_column(
+        Boolean,
+        default=False,
+        nullable=False,
+    )
+    # Phase 8: per-tenant user block flag (added by migration 007)
+    is_blocked: Mapped[bool] = mapped_column(
         Boolean,
         default=False,
         nullable=False,

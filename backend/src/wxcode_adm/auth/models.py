@@ -80,6 +80,12 @@ class User(TimestampMixin, Base):
         nullable=True,
         default=None,
     )
+    # Phase 8: admin-forced password reset flag
+    password_reset_required: Mapped[bool] = mapped_column(
+        Boolean,
+        default=False,
+        nullable=False,
+    )
 
     # Phase 7: User profile fields
     display_name: Mapped[str | None] = mapped_column(

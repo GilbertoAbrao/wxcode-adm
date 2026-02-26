@@ -85,13 +85,13 @@ async def get_tenant_context(
         raise TenantNotFoundError()
 
     # Enforcement hook: deleted tenants appear as nonexistent (Plan 08-02 sets is_deleted)
-    # hasattr guard: column doesn't exist until migration 007 (Plan 08-04)
-    if hasattr(tenant, "is_deleted") and tenant.is_deleted:
+    # Direct access: column exists on model as of migration 007 (Plan 08-04)
+    if tenant.is_deleted:
         raise TenantNotFoundError()
 
     # Enforcement hook: suspended tenants are blocked (Plan 08-02 sets is_suspended)
-    # hasattr guard: column doesn't exist until migration 007 (Plan 08-04)
-    if hasattr(tenant, "is_suspended") and tenant.is_suspended:
+    # Direct access: column exists on model as of migration 007 (Plan 08-04)
+    if tenant.is_suspended:
         raise ForbiddenError(
             error_code="TENANT_SUSPENDED",
             message="This tenant account has been suspended",
@@ -110,8 +110,8 @@ async def get_tenant_context(
         raise TenantNotFoundError()
 
     # Enforcement hook: blocked users within a tenant (Plan 08-03 sets is_blocked)
-    # hasattr guard: column doesn't exist until migration 007 (Plan 08-04)
-    if hasattr(membership, "is_blocked") and membership.is_blocked:
+    # Direct access: column exists on model as of migration 007 (Plan 08-04)
+    if membership.is_blocked:
         raise ForbiddenError(
             error_code="USER_BLOCKED",
             message="Your access to this tenant has been blocked",

@@ -53,6 +53,7 @@ from wxcode_adm.admin.schemas import (
     AdminActionRequest,
     AdminLoginRequest,
     AdminTokenResponse,
+    MRRDashboardResponse,
     TenantDetailResponse,
     TenantListResponse,
     UserBlockRequest,
@@ -421,3 +422,25 @@ async def force_password_reset(
         "message": "Password reset initiated",
         "user_id": str(user_id),
     }
+
+
+# ---------------------------------------------------------------------------
+# Dashboard endpoints (Plan 04)
+# ---------------------------------------------------------------------------
+
+
+@admin_router.get("/dashboard/mrr", response_model=MRRDashboardResponse)
+async def get_mrr_dashboard(
+    request: Request,
+    admin: User = Depends(require_admin),
+    db: AsyncSession = Depends(get_session),
+) -> MRRDashboardResponse:
+    """
+    Return MRR (Monthly Recurring Revenue) dashboard metrics.
+
+    Computes from local DB data only — no Stripe API calls.
+    Includes active subscription count, total MRR in cents, plan distribution,
+    30-day churn metrics, and a 30-day daily trend series.
+    """
+    result = await admin_service.compute_mrr_dashboard(db=db)
+    return MRRDashboardResponse(**result)

@@ -114,8 +114,8 @@ async def get_current_user(
         raise InvalidTokenError()
 
     # 4b. Enforcement hook: password reset required (Plan 08-03 sets this flag)
-    # hasattr guard: column doesn't exist until migration 007 (Plan 08-04)
-    if hasattr(user, "password_reset_required") and user.password_reset_required:
+    # Direct access: column exists on model as of migration 007 (Plan 08-04)
+    if user.password_reset_required:
         raise ForbiddenError(
             error_code="PASSWORD_RESET_REQUIRED",
             message="Password reset required. Check your email for reset instructions.",

@@ -41,7 +41,8 @@ Audit actions:
 import logging
 import secrets
 import uuid
-from datetime import datetime, timedelta, timezone
+from collections import defaultdict
+from datetime import date, datetime, timedelta, timezone
 
 from redis.asyncio import Redis
 from sqlalchemy import delete, func, or_, select
@@ -53,7 +54,7 @@ from wxcode_adm.auth.exceptions import InvalidCredentialsError, InvalidTokenErro
 from wxcode_adm.auth.models import RefreshToken, User, UserSession
 from wxcode_adm.auth.password import verify_password
 from wxcode_adm.auth.service import blacklist_jti
-from wxcode_adm.billing.models import Plan, TenantSubscription
+from wxcode_adm.billing.models import Plan, SubscriptionStatus, TenantSubscription
 from wxcode_adm.common.exceptions import ConflictError, NotFoundError
 from wxcode_adm.config import settings
 from wxcode_adm.tenants.models import Tenant, TenantMembership
@@ -953,3 +954,130 @@ async def force_password_reset(
         actor_id,
         reason,
     )
+
+
+# ---------------------------------------------------------------------------
+# MRR dashboard (Plan 04)
+# ---------------------------------------------------------------------------
+
+
+async def compute_mrr_dashboard(db: AsyncSession) -> dict:
+    """
+    Compute MRR dashboard metrics from the local database.
+
+    No Stripe API calls are made — all data is derived from TenantSubscription
+    and Plan records in the local DB.
+
+    Computes:
+    - active_subscription_count: number of ACTIVE subscriptions
+    - mrr_cents: sum of monthly_fee_cents across active subscriptions
+    - plan_distribution: count per plan slug/name for active subscriptions
+    - canceled_count_30d: subscriptions with status=CANCELED updated in last 30 days
+    - churn_rate: canceled_30d / (active_count + canceled_30d), rounded to 4dp
+    - trend: 30-day daily snapshot of active count and mrr_cents
+    - computed_at: UTC timestamp of this computation
+
+    Returns:
+        Dict matching MRRDashboardResponse shape.
+    """
+    now = datetime.now(timezone.utc)
+    thirty_days_ago = now - timedelta(days=30)
+
+    # 1. Active subscriptions (with Plan loaded via lazy="joined")
+    active_result = await db.execute(
+        select(TenantSubscription).where(
+            TenantSubscription.status == SubscriptionStatus.ACTIVE
+        )
+    )
+    active_subs = active_result.scalars().all()
+
+    active_count = len(active_subs)
+    mrr_cents = sum(sub.plan.monthly_fee_cents for sub in active_subs)
+
+    # 2. Plan distribution from active subscriptions
+    plan_counts: dict[str, dict] = {}
+    for sub in active_subs:
+        slug = sub.plan.slug
+        if slug not in plan_counts:
+            plan_counts[slug] = {"plan_slug": slug, "plan_name": sub.plan.name, "count": 0}
+        plan_counts[slug]["count"] += 1
+    plan_distribution = list(plan_counts.values())
+
+    # 3. Canceled in last 30 days
+    canceled_result = await db.execute(
+        select(TenantSubscription).where(
+            TenantSubscription.status == SubscriptionStatus.CANCELED,
+            TenantSubscription.updated_at >= thirty_days_ago,
+        )
+    )
+    canceled_subs_30d = canceled_result.scalars().all()
+    canceled_count_30d = len(canceled_subs_30d)
+
+    # 4. Churn rate
+    denominator = active_count + canceled_count_30d
+    churn_rate = round(canceled_count_30d / denominator, 4) if denominator > 0 else 0.0
+
+    # 5. 30-day trend (Python-side grouping — not PostgreSQL date_trunc)
+    # Load ALL subscriptions (both active and recently canceled) for trend computation
+    all_relevant_result = await db.execute(
+        select(TenantSubscription, Plan)
+        .join(Plan, Plan.id == TenantSubscription.plan_id)
+        .where(
+            # Include active subs or subs created/updated in the last 30 days
+            (TenantSubscription.status == SubscriptionStatus.ACTIVE)
+            | (TenantSubscription.created_at >= thirty_days_ago)
+            | (TenantSubscription.updated_at >= thirty_days_ago)
+        )
+    )
+    all_rows = all_relevant_result.all()
+    all_subs_with_plan = [(row[0], row[1]) for row in all_rows]
+
+    trend = []
+    for days_ago in range(29, -1, -1):  # 30 days ago to today
+        day = (now - timedelta(days=days_ago)).date()
+        day_end = datetime.combine(day, datetime.max.time()).replace(tzinfo=timezone.utc)
+
+        day_active_count = 0
+        day_mrr = 0
+        for sub, plan in all_subs_with_plan:
+            # Normalize created_at to UTC-aware
+            created = sub.created_at
+            if created.tzinfo is None:
+                created = created.replace(tzinfo=timezone.utc)
+
+            # A subscription was active on `day` if:
+            # - it was created on or before that day
+            # - AND (status is ACTIVE now, or it was canceled AFTER that day)
+            if created > day_end:
+                continue  # Not yet created on this day
+
+            if sub.status == SubscriptionStatus.ACTIVE:
+                day_active_count += 1
+                day_mrr += plan.monthly_fee_cents
+            elif sub.status == SubscriptionStatus.CANCELED:
+                # Use updated_at as proxy for cancellation time
+                updated = sub.updated_at
+                if updated.tzinfo is None:
+                    updated = updated.replace(tzinfo=timezone.utc)
+                if updated > day_end:
+                    # Was canceled after this day — still active on this day
+                    day_active_count += 1
+                    day_mrr += plan.monthly_fee_cents
+
+        trend.append(
+            {
+                "date": day.isoformat(),
+                "mrr_cents": day_mrr,
+                "active_count": day_active_count,
+            }
+        )
+
+    return {
+        "active_subscription_count": active_count,
+        "mrr_cents": mrr_cents,
+        "plan_distribution": plan_distribution,
+        "canceled_count_30d": canceled_count_30d,
+        "churn_rate": churn_rate,
+        "trend": trend,
+        "computed_at": now,
+    }

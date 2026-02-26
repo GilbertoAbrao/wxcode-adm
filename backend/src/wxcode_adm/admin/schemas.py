@@ -222,13 +222,38 @@ class UserForceResetRequest(BaseModel):
 
 
 # ---------------------------------------------------------------------------
-# MRR dashboard placeholder schema (Plan 04 will extend this)
+# MRR dashboard schemas (Plan 04)
 # ---------------------------------------------------------------------------
 
 
-class MRRDashboardResponse(BaseModel):
-    """Placeholder: MRR metrics dashboard for admin (Plan 04)."""
+class PlanDistributionItem(BaseModel):
+    """One entry in the plan distribution breakdown of the MRR dashboard."""
 
-    mrr_cents: int = 0
-    active_subscriptions: int = 0
-    churned_this_month: int = 0
+    plan_slug: str
+    plan_name: str
+    count: int
+
+
+class MRRTrendPoint(BaseModel):
+    """A single day's MRR snapshot in the 30-day trend series."""
+
+    date: str  # ISO date string, e.g., "2026-02-20"
+    mrr_cents: int
+    active_count: int
+
+
+class MRRDashboardResponse(BaseModel):
+    """
+    MRR metrics dashboard for admin (Plan 04).
+
+    Returned by GET /admin/dashboard/mrr. All data is computed from the local
+    DB (no Stripe API calls). Trend data covers the last 30 days.
+    """
+
+    active_subscription_count: int
+    mrr_cents: int
+    plan_distribution: list[PlanDistributionItem]
+    canceled_count_30d: int
+    churn_rate: float  # 0.0-1.0, rounded to 4 decimal places
+    trend: list[MRRTrendPoint]
+    computed_at: datetime
