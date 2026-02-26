@@ -9,12 +9,12 @@ See: .planning/PROJECT.md (updated 2026-02-22)
 
 ## Current Position
 
-Phase: 8 of 8 (Super-Admin) — In Progress
-Plan: 3 of 4 in current phase (08-03 complete — user management: search, detail, block/unblock, force-reset; 5 user endpoints; 129 tests passing)
-Status: Phase 8 in progress — Plans 01-03 done; Plan 04 remaining
-Last activity: 2026-02-26 — Plan 08-03 complete: user management endpoints (4 of 4 — Phase 8 nearing completion)
+Phase: 8 of 8 (Super-Admin) — Complete
+Plan: 4 of 4 in current phase (08-04 complete — MRR dashboard, migration 007, 18 integration tests; all 147 tests passing)
+Status: Phase 8 complete — All 4 plans done; ALL PHASES COMPLETE
+Last activity: 2026-02-26 — Plan 08-04 complete: MRR dashboard, migration 007, 18 integration tests covering all 5 SADM criteria
 
-Progress: [█████████████████████████████] 98%
+Progress: [██████████████████████████████] 100%
 
 ## Performance Metrics
 
@@ -67,6 +67,7 @@ Progress: [███████████████████████
 | Phase 08-super-admin P01 | 5 | 2 tasks | 10 files |
 | Phase 08-super-admin P02 | 3 | 2 tasks | 3 files |
 | Phase 08-super-admin P03 | 7 | 2 tasks | 4 files |
+| Phase 08-super-admin P04 | 7 | 2 tasks | 9 files |
 
 ## Accumulated Context
 
@@ -207,6 +208,11 @@ Recent decisions affecting current work:
 - [Phase 08-03]: [08-03]: block_user uses hasattr() guard for is_blocked on TenantMembership — column added by migration 007 (Plan 08-04); enforcement in get_tenant_context has hasattr guard from Plan 01
 - [Phase 08-03]: [08-03]: force_password_reset wraps arq enqueue in try/except — email failure non-blocking; forced-reset flag is authoritative enforcement mechanism
 - [Phase 08-03]: [08-03]: get_user_detail uses explicit join on Tenant (not lazy-load) — SQLAlchemy 2.0 async sessions cannot lazy-load relationships
+- [Phase 08-04]: [08-04]: Python-side 30-day trend grouping (no date_trunc) — load all relevant subscriptions, iterate days in Python; avoids research anti-pattern for small datasets
+- [Phase 08-04]: [08-04]: updated_at used as proxy for cancellation date in trend computation — TenantSubscription has no canceled_at column
+- [Phase 08-04]: [08-04]: server_default=sa.text('false') on all 4 new Boolean columns — existing rows get False immediately without data migration
+- [Phase 08-04]: [08-04]: hasattr() guards replaced with direct attribute access — migration 007 now declares columns on Tenant, TenantMembership, and User models
+- [Phase 08-04]: [08-04]: httpx AsyncClient.delete() does not accept json= kwarg — use client.request('DELETE', ..., content=json.dumps(...)) for DELETE with body in tests
 
 ### Pending Todos
 
@@ -221,5 +227,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-26
-Stopped at: Completed 08-03-PLAN.md — user management: search, block/unblock, force-reset; 5 admin user endpoints; 129 tests passing; Phase 8 Plan 3 complete
-Resume file: .planning/ (Phase 8 in progress — Plans 03-04 remaining)
+Stopped at: Completed 08-04-PLAN.md — MRR dashboard, migration 007 (4 Boolean columns), 18 integration tests covering all 5 SADM criteria; 147 tests passing; Phase 8 complete
+Resume file: .planning/ (ALL PHASES COMPLETE — project finished)
