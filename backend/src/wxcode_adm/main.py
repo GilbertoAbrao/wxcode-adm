@@ -194,6 +194,10 @@ def create_app() -> FastAPI:
     from wxcode_adm.users.router import users_router  # noqa: PLC0415
     app.include_router(users_router, prefix=settings.API_V1_PREFIX)
 
+    # Admin router (Phase 8): super-admin management endpoints
+    from wxcode_adm.admin.router import admin_router  # noqa: PLC0415
+    app.include_router(admin_router, prefix=settings.API_V1_PREFIX)
+
     return app
 
 
