@@ -20,6 +20,8 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 6: OAuth and MFA** - Google/GitHub OAuth, TOTP MFA, remember-device, tenant MFA enforcement (completed 2026-02-24)
 - [x] **Phase 7: User Account** - Profile editing, password change, session management, wxcode redirect (completed 2026-02-25)
 - [x] **Phase 8: Super-Admin** - Tenant and user management, MRR dashboard, super-admin isolation (completed 2026-02-26)
+- [ ] **Phase 9: MFA-wxcode Redirect Fix** - Fix mfa_verify to generate wxcode redirect after TOTP verification (gap closure)
+- [ ] **Phase 10: API Key Management** - Tenant API keys with granular scopes, revocation, and rotation (gap closure)
 
 ## Phase Details
 
@@ -186,10 +188,40 @@ Plans:
 - [ ] 08-03-PLAN.md — User management: search users (email/name/tenant filter), user detail with memberships and sessions, per-tenant block/unblock, force password reset
 - [ ] 08-04-PLAN.md — MRR dashboard (on-demand aggregation from local DB), Alembic migration 007, integration tests for all 5 success criteria
 
+### Phase 9: MFA-wxcode Redirect Fix
+**Goal**: MFA-authenticated users receive the same wxcode redirect URL and one-time code as non-MFA users, ensuring all login paths lead to seamless wxcode handoff
+**Depends on**: Phase 6, Phase 7
+**Requirements**: USER-04 (strengthened), AUTH-11 (strengthened)
+**Gap Closure**: Closes integration gap (Phase 6 → Phase 7) and flow gap ("MFA login → wxcode redirect") from v1.0 audit
+**Success Criteria** (what must be TRUE):
+  1. After TOTP verification via POST /auth/mfa/verify, the response includes wxcode_redirect_url and wxcode_code when the user's tenant has a wxcode_url configured — identical to the non-MFA login path
+  2. The one-time wxcode_code from MFA verify can be exchanged at the wxcode exchange endpoint and returns a valid access token
+**Plans**: 1 plan
+
+Plans:
+- [ ] 09-01-PLAN.md — Fix mfa_verify to call get_redirect_url + create_wxcode_code after _issue_tokens, integration test for MFA → wxcode redirect flow
+
+### Phase 10: API Key Management
+**Goal**: Tenants have programmable API access via scoped keys that can be created, listed, revoked, and rotated by Owner or Admin
+**Depends on**: Phase 3, Phase 5
+**Requirements**: PLAT-01, PLAT-02
+**Gap Closure**: Closes deferred requirements PLAT-01 and PLAT-02 from v1.0 audit
+**Success Criteria** (what must be TRUE):
+  1. Tenant Owner or Admin can generate an API key with a chosen scope (read, write, admin, billing); the key is shown once in full and stored as an HMAC hash; subsequent requests use the hashed value for lookup
+  2. Tenant Owner or Admin can list active API keys (masked, showing scope and creation date) and revoke any key; all requests using the revoked key are rejected immediately
+  3. Tenant Owner or Admin can rotate a key (atomic revoke + generate replacement) and the new key is returned in the response
+  4. API key authentication is accepted as an alternative to JWT Bearer tokens on tenant-scoped endpoints; the key's scope restricts which endpoints are accessible
+**Plans**: 1 plan
+
+Plans:
+- [ ] 10-01-PLAN.md — APIKey model, HMAC hashing, CRUD endpoints, key auth middleware, Alembic migration 008, integration tests for PLAT-01 and PLAT-02
+
+**Phase requirement IDs (every ID MUST appear in a plan's `requirements` field):** PLAT-01, PLAT-02
+
 ## Progress
 
 **Execution Order:**
-Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7 -> 8
+Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7 -> 8 -> 9 -> 10
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
@@ -201,3 +233,5 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7 -> 8
 | 6. OAuth and MFA | 4/5 | Complete    | 2026-02-24 |
 | 7. User Account | 4/4 | Complete    | 2026-02-25 |
 | 8. Super-Admin | 4/4 | Complete   | 2026-02-26 |
+| 9. MFA-wxcode Redirect Fix | 0/1 | Pending | |
+| 10. API Key Management | 0/1 | Pending | |

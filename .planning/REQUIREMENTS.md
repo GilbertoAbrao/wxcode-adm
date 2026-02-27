@@ -147,8 +147,8 @@ Which phases cover which requirements. Updated during roadmap creation.
 | BILL-03 | Phase 4 | Complete |
 | BILL-04 | Phase 4 | Complete |
 | BILL-05 | Phase 4 | Complete |
-| PLAT-01 | Phase 5 | Pending |
-| PLAT-02 | Phase 5 | Pending |
+| PLAT-01 | Phase 10 | Pending |
+| PLAT-02 | Phase 10 | Pending |
 | PLAT-03 | Phase 5 | Complete |
 | PLAT-04 | Phase 5 | Complete |
 | PLAT-05 | Phase 5 | Complete |
