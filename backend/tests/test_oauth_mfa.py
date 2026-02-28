@@ -784,6 +784,64 @@ async def test_mfa_verify_expired_token_fails(client):
     assert r.status_code == 401, r.text
 
 
+@pytest.mark.asyncio
+async def test_mfa_verify_includes_wxcode_redirect(client):
+    """After MFA verify with tenant wxcode_url set, response includes
+    wxcode_redirect_url and wxcode_code; code can be exchanged; code is single-use."""
+    c, redis, app, test_db = client
+
+    user, secret = await _create_user_with_mfa(test_db, "mfawxcode@test.com")
+
+    # Create tenant with wxcode_url and membership directly in DB
+    async with test_db() as session:
+        tenant = Tenant(
+            name="MFA Wxcode Tenant",
+            slug="mfa-wxcode-tenant",
+            wxcode_url="https://app.wxcode.io",
+        )
+        session.add(tenant)
+        await session.flush()  # Required: assign tenant.id before FK reference
+        membership = TenantMembership(
+            user_id=user.id, tenant_id=tenant.id, role=MemberRole.OWNER
+        )
+        session.add(membership)
+        await session.commit()
+
+    # Login to get mfa_token
+    r = await c.post(
+        "/api/v1/auth/login",
+        json={"email": "mfawxcode@test.com", "password": "securepass"},
+    )
+    assert r.status_code == 200, r.text
+    mfa_token = r.json()["mfa_token"]
+
+    # MFA verify with valid TOTP
+    code = pyotp.TOTP(secret).now()
+    r = await c.post(
+        "/api/v1/auth/mfa/verify",
+        json={"mfa_token": mfa_token, "code": code},
+    )
+    assert r.status_code == 200, r.text
+    data = r.json()
+    assert data.get("wxcode_redirect_url") == "https://app.wxcode.io"
+    assert data.get("wxcode_code") is not None
+
+    # Exchange code for tokens
+    exchange_resp = await c.post(
+        "/api/v1/auth/wxcode/exchange",
+        json={"code": data["wxcode_code"]},
+    )
+    assert exchange_resp.status_code == 200
+    assert "access_token" in exchange_resp.json()
+
+    # Code is single-use
+    exchange_resp2 = await c.post(
+        "/api/v1/auth/wxcode/exchange",
+        json={"code": data["wxcode_code"]},
+    )
+    assert exchange_resp2.status_code == 401
+
+
 # ---------------------------------------------------------------------------
 # SC5: Tenant MFA enforcement (AUTH-12)
 # ---------------------------------------------------------------------------
