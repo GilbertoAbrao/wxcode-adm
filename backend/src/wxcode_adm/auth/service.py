@@ -1628,7 +1628,8 @@ async def mfa_verify(
        the plaintext device_token in the returned dict for cookie-setting.
 
     Returns:
-        dict with access_token, refresh_token, and optionally device_token.
+        dict with access_token, refresh_token, and optionally device_token,
+        wxcode_redirect_url, and wxcode_code (when tenant has wxcode_url configured).
 
     Raises:
         InvalidTokenError: mfa_token not found in Redis.
@@ -1713,6 +1714,20 @@ async def mfa_verify(
         "access_token": token_response.access_token,
         "refresh_token": token_response.refresh_token,
     }
+
+    # Phase 9: wxcode redirect — same pattern as non-MFA login path
+    redirect_url, tenant_id = await get_redirect_url(db, user)
+    if redirect_url:
+        wxcode_code = await create_wxcode_code(
+            redis,
+            str(user.id),
+            token_response.access_token,
+            token_response.refresh_token,
+        )
+        result["wxcode_redirect_url"] = redirect_url
+        result["wxcode_code"] = wxcode_code
+        if tenant_id is not None:
+            user.last_used_tenant_id = tenant_id
 
     # 7. Create trusted device record if requested
     if trust_device:
