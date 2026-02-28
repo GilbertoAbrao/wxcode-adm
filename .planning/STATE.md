@@ -5,14 +5,14 @@
 See: .planning/PROJECT.md (updated 2026-02-22)
 
 **Core value:** Controlar acesso seguro a plataforma WXCODE com identidade, permissoes por tenant e cobranca recorrente — sem executar nenhuma operacao do wxcode engine.
-**Current focus:** Phase 8 — Super-Admin
+**Current focus:** Phase 9 — MFA Wxcode Redirect Fix (Gap Closure)
 
 ## Current Position
 
-Phase: 8 of 8 (Super-Admin) — Complete
-Plan: 4 of 4 in current phase (08-04 complete — MRR dashboard, migration 007, 18 integration tests; all 147 tests passing)
-Status: Phase 8 complete — All 4 plans done; ALL PHASES COMPLETE
-Last activity: 2026-02-26 — Plan 08-04 complete: MRR dashboard, migration 007, 18 integration tests covering all 5 SADM criteria
+Phase: 9 of 9 (MFA Wxcode Redirect Fix) — Complete
+Plan: 1 of 1 in current phase (09-01 complete — mfa_verify wxcode redirect, integration test; all 148 tests passing)
+Status: Phase 9 complete — 1 plan done; ALL PHASES COMPLETE (v1.0 milestone fully closed)
+Last activity: 2026-02-28 — Plan 09-01 complete: mfa_verify patched to emit wxcode_redirect_url+wxcode_code, test_mfa_verify_includes_wxcode_redirect proves full MFA->wxcode->exchange flow; 148 tests passing
 
 Progress: [██████████████████████████████] 100%
 
@@ -213,6 +213,8 @@ Recent decisions affecting current work:
 - [Phase 08-04]: [08-04]: server_default=sa.text('false') on all 4 new Boolean columns — existing rows get False immediately without data migration
 - [Phase 08-04]: [08-04]: hasattr() guards replaced with direct attribute access — migration 007 now declares columns on Tenant, TenantMembership, and User models
 - [Phase 08-04]: [08-04]: httpx AsyncClient.delete() does not accept json= kwarg — use client.request('DELETE', ..., content=json.dumps(...)) for DELETE with body in tests
+- [09-01]: mfa_verify inserts wxcode block between _issue_tokens and trusted device — mirrors non-MFA login path; no router.py changes needed (result.get passthrough already present at line 338)
+- [09-01]: wxcode redirect pattern: get_redirect_url(db, user) -> if url: create_wxcode_code -> add to result dict -> update last_used_tenant_id — same 4-step sequence in both MFA and non-MFA paths
 
 ### Pending Todos
 
@@ -226,6 +228,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-02-26
-Stopped at: Completed 08-04-PLAN.md — MRR dashboard, migration 007 (4 Boolean columns), 18 integration tests covering all 5 SADM criteria; 147 tests passing; Phase 8 complete
+Last session: 2026-02-28
+Stopped at: Completed 09-01-PLAN.md — mfa_verify wxcode redirect patch (+15 lines), integration test test_mfa_verify_includes_wxcode_redirect; 148 tests passing; Phase 9 complete; ALL PHASES COMPLETE (v1.0 milestone fully closed)
 Resume file: .planning/ (ALL PHASES COMPLETE — project finished)
