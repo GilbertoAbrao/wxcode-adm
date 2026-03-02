@@ -22,6 +22,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 8: Super-Admin** - Tenant and user management, MRR dashboard, super-admin isolation (completed 2026-02-26)
 - [x] **Phase 9: MFA-wxcode Redirect Fix** - Fix mfa_verify to generate wxcode redirect after TOTP verification (gap closure) (completed 2026-02-28)
 - [ ] **Phase 10: API Key Management** - Tenant API keys with granular scopes, revocation, and rotation (gap closure)
+- [ ] **Phase 11: Billing Integration Fixes** - Fix payment failure blacklist bug and billing admin JWT audience isolation (gap closure)
 
 ## Phase Details
 
@@ -218,10 +219,26 @@ Plans:
 
 **Phase requirement IDs (every ID MUST appear in a plan's `requirements` field):** PLAT-01, PLAT-02
 
+### Phase 11: Billing Integration Fixes
+**Goal**: Payment failure webhook correctly revokes all active access tokens, and billing admin routes enforce admin JWT audience isolation — closing the two integration gaps found in the v1.0 audit
+**Depends on**: Phase 4, Phase 8
+**Requirements**: BILL-01 (strengthened), BILL-03 (strengthened), BILL-05 (strengthened)
+**Gap Closure**: Closes INT-01 (critical: payment failure blacklist bug), INT-02 (medium: billing admin JWT bypass), and flow gap #8 from v1.0 audit
+**Success Criteria** (what must be TRUE):
+  1. When `_handle_payment_failed` runs, it queries `UserSession.access_token_jti` for each affected user and calls `blacklist_jti(redis, jti)` — the same pattern used in `admin/service.py:suspend_tenant`; existing access tokens are immediately invalidated
+  2. All billing admin routes (plan CRUD) use `require_admin` from `admin/dependencies.py` instead of local `require_superuser` — a regular user JWT (even with `is_superuser=True`) receives 401/403 on admin billing endpoints
+  3. Integration test verifies E2E flow #8: payment failure webhook → subscription PAST_DUE → access tokens blacklisted → member blocked on platform-level endpoints
+**Plans**: 1 plan
+
+Plans:
+- [ ] 11-01-PLAN.md — Fix _handle_payment_failed blacklist (use UserSession.access_token_jti), replace require_superuser with require_admin on billing admin routes, integration tests for INT-01 and INT-02
+
+**Phase requirement IDs (every ID MUST appear in a plan's `requirements` field):** BILL-01, BILL-03, BILL-05
+
 ## Progress
 
 **Execution Order:**
-Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7 -> 8 -> 9 -> 10
+Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7 -> 8 -> 9 -> 10 -> 11
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
@@ -235,3 +252,4 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7 -> 8 -> 9 -> 10
 | 8. Super-Admin | 4/4 | Complete   | 2026-02-26 |
 | 9. MFA-wxcode Redirect Fix | 1/1 | Complete   | 2026-02-28 |
 | 10. API Key Management | 0/1 | Pending | |
+| 11. Billing Integration Fixes | 0/1 | Pending | |

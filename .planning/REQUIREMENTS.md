@@ -142,11 +142,11 @@ Which phases cover which requirements. Updated during roadmap creation.
 | RBAC-01 | Phase 3 | Complete |
 | RBAC-02 | Phase 3 | Complete |
 | RBAC-03 | Phase 3 | Complete |
-| BILL-01 | Phase 4 | Complete |
+| BILL-01 | Phase 4+11 | Complete (Phase 11 strengthens: admin JWT isolation) |
 | BILL-02 | Phase 4 | Complete |
-| BILL-03 | Phase 4 | Complete |
+| BILL-03 | Phase 4+11 | Complete (Phase 11 strengthens: payment failure blacklist fix) |
 | BILL-04 | Phase 4 | Complete |
-| BILL-05 | Phase 4 | Complete |
+| BILL-05 | Phase 4+11 | Complete (Phase 11 strengthens: payment failure blacklist fix) |
 | PLAT-01 | Phase 10 | Pending |
 | PLAT-02 | Phase 10 | Pending |
 | PLAT-03 | Phase 5 | Complete |
