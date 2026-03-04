@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-03-04)
 ## Current Position
 
 Phase: 12 of 17 (Design System Foundation) — first phase of v2.0 Frontend UI milestone
-Plan: 0 of 3 in current phase
-Status: Ready to plan
-Last activity: 2026-03-04 — v2.0 roadmap created (Phases 12-17, 22 requirements mapped)
+Plan: 1 of 3 in current phase
+Status: In progress
+Last activity: 2026-03-04 — 12-01 complete (Next.js 16 + Tailwind v4 + shadcn/ui bootstrapped)
 
-Progress: [████████████░░░░░░░░░░░░░░░░░░] 38% (v1.0 complete; v2.0 starting)
+Progress: [█████████████░░░░░░░░░░░░░░░░░] 40% (v1.0 complete; v2.0 Phase 12 Plan 1/3 done)
 
 ## Performance Metrics
 
@@ -53,6 +53,9 @@ Recent decisions affecting v2.0:
 - [v2.0 start]: Backend API already live at localhost:8040 — frontend is pure UI, no backend changes required
 - [v2.0 start]: Phase 17 (Super-Admin UI) depends only on Phase 12 (design system), not on Phases 13-16 — can run in parallel with tenant/billing phases if needed
 - [v1.0]: ALL v1.0 phases complete EXCEPT Phase 10 (API Key Management, PLAT-01/PLAT-02 — pending)
+- [12-01]: Port 3040 for wxcode-adm frontend (distinct from wxcode:3052 and backend:8040)
+- [12-01]: Tailwind v4 uses @theme inline CSS-first config — no tailwind.config.js needed
+- [12-01]: oklch color tokens for shadcn CSS variables (perceptually uniform, Tailwind v4 native)
 
 ### Pending Todos
 
@@ -65,5 +68,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-03-04
-Stopped at: v2.0 roadmap created — ROADMAP.md updated with phases 12-17, STATE.md reset for v2.0, REQUIREMENTS.md traceability updated
-Resume file: None — start with `/gsd:plan-phase 12`
+Stopped at: Completed 12-01-PLAN.md — Next.js 16 + Tailwind v4 + shadcn/ui frontend bootstrapped
+Resume file: None — continue with `/gsd:execute-phase 12` (Plans 02 and 03 remaining)
