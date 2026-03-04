@@ -22,7 +22,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 8: Super-Admin** - Tenant and user management, MRR dashboard, super-admin isolation (completed 2026-02-26)
 - [x] **Phase 9: MFA-wxcode Redirect Fix** - Fix mfa_verify to generate wxcode redirect after TOTP verification (gap closure) (completed 2026-02-28)
 - [ ] **Phase 10: API Key Management** - Tenant API keys with granular scopes, revocation, and rotation (gap closure)
-- [ ] **Phase 11: Billing Integration Fixes** - Fix payment failure blacklist bug and billing admin JWT audience isolation (gap closure)
+- [x] **Phase 11: Billing Integration Fixes** - Fix payment failure blacklist bug and billing admin JWT audience isolation (gap closure) (completed 2026-03-04)
 
 ## Phase Details
 
@@ -252,4 +252,4 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7 -> 8 -> 9 -> 10
 | 8. Super-Admin | 4/4 | Complete   | 2026-02-26 |
 | 9. MFA-wxcode Redirect Fix | 1/1 | Complete   | 2026-02-28 |
 | 10. API Key Management | 0/1 | Pending | |
-| 11. Billing Integration Fixes | 0/1 | Pending | |
+| 11. Billing Integration Fixes | 1/1 | Complete   | 2026-03-04 |

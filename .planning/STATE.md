@@ -5,14 +5,14 @@
 See: .planning/PROJECT.md (updated 2026-02-22)
 
 **Core value:** Controlar acesso seguro a plataforma WXCODE com identidade, permissoes por tenant e cobranca recorrente — sem executar nenhuma operacao do wxcode engine.
-**Current focus:** Phase 9 — MFA Wxcode Redirect Fix (Gap Closure)
+**Current focus:** Phase 11 — Billing Integration Fixes (Gap Closure) — Complete
 
 ## Current Position
 
-Phase: 9 of 9 (MFA Wxcode Redirect Fix) — Complete
-Plan: 1 of 1 in current phase (09-01 complete — mfa_verify wxcode redirect, integration test; all 148 tests passing)
-Status: Phase 9 complete — 1 plan done; ALL PHASES COMPLETE (v1.0 milestone fully closed)
-Last activity: 2026-02-28 — Plan 09-01 complete: mfa_verify patched to emit wxcode_redirect_url+wxcode_code, test_mfa_verify_includes_wxcode_redirect proves full MFA->wxcode->exchange flow; 148 tests passing
+Phase: 11 of 11 (Billing Integration Fixes) — Complete
+Plan: 1 of 1 in current phase (11-01 complete — fixed INT-01 blacklist_jti via UserSession.access_token_jti, fixed INT-02 require_admin on billing admin routes; 149 tests passing)
+Status: Phase 11 complete — 1 plan done; ALL PHASES COMPLETE (v1.0 billing integration gaps fully closed)
+Last activity: 2026-03-04 — Plan 11-01 complete: fixed _handle_payment_failed token blacklisting + require_admin on billing admin routes + E2E flow #8 test; 149 tests passing
 
 Progress: [██████████████████████████████] 100%
 
@@ -68,6 +68,7 @@ Progress: [███████████████████████
 | Phase 08-super-admin P02 | 3 | 2 tasks | 3 files |
 | Phase 08-super-admin P03 | 7 | 2 tasks | 4 files |
 | Phase 08-super-admin P04 | 7 | 2 tasks | 9 files |
+| Phase 11-billing-integration-fixes P01 | 5 | 2 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -215,6 +216,7 @@ Recent decisions affecting current work:
 - [Phase 08-04]: [08-04]: httpx AsyncClient.delete() does not accept json= kwarg — use client.request('DELETE', ..., content=json.dumps(...)) for DELETE with body in tests
 - [09-01]: mfa_verify inserts wxcode block between _issue_tokens and trusted device — mirrors non-MFA login path; no router.py changes needed (result.get passthrough already present at line 338)
 - [09-01]: wxcode redirect pattern: get_redirect_url(db, user) -> if url: create_wxcode_code -> add to result dict -> update last_used_tenant_id — same 4-step sequence in both MFA and non-MFA paths
+- [Phase 11-billing-integration-fixes]: [11-01]: _handle_payment_failed uses UserSession.access_token_jti + blacklist_jti for token revocation; billing admin routes use require_admin for admin-audience JWT enforcement; test_regular_jwt_rejected_on_billing_admin expects 401 (not 403)
 
 ### Pending Todos
 
@@ -228,6 +230,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-02-28
-Stopped at: Completed 09-01-PLAN.md — mfa_verify wxcode redirect patch (+15 lines), integration test test_mfa_verify_includes_wxcode_redirect; 148 tests passing; Phase 9 complete; ALL PHASES COMPLETE (v1.0 milestone fully closed)
+Last session: 2026-03-04
+Stopped at: Completed 11-01-PLAN.md — fixed _handle_payment_failed token blacklisting (INT-01) + require_admin on billing admin routes (INT-02) + E2E flow #8 test; 149 tests passing; Phase 11 complete; ALL PHASES COMPLETE (v1.0 milestone fully closed)
 Resume file: .planning/ (ALL PHASES COMPLETE — project finished)
