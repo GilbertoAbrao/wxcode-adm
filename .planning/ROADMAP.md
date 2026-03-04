@@ -321,7 +321,7 @@ v2.0 phases execute in numeric order: 12 → 13 → 14 → 15 → 16 → 17
 | 11. Billing Integration Fixes | v1.0 | 1/1 | Complete | 2026-03-04 |
 | 12. Design System Foundation | v2.0 | 3/3 | Complete | 2026-03-04 |
 | 13. Auth Flows UI | 4/4 | Complete    | 2026-03-04 | - |
-| 14. User Account UI | v2.0 | 0/2 | Not started | - |
+| 14. User Account UI | 1/2 | In Progress|  | - |
 | 15. Tenant Management UI | v2.0 | 0/2 | Not started | - |
 | 16. Billing UI | v2.0 | 0/2 | Not started | - |
 | 17. Super-Admin UI | v2.0 | 0/3 | Not started | - |

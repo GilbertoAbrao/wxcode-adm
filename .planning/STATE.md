@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-03-04)
 
 **Core value:** Controlar acesso seguro a plataforma WXCODE com identidade, permissoes por tenant e cobranca recorrente — sem executar nenhuma operacao do wxcode engine.
-**Current focus:** Milestone v2.0 — Phase 13: Auth Flows UI (complete)
+**Current focus:** Milestone v2.0 — Phase 14: User Account UI (in progress)
 
 ## Current Position
 
-Phase: 13 of 17 (Auth Flows UI) — second phase of v2.0 Frontend UI milestone
-Plan: 4 of 4 in current phase — complete
+Phase: 14 of 17 (User Account UI) — third phase of v2.0 Frontend UI milestone
+Plan: 1 of 2 in current phase — complete
 Status: In progress
-Last activity: 2026-03-04 — 13-04 complete (MFA verify page, workspace onboarding page, full auth journey)
+Last activity: 2026-03-04 — 14-01 complete (useUserAccount hooks, /account page profile section)
 
-Progress: [████████████████░░░░░░░░░░░░░░] 51% (v1.0 complete; v2.0 Phase 12 complete 3/3, Phase 13 complete 4/4)
+Progress: [█████████████████░░░░░░░░░░░░░] 54% (v1.0 complete; v2.0 Phase 12 complete 3/3, Phase 13 complete 4/4, Phase 14 plan 1/2 complete)
 
 ## Performance Metrics
 
@@ -77,6 +77,9 @@ Recent decisions affecting v2.0:
 - [13-03]: Enumeration-safe forgot-password: always shows success state after submit regardless of whether email exists — prevents user enumeration attacks
 - [13-03]: reset-password shows inline error state with recovery link when token is missing (not a redirect) — better UX for confused users
 - [13-04]: Trust device stored in local state only — not validated by Zod, passed directly as boolean to mutation
+- [14-01]: Avatar upload uses direct fetch (not apiClient) — apiClient forces Content-Type: application/json which breaks multipart/form-data boundary; direct fetch with only Authorization header lets browser set correct Content-Type
+- [14-01]: Account page inline ProfileSection component — keeps form state (fileInputRef, showSaved, react-hook-form register) co-located, appropriate for plan scope
+- [14-01]: Password/Sessions sections stubbed as visible placeholder cards — maintains 3-section page structure for Plan 14-02 to populate
 
 ### Pending Todos
 
@@ -89,5 +92,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-03-04
-Stopped at: Completed 13-03-PLAN.md — verify-email OTP page (pre-built in 13-02), forgot-password enumeration-safe form, reset-password token-based form with match validation
-Resume file: None — continue with 13-04-PLAN.md (MFA verify page, workspace onboarding)
+Stopped at: Completed 14-01-PLAN.md — useUserAccount.ts hooks (7 exported), /account page with profile section (avatar upload + display name edit)
+Resume file: None — continue with 14-02-PLAN.md (Password change section + Sessions management section)
