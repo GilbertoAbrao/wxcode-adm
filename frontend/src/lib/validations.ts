@@ -69,6 +69,17 @@ export const mfaCodeSchema = z.object({
     .max(11, "Code must be at most 11 characters"),
 });
 
+export const changePasswordSchema = z
+  .object({
+    current_password: z.string().min(1, "Current password is required"),
+    new_password: passwordSchema,
+    confirm_password: z.string(),
+  })
+  .refine((data) => data.new_password === data.confirm_password, {
+    message: "Passwords do not match",
+    path: ["confirm_password"],
+  });
+
 // ---------------------------------------------------------------------------
 // Type aliases (inferred from schemas)
 // ---------------------------------------------------------------------------
@@ -80,3 +91,4 @@ export type ResetPasswordFormData = z.infer<typeof resetPasswordSchema>;
 export type VerifyEmailFormData = z.infer<typeof verifyEmailSchema>;
 export type WorkspaceFormData = z.infer<typeof workspaceSchema>;
 export type MfaCodeFormData = z.infer<typeof mfaCodeSchema>;
+export type ChangePasswordFormData = z.infer<typeof changePasswordSchema>;
