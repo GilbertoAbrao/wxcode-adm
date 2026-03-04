@@ -202,7 +202,7 @@ Plans:
 
 ---
 
-### 🚧 v2.0 Frontend UI (In Progress)
+### v2.0 Frontend UI (In Progress)
 
 **Milestone Goal:** Criar toda a interface web do wxcode-adm — auth flows, gestao de tenant, billing, user account e super-admin panel — usando a mesma identidade visual (Obsidian Studio) do wxcode frontend. Stack: Next.js 16, React 19, Tailwind CSS v4, shadcn/ui (new-york), TypeScript, TanStack React Query.
 
@@ -217,12 +217,12 @@ Plans:
   2. GlowButton, GlowInput, LoadingSkeleton, EmptyState, ErrorState, and AnimatedList components are importable from the component library and render correctly with their Obsidian Studio styles in a browser
   3. The app shell layout displays a sidebar navigation on desktop, collapses to a hamburger on mobile, and enforces dark mode globally (no light mode flash or fallback)
   4. Tailwind CSS v4, shadcn/ui (new-york), and TypeScript path aliases (@/) resolve correctly with no build errors
-**Plans**: TBD
+**Plans**: 3 plans
 
 Plans:
-- [ ] 12-01: Next.js 16 project init, Tailwind CSS v4, shadcn/ui new-york, TypeScript config, path aliases, pnpm workspace
-- [ ] 12-02: Port Obsidian Studio theme (globals.css, tokens.css) and custom components (GlowButton, GlowInput, LoadingSkeleton, EmptyState, ErrorState, AnimatedList) from wxcode frontend
-- [ ] 12-03: App shell layout (sidebar navigation, responsive, dark mode enforced), TanStack React Query provider setup
+- [ ] 12-01-PLAN.md — Next.js 16 project init with pnpm, Tailwind CSS v4, shadcn/ui new-york config, TypeScript path aliases, dev server boot
+- [ ] 12-02-PLAN.md — Port Obsidian Studio theme (globals.css, design tokens) and 6 custom components (GlowButton, GlowInput, LoadingSkeleton, EmptyState, ErrorState, AnimatedList) from wxcode frontend
+- [ ] 12-03-PLAN.md — App shell layout (responsive sidebar navigation, dark mode enforced), TanStack React Query provider, visual verification
 
 ### Phase 13: Auth Flows UI
 **Goal**: A user arriving at the wxcode-adm URL can complete the full authentication journey — sign up, verify email, log in, reset password, handle MFA, create their workspace, and land in the wxcode app — entirely through the UI with no manual API calls
@@ -319,7 +319,7 @@ v2.0 phases execute in numeric order: 12 → 13 → 14 → 15 → 16 → 17
 | 9. MFA-wxcode Redirect Fix | v1.0 | 1/1 | Complete | 2026-02-28 |
 | 10. API Key Management | v1.0 | 0/1 | Pending | - |
 | 11. Billing Integration Fixes | v1.0 | 1/1 | Complete | 2026-03-04 |
-| 12. Design System Foundation | v2.0 | 0/3 | Not started | - |
+| 12. Design System Foundation | v2.0 | 0/3 | Planning | - |
 | 13. Auth Flows UI | v2.0 | 0/4 | Not started | - |
 | 14. User Account UI | v2.0 | 0/2 | Not started | - |
 | 15. Tenant Management UI | v2.0 | 0/2 | Not started | - |
