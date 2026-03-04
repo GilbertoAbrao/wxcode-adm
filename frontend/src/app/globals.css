@@ -1,81 +1,431 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 
+/**
+ * Design Tokens: Obsidian Studio
+ * (inlined from tokens.css to avoid turbopack path resolution issues)
+ */
+:root {
+  /* OBSIDIAN PALETTE - Deep blacks with subtle blue undertones */
+  --obsidian-950: #09090b;
+  --obsidian-900: #0c0c0f;
+  --obsidian-850: #111114;
+  --obsidian-800: #18181b;
+  --obsidian-700: #27272a;
+  --obsidian-600: #3f3f46;
+  --obsidian-500: #52525b;
+  --obsidian-400: #71717a;
+  --obsidian-300: #a1a1aa;
+  --obsidian-200: #d4d4d8;
+  --obsidian-100: #f4f4f5;
+  --obsidian-50: #fafafa;
+
+  /* ACCENT COLORS WITH GLOW VARIANTS */
+  --accent-blue: #3b82f6;
+  --accent-blue-light: #60a5fa;
+  --accent-blue-dark: #2563eb;
+  --accent-blue-glow: rgba(59, 130, 246, 0.4);
+  --accent-blue-subtle: rgba(59, 130, 246, 0.1);
+  --accent-blue-ring: rgba(59, 130, 246, 0.5);
+
+  --accent-green: #10b981;
+  --accent-green-light: #34d399;
+  --accent-green-dark: #059669;
+  --accent-green-glow: rgba(16, 185, 129, 0.4);
+  --accent-green-subtle: rgba(16, 185, 129, 0.1);
+  --accent-green-ring: rgba(16, 185, 129, 0.5);
+
+  --accent-purple: #8b5cf6;
+  --accent-purple-light: #a78bfa;
+  --accent-purple-dark: #7c3aed;
+  --accent-purple-glow: rgba(139, 92, 246, 0.4);
+  --accent-purple-subtle: rgba(139, 92, 246, 0.1);
+  --accent-purple-ring: rgba(139, 92, 246, 0.5);
+
+  --accent-amber: #f59e0b;
+  --accent-amber-light: #fbbf24;
+  --accent-amber-dark: #d97706;
+  --accent-amber-glow: rgba(245, 158, 11, 0.4);
+  --accent-amber-subtle: rgba(245, 158, 11, 0.1);
+  --accent-amber-ring: rgba(245, 158, 11, 0.5);
+
+  --accent-rose: #f43f5e;
+  --accent-rose-light: #fb7185;
+  --accent-rose-dark: #e11d48;
+  --accent-rose-glow: rgba(244, 63, 94, 0.4);
+  --accent-rose-subtle: rgba(244, 63, 94, 0.1);
+  --accent-rose-ring: rgba(244, 63, 94, 0.5);
+
+  /* SPACING */
+  --space-0: 0;
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-5: 1.25rem;
+  --space-6: 1.5rem;
+  --space-8: 2rem;
+  --space-10: 2.5rem;
+  --space-12: 3rem;
+  --space-16: 4rem;
+
+  /* SHADOWS & GLOWS */
+  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1);
+  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -4px rgba(0, 0, 0, 0.1);
+  --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+  --glow-blue: 0 0 20px var(--accent-blue-glow), 0 0 40px var(--accent-blue-subtle);
+  --glow-green: 0 0 20px var(--accent-green-glow), 0 0 40px var(--accent-green-subtle);
+  --glow-purple: 0 0 20px var(--accent-purple-glow), 0 0 40px var(--accent-purple-subtle);
+  --glow-amber: 0 0 20px var(--accent-amber-glow), 0 0 40px var(--accent-amber-subtle);
+  --glow-rose: 0 0 20px var(--accent-rose-glow), 0 0 40px var(--accent-rose-subtle);
+
+  /* TRANSITIONS */
+  --transition-fast: 150ms ease-out;
+  --transition-normal: 200ms ease-out;
+  --transition-slow: 300ms ease-out;
+  --transition-spring: 300ms cubic-bezier(0.34, 1.56, 0.64, 1);
+
+  /* Z-INDEX */
+  --z-base: 0;
+  --z-elevated: 10;
+  --z-dropdown: 100;
+  --z-sticky: 200;
+  --z-modal: 300;
+  --z-popover: 400;
+  --z-overlay: 500;
+  --z-toast: 600;
+}
+
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --color-card: var(--card);
-  --color-card-foreground: var(--card-foreground);
-  --color-popover: var(--popover);
-  --color-popover-foreground: var(--popover-foreground);
-  --color-primary: var(--primary);
-  --color-primary-foreground: var(--primary-foreground);
-  --color-secondary: var(--secondary);
-  --color-secondary-foreground: var(--secondary-foreground);
-  --color-muted: var(--muted);
-  --color-muted-foreground: var(--muted-foreground);
-  --color-accent: var(--accent);
-  --color-accent-foreground: var(--accent-foreground);
-  --color-destructive: var(--destructive);
-  --color-border: var(--border);
-  --color-input: var(--input);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar: var(--sidebar);
+  --color-chart-5: var(--chart-5);
+  --color-chart-4: var(--chart-4);
+  --color-chart-3: var(--chart-3);
+  --color-chart-2: var(--chart-2);
+  --color-chart-1: var(--chart-1);
   --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-border: var(--border);
+  --color-destructive: var(--destructive);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent: var(--accent);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-muted: var(--muted);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary: var(--secondary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary: var(--primary);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--popover);
+  --color-card-foreground: var(--card-foreground);
+  --color-card: var(--card);
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
   --radius-xl: calc(var(--radius) + 4px);
+  --radius-2xl: calc(var(--radius) + 8px);
+  --radius-3xl: calc(var(--radius) + 12px);
+  --radius-4xl: calc(var(--radius) + 16px);
 }
 
 :root {
   --radius: 0.625rem;
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.205 0 0);
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.97 0 0);
-  --secondary-foreground: oklch(0.205 0 0);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
-  --accent: oklch(0.97 0 0);
-  --accent-foreground: oklch(0.205 0 0);
-  --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.922 0 0);
-  --input: oklch(0.922 0 0);
-  --ring: oklch(0.708 0 0);
+  --background: var(--obsidian-100);
+  --foreground: var(--obsidian-900);
+  --card: var(--obsidian-50);
+  --card-foreground: var(--obsidian-900);
+  --popover: var(--obsidian-50);
+  --popover-foreground: var(--obsidian-900);
+  --primary: var(--accent-blue);
+  --primary-foreground: var(--obsidian-50);
+  --secondary: var(--obsidian-200);
+  --secondary-foreground: var(--obsidian-900);
+  --muted: var(--obsidian-200);
+  --muted-foreground: var(--obsidian-500);
+  --accent: var(--obsidian-200);
+  --accent-foreground: var(--obsidian-900);
+  --destructive: var(--accent-rose);
+  --border: var(--obsidian-300);
+  --input: var(--obsidian-300);
+  --ring: var(--accent-blue-ring);
+  --chart-1: var(--accent-blue);
+  --chart-2: var(--accent-green);
+  --chart-3: var(--accent-amber);
+  --chart-4: var(--accent-purple);
+  --chart-5: var(--accent-rose);
+  --sidebar: var(--obsidian-100);
+  --sidebar-foreground: var(--obsidian-900);
+  --sidebar-primary: var(--accent-blue);
+  --sidebar-primary-foreground: var(--obsidian-50);
+  --sidebar-accent: var(--obsidian-200);
+  --sidebar-accent-foreground: var(--obsidian-900);
+  --sidebar-border: var(--obsidian-300);
+  --sidebar-ring: var(--accent-blue-ring);
 }
 
+/* ========================================
+ * DARK MODE - OBSIDIAN STUDIO
+ * Premium dark theme with blue undertones
+ * ======================================== */
 .dark {
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.205 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.205 0 0);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.922 0 0);
-  --primary-foreground: oklch(0.205 0 0);
-  --secondary: oklch(0.269 0 0);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.269 0 0);
-  --accent-foreground: oklch(0.985 0 0);
-  --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.556 0 0);
+  --background: var(--obsidian-950);
+  --foreground: var(--obsidian-100);
+  --card: var(--obsidian-900);
+  --card-foreground: var(--obsidian-100);
+  --popover: var(--obsidian-900);
+  --popover-foreground: var(--obsidian-100);
+  --primary: var(--accent-blue);
+  --primary-foreground: var(--obsidian-50);
+  --secondary: var(--obsidian-800);
+  --secondary-foreground: var(--obsidian-100);
+  --muted: var(--obsidian-800);
+  --muted-foreground: var(--obsidian-400);
+  --accent: var(--obsidian-800);
+  --accent-foreground: var(--obsidian-100);
+  --destructive: var(--accent-rose);
+  --border: var(--obsidian-800);
+  --input: var(--obsidian-800);
+  --ring: var(--accent-blue-ring);
+  --chart-1: var(--accent-blue);
+  --chart-2: var(--accent-green);
+  --chart-3: var(--accent-amber);
+  --chart-4: var(--accent-purple);
+  --chart-5: var(--accent-rose);
+  --sidebar: var(--obsidian-900);
+  --sidebar-foreground: var(--obsidian-100);
+  --sidebar-primary: var(--accent-blue);
+  --sidebar-primary-foreground: var(--obsidian-50);
+  --sidebar-accent: var(--obsidian-800);
+  --sidebar-accent-foreground: var(--obsidian-100);
+  --sidebar-border: var(--obsidian-800);
+  --sidebar-ring: var(--accent-blue-ring);
 }
 
 @layer base {
   * {
     @apply border-border outline-ring/50;
   }
+
   body {
     @apply bg-background text-foreground;
+    font-feature-settings: "rlig" 1, "calt" 1;
   }
+
+  /* Smooth scrolling */
+  html {
+    scroll-behavior: smooth;
+  }
+
+  /* Better focus outlines */
+  :focus-visible {
+    @apply outline-2 outline-offset-2 outline-primary;
+  }
+
+  /* Selection color */
+  ::selection {
+    background-color: var(--accent-blue-subtle);
+    color: var(--obsidian-100);
+  }
+}
+
+/* ========================================
+ * GRAIN TEXTURE OVERLAY
+ * Subtle noise for depth and premium feel
+ * ======================================== */
+.dark body::before {
+  content: "";
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 9999;
+  opacity: 0.03;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
+}
+
+/* ========================================
+ * GLOBAL TRANSITIONS
+ * Smooth interactions everywhere
+ * ======================================== */
+@layer utilities {
+  .transition-default {
+    transition: all var(--transition-normal);
+  }
+
+  .transition-fast {
+    transition: all var(--transition-fast);
+  }
+
+  .transition-slow {
+    transition: all var(--transition-slow);
+  }
+
+  .transition-spring {
+    transition: all var(--transition-spring);
+  }
+
+  /* Glow effects */
+  .glow-blue {
+    box-shadow: var(--glow-blue);
+  }
+
+  .glow-green {
+    box-shadow: var(--glow-green);
+  }
+
+  .glow-purple {
+    box-shadow: var(--glow-purple);
+  }
+
+  .glow-amber {
+    box-shadow: var(--glow-amber);
+  }
+
+  .glow-rose {
+    box-shadow: var(--glow-rose);
+  }
+
+  /* Hover glow utilities */
+  .hover\:glow-blue:hover {
+    box-shadow: var(--glow-blue);
+  }
+
+  .hover\:glow-green:hover {
+    box-shadow: var(--glow-green);
+  }
+
+  .hover\:glow-purple:hover {
+    box-shadow: var(--glow-purple);
+  }
+
+  /* Glass effect */
+  .glass {
+    background: rgba(12, 12, 15, 0.8);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+  }
+
+  /* Shimmer animation for skeletons */
+  @keyframes shimmer {
+    0% {
+      background-position: -200% 0;
+    }
+    100% {
+      background-position: 200% 0;
+    }
+  }
+
+  .animate-shimmer {
+    background: linear-gradient(
+      90deg,
+      var(--obsidian-800) 0%,
+      var(--obsidian-700) 50%,
+      var(--obsidian-800) 100%
+    );
+    background-size: 200% 100%;
+    animation: shimmer 1.5s ease-in-out infinite;
+  }
+
+  /* Glow pulse animation */
+  @keyframes glow-pulse {
+    0%, 100% {
+      box-shadow: 0 0 10px var(--accent-blue-glow);
+    }
+    50% {
+      box-shadow: 0 0 20px var(--accent-blue-glow), 0 0 30px var(--accent-blue-subtle);
+    }
+  }
+
+  .animate-glow-pulse {
+    animation: glow-pulse 2s ease-in-out infinite;
+  }
+
+  /* Fade in animation */
+  @keyframes fade-in {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+
+  .animate-fade-in {
+    animation: fade-in 0.3s ease-out forwards;
+  }
+
+  /* Fade in up animation */
+  @keyframes fade-in-up {
+    from {
+      opacity: 0;
+      transform: translateY(10px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  .animate-fade-in-up {
+    animation: fade-in-up 0.3s ease-out forwards;
+  }
+
+  /* Scale in animation */
+  @keyframes scale-in {
+    from {
+      opacity: 0;
+      transform: scale(0.95);
+    }
+    to {
+      opacity: 1;
+      transform: scale(1);
+    }
+  }
+
+  .animate-scale-in {
+    animation: scale-in 0.2s ease-out forwards;
+  }
+}
+
+/* ========================================
+ * SCROLLBAR STYLING
+ * Custom scrollbars for dark mode
+ * ======================================== */
+.dark {
+  scrollbar-width: thin;
+  scrollbar-color: var(--obsidian-700) transparent;
+}
+
+.dark ::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.dark ::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.dark ::-webkit-scrollbar-thumb {
+  background: var(--obsidian-700);
+  border-radius: var(--radius-full);
+}
+
+.dark ::-webkit-scrollbar-thumb:hover {
+  background: var(--obsidian-600);
 }
