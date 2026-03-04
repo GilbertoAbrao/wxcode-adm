@@ -80,8 +80,8 @@ Requirements for v2.0 milestone. Each maps to roadmap phases.
 
 ### Auth UI
 
-- [ ] **AUI-01**: User can sign up with email and password via a signup form with validation
-- [ ] **AUI-02**: User can log in with email and password via a login form
+- [x] **AUI-01**: User can sign up with email and password via a signup form with validation
+- [x] **AUI-02**: User can log in with email and password via a login form
 - [ ] **AUI-03**: User sees email verification page and can enter 6-digit OTP code after signup
 - [ ] **AUI-04**: User can request password reset via email and set new password via reset link
 - [ ] **AUI-05**: User is prompted for TOTP code on login when MFA is enabled, with backup code fallback
@@ -215,8 +215,8 @@ Which phases cover which requirements. Updated during roadmap creation.
 | DS-01 | Phase 12 | Complete |
 | DS-02 | Phase 12 | Complete |
 | DS-03 | Phase 12 | Complete |
-| AUI-01 | Phase 13 | Pending |
-| AUI-02 | Phase 13 | Pending |
+| AUI-01 | Phase 13 | Complete |
+| AUI-02 | Phase 13 | Complete |
 | AUI-03 | Phase 13 | Pending |
 | AUI-04 | Phase 13 | Pending |
 | AUI-05 | Phase 13 | Pending |

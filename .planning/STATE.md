@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-03-04)
 
 **Core value:** Controlar acesso seguro a plataforma WXCODE com identidade, permissoes por tenant e cobranca recorrente — sem executar nenhuma operacao do wxcode engine.
-**Current focus:** Milestone v2.0 — Phase 12: Design System Foundation
+**Current focus:** Milestone v2.0 — Phase 13: Auth Flows UI
 
 ## Current Position
 
-Phase: 12 of 17 (Design System Foundation) — first phase of v2.0 Frontend UI milestone
-Plan: 3 of 3 in current phase — PHASE COMPLETE
+Phase: 13 of 17 (Auth Flows UI) — second phase of v2.0 Frontend UI milestone
+Plan: 1 of 4 in current phase — in progress
 Status: In progress
-Last activity: 2026-03-04 — 12-03 complete (app shell + responsive sidebar + TanStack React Query provider)
+Last activity: 2026-03-04 — 13-01 complete (API client, auth token management, AuthProvider, useAuth hooks, auth layout)
 
-Progress: [█████████████░░░░░░░░░░░░░░░░░] 43% (v1.0 complete; v2.0 Phase 12 complete 3/3)
+Progress: [██████████████░░░░░░░░░░░░░░░░] 46% (v1.0 complete; v2.0 Phase 12 complete 3/3, Phase 13 1/4)
 
 ## Performance Metrics
 
@@ -65,6 +65,10 @@ Recent decisions affecting v2.0:
 - [12-03]: Cyan-400 active nav border matches wxCode brand identity (cyan + purple palette)
 - [12-03]: Root page.tsx removed — (app)/page.tsx handles / directly (route groups are URL-invisible)
 - [12-03]: TanStack React Query browser singleton pattern ported verbatim from wxcode source
+- [13-01]: In-memory token storage (module-scoped variables, not localStorage) — XSS-safe. Tokens lost on page reload; user re-logs in. Acceptable for SPA that redirects to wxcode after login.
+- [13-01]: Client-side route protection via AuthProvider useEffect — not Next.js middleware. Middleware cannot read in-memory tokens (no cookie). Can upgrade to middleware if tokens move to httpOnly cookies.
+- [13-01]: apiClient injects Authorization header from memory token; on 401 attempts silent refresh once then clears tokens
+- [13-01]: (auth) route group has no sidebar — completely separate layout from (app) group
 
 ### Pending Todos
 
@@ -77,5 +81,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-03-04
-Stopped at: Completed 12-03-PLAN.md — app shell + responsive sidebar + TanStack React Query provider (Phase 12 COMPLETE)
-Resume file: None — continue with `/gsd:execute-phase 13` (Phase 13: Auth UI next)
+Stopped at: Completed 13-01-PLAN.md — API client, auth token management, AuthProvider, useAuth hooks, (auth) layout
+Resume file: None — continue with 13-02-PLAN.md (Login and Signup pages)
