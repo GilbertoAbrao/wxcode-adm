@@ -91,8 +91,8 @@ Requirements for v2.0 milestone. Each maps to roadmap phases.
 ### User Account UI
 
 - [x] **UAI-01**: User can view and edit profile (display name, avatar upload)
-- [ ] **UAI-02**: User can change password from account settings
-- [ ] **UAI-03**: User can view list of active sessions (device, IP, last active) and revoke any session
+- [x] **UAI-02**: User can change password from account settings
+- [x] **UAI-03**: User can view list of active sessions (device, IP, last active) and revoke any session
 
 ### Tenant Management UI
 
@@ -223,8 +223,8 @@ Which phases cover which requirements. Updated during roadmap creation.
 | AUI-06 | Phase 13 | Complete |
 | AUI-07 | Phase 13 | Complete |
 | UAI-01 | Phase 14 | Complete |
-| UAI-02 | Phase 14 | Pending |
-| UAI-03 | Phase 14 | Pending |
+| UAI-02 | Phase 14 | Complete |
+| UAI-03 | Phase 14 | Complete |
 | TMI-01 | Phase 15 | Pending |
 | TMI-02 | Phase 15 | Pending |
 | TMI-03 | Phase 15 | Pending |

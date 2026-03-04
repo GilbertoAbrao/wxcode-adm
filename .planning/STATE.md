@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-03-04)
 
 **Core value:** Controlar acesso seguro a plataforma WXCODE com identidade, permissoes por tenant e cobranca recorrente — sem executar nenhuma operacao do wxcode engine.
-**Current focus:** Milestone v2.0 — Phase 14: User Account UI (in progress)
+**Current focus:** Milestone v2.0 — Phase 14: User Account UI (complete) — moving to Phase 15
 
 ## Current Position
 
-Phase: 14 of 17 (User Account UI) — third phase of v2.0 Frontend UI milestone
-Plan: 1 of 2 in current phase — complete
+Phase: 14 of 17 (User Account UI) — third phase of v2.0 Frontend UI milestone — COMPLETE
+Plan: 2 of 2 in current phase — complete
 Status: In progress
-Last activity: 2026-03-04 — 14-01 complete (useUserAccount hooks, /account page profile section)
+Last activity: 2026-03-04 — 14-02 complete (password change form + sessions list on /account page)
 
-Progress: [█████████████████░░░░░░░░░░░░░] 54% (v1.0 complete; v2.0 Phase 12 complete 3/3, Phase 13 complete 4/4, Phase 14 plan 1/2 complete)
+Progress: [█████████████████░░░░░░░░░░░░░] 56% (v1.0 complete; v2.0 Phase 12 complete 3/3, Phase 13 complete 4/4, Phase 14 complete 2/2)
 
 ## Performance Metrics
 
@@ -80,6 +80,9 @@ Recent decisions affecting v2.0:
 - [14-01]: Avatar upload uses direct fetch (not apiClient) — apiClient forces Content-Type: application/json which breaks multipart/form-data boundary; direct fetch with only Authorization header lets browser set correct Content-Type
 - [14-01]: Account page inline ProfileSection component — keeps form state (fileInputRef, showSaved, react-hook-form register) co-located, appropriate for plan scope
 - [14-01]: Password/Sessions sections stubbed as visible placeholder cards — maintains 3-section page structure for Plan 14-02 to populate
+- [14-02]: Password change 400 error shows "Current password is incorrect" (not generic message) — ApiError.status === 400 check differentiates auth failure from server errors
+- [14-02]: confirm_password shares showNewPassword toggle state with new_password — avoids redundant third toggle
+- [14-02]: Sessions section and password section rendered in AccountPage root (not sub-components) — single use-client component per plan spec
 
 ### Pending Todos
 
@@ -92,5 +95,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-03-04
-Stopped at: Completed 14-01-PLAN.md — useUserAccount.ts hooks (7 exported), /account page with profile section (avatar upload + display name edit)
-Resume file: None — continue with 14-02-PLAN.md (Password change section + Sessions management section)
+Stopped at: Completed 14-02-PLAN.md — /account page password change form + sessions list (Phase 14 complete)
+Resume file: None — continue with Phase 15
