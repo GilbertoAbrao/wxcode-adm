@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
@@ -28,9 +29,13 @@ function SidebarContent({ onNavClick }: { onNavClick?: () => void }) {
     <div className="flex h-full flex-col">
       {/* Logo */}
       <div className="flex h-16 items-center gap-3 border-b border-sidebar-border px-4">
-        <div className="flex h-8 w-8 items-center justify-center rounded-md bg-blue-600 text-sm font-bold text-white">
-          WX
-        </div>
+        <Image
+          src="/logo-icon.png"
+          alt="wxCode"
+          width={32}
+          height={32}
+          className="h-8 w-8 shrink-0"
+        />
         <span className="text-sm font-semibold text-foreground">
           wxCode Admin
         </span>
@@ -51,7 +56,7 @@ function SidebarContent({ onNavClick }: { onNavClick?: () => void }) {
                     "flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors duration-150",
                     "border-l-2",
                     isActive
-                      ? "border-blue-500 bg-sidebar-accent text-sidebar-accent-foreground"
+                      ? "border-cyan-400 bg-sidebar-accent text-sidebar-accent-foreground"
                       : "border-transparent text-muted-foreground hover:bg-sidebar-accent/50 hover:text-foreground"
                   )}
                 >
@@ -132,9 +137,13 @@ export function Sidebar() {
       >
         <div className="flex h-14 items-center justify-between border-b border-sidebar-border px-4">
           <div className="flex items-center gap-2">
-            <div className="flex h-8 w-8 items-center justify-center rounded-md bg-blue-600 text-sm font-bold text-white">
-              WX
-            </div>
+            <Image
+              src="/logo-icon.png"
+              alt="wxCode"
+              width={32}
+              height={32}
+              className="h-8 w-8 shrink-0"
+            />
             <span className="text-sm font-semibold text-foreground">
               wxCode Admin
             </span>
