@@ -833,7 +833,6 @@ async def _handle_payment_failed(db: AsyncSession, data_object: dict) -> None:
     from wxcode_adm.auth.models import RefreshToken  # noqa: PLC0415
     from wxcode_adm.tenants.models import TenantMembership, MemberRole  # noqa: PLC0415
     from wxcode_adm.common.redis_client import redis_client  # noqa: PLC0415
-    from wxcode_adm.config import settings as _settings  # noqa: PLC0415
     from wxcode_adm.tasks.worker import get_arq_pool  # noqa: PLC0415
     from wxcode_adm.auth.models import User  # noqa: PLC0415
 
@@ -863,20 +862,24 @@ async def _handle_payment_failed(db: AsyncSession, data_object: dict) -> None:
     user_ids = [row[0] for row in membership_result.fetchall()]
 
     if user_ids:
-        # b. Get all refresh tokens for these users
+        from wxcode_adm.auth.models import UserSession  # noqa: PLC0415
+        from wxcode_adm.auth.service import blacklist_jti  # noqa: PLC0415
+
+        # b. Blacklist access token JTIs for all affected users via UserSession
+        session_result = await db.execute(
+            select(UserSession.access_token_jti).where(
+                UserSession.user_id.in_(user_ids)
+            )
+        )
+        jtis = [row[0] for row in session_result.fetchall()]
+        for jti in jtis:
+            await blacklist_jti(redis_client, jti)
+
+        # c. Get all refresh tokens for these users
         tokens_result = await db.execute(
             select(RefreshToken).where(RefreshToken.user_id.in_(user_ids))
         )
         refresh_tokens = list(tokens_result.scalars().all())
-
-        # c. Blacklist each JTI in Redis with ACCESS_TOKEN_TTL_HOURS TTL
-        ttl_seconds = _settings.ACCESS_TOKEN_TTL_HOURS * 3600
-        for token in refresh_tokens:
-            await redis_client.setex(
-                f"auth:blacklist:jti:{token.token}",
-                ttl_seconds,
-                "revoked",
-            )
 
         # d. Delete all refresh tokens for these users
         for token in refresh_tokens:

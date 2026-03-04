@@ -5,7 +5,8 @@ Two routers:
 
 billing_admin_router (prefix: /admin/billing/plans):
   Super-admin only. Full plan CRUD: create, update, soft-delete, list (all), get.
-  All endpoints require require_verified + is_superuser check.
+  All endpoints require require_admin (admin-audience JWT, aud="wxcode-adm-admin").
+  Regular-audience JWTs are rejected with 401 even for is_superuser users.
 
 billing_router (prefix: /billing):
   Any authenticated user. Public plan catalog endpoint returns active plans only.
@@ -21,6 +22,7 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, Request, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from wxcode_adm.admin.dependencies import require_admin
 from wxcode_adm.audit.service import write_audit
 from wxcode_adm.auth.dependencies import require_verified
 from wxcode_adm.auth.models import User
@@ -37,28 +39,6 @@ from wxcode_adm.common.exceptions import ForbiddenError
 from wxcode_adm.dependencies import get_session
 from wxcode_adm.tenants.dependencies import get_tenant_context
 from wxcode_adm.tenants.models import MemberRole, Tenant, TenantMembership
-
-# ---------------------------------------------------------------------------
-# Superuser dependency
-# ---------------------------------------------------------------------------
-
-
-async def require_superuser(
-    user: Annotated[User, Depends(require_verified)],
-) -> User:
-    """
-    Extend require_verified to also enforce super-admin access.
-
-    Raises:
-        ForbiddenError: if the authenticated user is not a super-admin.
-    """
-    if not user.is_superuser:
-        raise ForbiddenError(
-            error_code="SUPERUSER_REQUIRED",
-            message="Super-admin access required",
-        )
-    return user
-
 
 # ---------------------------------------------------------------------------
 # Admin router — super-admin plan CRUD
@@ -79,7 +59,7 @@ async def create_plan(
     request: Request,
     body: CreatePlanRequest,
     db: Annotated[AsyncSession, Depends(get_session)],
-    user: Annotated[User, Depends(require_superuser)],
+    user: Annotated[User, Depends(require_admin)],
 ) -> PlanResponse:
     """Create a new billing plan and sync to Stripe."""
     plan = await service.create_plan(db, body)
@@ -104,7 +84,7 @@ async def update_plan(
     plan_id: uuid.UUID,
     body: UpdatePlanRequest,
     db: Annotated[AsyncSession, Depends(get_session)],
-    user: Annotated[User, Depends(require_superuser)],
+    user: Annotated[User, Depends(require_admin)],
 ) -> PlanResponse:
     """Update an existing billing plan. Re-syncs Stripe Prices if fee amounts changed."""
     plan = await service.update_plan(db, plan_id, body)
@@ -127,7 +107,7 @@ async def delete_plan(
     request: Request,
     plan_id: uuid.UUID,
     db: Annotated[AsyncSession, Depends(get_session)],
-    user: Annotated[User, Depends(require_superuser)],
+    user: Annotated[User, Depends(require_admin)],
 ) -> PlanResponse:
     """Soft-delete a billing plan (sets is_active=False). Archives Stripe Product."""
     plan = await service.delete_plan(db, plan_id)
@@ -149,7 +129,7 @@ async def delete_plan(
 async def list_plans_admin(
     request: Request,
     db: Annotated[AsyncSession, Depends(get_session)],
-    _: Annotated[User, Depends(require_superuser)],
+    _: Annotated[User, Depends(require_admin)],
 ) -> list[PlanResponse]:
     """List all billing plans (including inactive) for admin management."""
     plans = await service.list_plans(db, include_inactive=True)
@@ -164,7 +144,7 @@ async def get_plan(
     request: Request,
     plan_id: uuid.UUID,
     db: Annotated[AsyncSession, Depends(get_session)],
-    _: Annotated[User, Depends(require_superuser)],
+    _: Annotated[User, Depends(require_admin)],
 ) -> PlanResponse:
     """Get a single billing plan by ID."""
     plan = await service.get_plan(db, plan_id)
