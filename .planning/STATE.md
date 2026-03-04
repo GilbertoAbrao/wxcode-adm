@@ -74,6 +74,8 @@ Recent decisions affecting v2.0:
 - [13-02]: Shared validation schemas in validations.ts — all auth forms import from @/lib/validations, not inline zod
 - [13-04]: Suspense wrapper pattern for useSearchParams() established across all auth pages (inner form component + outer Suspense export)
 - [13-04]: MFA page dual-mode: single mfaCodeSchema (min 6, max 11 chars) handles both TOTP (6-digit) and backup codes (XXXXX-XXXXX); toggle resets form
+- [13-03]: Enumeration-safe forgot-password: always shows success state after submit regardless of whether email exists — prevents user enumeration attacks
+- [13-03]: reset-password shows inline error state with recovery link when token is missing (not a redirect) — better UX for confused users
 - [13-04]: Trust device stored in local state only — not validated by Zod, passed directly as boolean to mutation
 
 ### Pending Todos
@@ -87,5 +89,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-03-04
-Stopped at: Completed 13-04-PLAN.md — MFA verify page with TOTP/backup code toggle, workspace onboarding page, full auth journey complete
-Resume file: None — Phase 13 complete, continue with Phase 14 (Tenant Settings UI)
+Stopped at: Completed 13-03-PLAN.md — verify-email OTP page (pre-built in 13-02), forgot-password enumeration-safe form, reset-password token-based form with match validation
+Resume file: None — continue with 13-04-PLAN.md (MFA verify page, workspace onboarding)

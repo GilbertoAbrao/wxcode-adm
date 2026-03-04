@@ -82,8 +82,8 @@ Requirements for v2.0 milestone. Each maps to roadmap phases.
 
 - [x] **AUI-01**: User can sign up with email and password via a signup form with validation
 - [x] **AUI-02**: User can log in with email and password via a login form
-- [ ] **AUI-03**: User sees email verification page and can enter 6-digit OTP code after signup
-- [ ] **AUI-04**: User can request password reset via email and set new password via reset link
+- [x] **AUI-03**: User sees email verification page and can enter 6-digit OTP code after signup
+- [x] **AUI-04**: User can request password reset via email and set new password via reset link
 - [x] **AUI-05**: User is prompted for TOTP code on login when MFA is enabled, with backup code fallback
 - [x] **AUI-06**: User sees workspace onboarding page after first login (create workspace name)
 - [x] **AUI-07**: After successful auth, user is redirected to wxcode with access token
@@ -217,8 +217,8 @@ Which phases cover which requirements. Updated during roadmap creation.
 | DS-03 | Phase 12 | Complete |
 | AUI-01 | Phase 13 | Complete |
 | AUI-02 | Phase 13 | Complete |
-| AUI-03 | Phase 13 | Pending |
-| AUI-04 | Phase 13 | Pending |
+| AUI-03 | Phase 13 | Complete |
+| AUI-04 | Phase 13 | Complete |
 | AUI-05 | Phase 13 | Complete |
 | AUI-06 | Phase 13 | Complete |
 | AUI-07 | Phase 13 | Complete |
