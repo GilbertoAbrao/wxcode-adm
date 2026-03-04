@@ -32,12 +32,12 @@ function SidebarContent({ onNavClick }: { onNavClick?: () => void }) {
         <Image
           src="/logo-icon.png"
           alt="wxCode"
-          width={32}
-          height={32}
-          className="h-8 w-8 shrink-0"
+          width={56}
+          height={28}
+          className="h-7 w-auto shrink-0"
         />
         <span className="text-sm font-semibold text-foreground">
-          wxCode Admin
+          Admin
         </span>
       </div>
 
@@ -114,8 +114,15 @@ export function Sidebar() {
         >
           <Menu className="h-5 w-5" />
         </button>
-        <span className="ml-3 text-sm font-semibold text-foreground">
-          wxCode Admin
+        <Image
+          src="/logo-icon.png"
+          alt="wxCode"
+          width={56}
+          height={28}
+          className="ml-3 h-6 w-auto shrink-0"
+        />
+        <span className="text-sm font-semibold text-foreground">
+          Admin
         </span>
       </div>
 
@@ -140,12 +147,12 @@ export function Sidebar() {
             <Image
               src="/logo-icon.png"
               alt="wxCode"
-              width={32}
-              height={32}
-              className="h-8 w-8 shrink-0"
+              width={56}
+              height={28}
+              className="h-7 w-auto shrink-0"
             />
             <span className="text-sm font-semibold text-foreground">
-              wxCode Admin
+              Admin
             </span>
           </div>
           <button
