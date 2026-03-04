@@ -68,7 +68,58 @@ Requirements for initial release. Each maps to roadmap phases.
 - [x] **USER-03**: User can list and revoke active sessions
 - [x] **USER-04**: User is redirected to wxcode with access token after login
 
-## v2 Requirements
+## v2 Requirements (Frontend UI)
+
+Requirements for v2.0 milestone. Each maps to roadmap phases.
+
+### Design System
+
+- [ ] **DS-01**: Frontend Next.js project initialized with Tailwind CSS v4, shadcn/ui (new-york), TypeScript, and path aliases matching wxcode frontend
+- [ ] **DS-02**: Obsidian Studio theme (globals.css, tokens.css) and custom components (GlowButton, GlowInput, LoadingSkeleton, EmptyState, ErrorState, AnimatedList) ported from wxcode
+- [ ] **DS-03**: App shell layout with sidebar navigation, responsive design, and dark mode enforced
+
+### Auth UI
+
+- [ ] **AUI-01**: User can sign up with email and password via a signup form with validation
+- [ ] **AUI-02**: User can log in with email and password via a login form
+- [ ] **AUI-03**: User sees email verification page and can enter 6-digit OTP code after signup
+- [ ] **AUI-04**: User can request password reset via email and set new password via reset link
+- [ ] **AUI-05**: User is prompted for TOTP code on login when MFA is enabled, with backup code fallback
+- [ ] **AUI-06**: User sees workspace onboarding page after first login (create workspace name)
+- [ ] **AUI-07**: After successful auth, user is redirected to wxcode with access token
+
+### User Account UI
+
+- [ ] **UAI-01**: User can view and edit profile (display name, avatar upload)
+- [ ] **UAI-02**: User can change password from account settings
+- [ ] **UAI-03**: User can view list of active sessions (device, IP, last active) and revoke any session
+
+### Tenant Management UI
+
+- [ ] **TMI-01**: Owner/Admin can view member list with roles and invite new members by email
+- [ ] **TMI-02**: Owner/Admin can change member roles or remove members
+- [ ] **TMI-03**: Owner can enable/disable MFA enforcement for the tenant
+
+### Billing UI
+
+- [ ] **BUI-01**: User with billing access can view current subscription plan and status
+- [ ] **BUI-02**: User can select a plan and complete subscription via Stripe Checkout redirect
+- [ ] **BUI-03**: User can access Stripe Customer Portal for payment method and invoice management
+
+### Super-Admin UI
+
+- [ ] **SAI-01**: Admin can log in via separate admin login page with admin-audience JWT
+- [ ] **SAI-02**: Admin can view paginated tenant list with filters (plan, status) and suspend/reactivate tenants
+- [ ] **SAI-03**: Admin can search users by email, view details, and block/unblock users
+
+## v2.1 Deferred
+
+- **AUI-08**: MFA enrollment UI (QR code + backup codes display)
+- **AUI-09**: OAuth login buttons (Google/GitHub)
+- **SAI-04**: MRR dashboard with Recharts charts
+- **SAI-05**: Force password reset from admin panel
+
+## v3 Requirements
 
 Deferred to future release. Tracked but not in current roadmap.
 
@@ -162,11 +213,16 @@ Which phases cover which requirements. Updated during roadmap creation.
 | USER-03 | Phase 7 | Complete |
 | USER-04 | Phase 7 | Complete |
 
-**Coverage:**
+**Coverage (v1):**
 - v1 requirements: 40 total
 - Mapped to phases: 40
 - Unmapped: 0
 
+**Coverage (v2):**
+- v2 requirements: 22 total
+- Mapped to phases: 0 (pending roadmap)
+- Unmapped: 22
+
 ---
 *Requirements defined: 2026-02-22*
-*Last updated: 2026-02-22 after roadmap creation — all 40 requirements mapped*
+*Last updated: 2026-03-04 after milestone v2.0 requirements definition*
