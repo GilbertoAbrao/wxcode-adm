@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-03-04)
 
 **Core value:** Controlar acesso seguro a plataforma WXCODE com identidade, permissoes por tenant e cobranca recorrente — sem executar nenhuma operacao do wxcode engine.
-**Current focus:** Milestone v2.0 — Phase 13: Auth Flows UI
+**Current focus:** Milestone v2.0 — Phase 13: Auth Flows UI (complete)
 
 ## Current Position
 
 Phase: 13 of 17 (Auth Flows UI) — second phase of v2.0 Frontend UI milestone
-Plan: 2 of 4 in current phase — in progress
+Plan: 4 of 4 in current phase — complete
 Status: In progress
-Last activity: 2026-03-04 — 13-02 complete (signup page, login page with MFA/wxcode branching, shared validation schemas)
+Last activity: 2026-03-04 — 13-04 complete (MFA verify page, workspace onboarding page, full auth journey)
 
-Progress: [███████████████░░░░░░░░░░░░░░░] 48% (v1.0 complete; v2.0 Phase 12 complete 3/3, Phase 13 2/4)
+Progress: [████████████████░░░░░░░░░░░░░░] 51% (v1.0 complete; v2.0 Phase 12 complete 3/3, Phase 13 complete 4/4)
 
 ## Performance Metrics
 
@@ -72,6 +72,9 @@ Recent decisions affecting v2.0:
 - [13-02]: Suspense boundary required for all pages using useSearchParams() in Next.js App Router — inner component pattern (<Suspense fallback={null}><Content /></Suspense>)
 - [13-02]: Login page uses contextual error messages: 401 = wrong credentials, 403 = unverified email with /verify-email link, default = error.message
 - [13-02]: Shared validation schemas in validations.ts — all auth forms import from @/lib/validations, not inline zod
+- [13-04]: Suspense wrapper pattern for useSearchParams() established across all auth pages (inner form component + outer Suspense export)
+- [13-04]: MFA page dual-mode: single mfaCodeSchema (min 6, max 11 chars) handles both TOTP (6-digit) and backup codes (XXXXX-XXXXX); toggle resets form
+- [13-04]: Trust device stored in local state only — not validated by Zod, passed directly as boolean to mutation
 
 ### Pending Todos
 
@@ -84,5 +87,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-03-04
-Stopped at: Completed 13-02-PLAN.md — signup page, login page with MFA/wxcode branching, shared zod validation schemas
-Resume file: None — continue with 13-03-PLAN.md (verify-email, forgot-password, reset-password pages)
+Stopped at: Completed 13-04-PLAN.md — MFA verify page with TOTP/backup code toggle, workspace onboarding page, full auth journey complete
+Resume file: None — Phase 13 complete, continue with Phase 14 (Tenant Settings UI)
