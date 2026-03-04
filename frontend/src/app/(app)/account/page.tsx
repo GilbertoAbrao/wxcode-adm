@@ -4,7 +4,7 @@ import { useRef, useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { User } from "lucide-react";
+import { User, Lock, Eye, EyeOff, Monitor } from "lucide-react";
 import {
   GlowButton,
   GlowInput,
@@ -15,8 +15,15 @@ import {
   useCurrentUser,
   useUpdateProfile,
   useUploadAvatar,
+  useChangePassword,
+  useUserSessions,
+  useRevokeSession,
 } from "@/hooks/useUserAccount";
 import { ApiError } from "@/lib/api-client";
+import {
+  changePasswordSchema,
+  ChangePasswordFormData,
+} from "@/lib/validations";
 
 // ---------------------------------------------------------------------------
 // Validation schema for display name form
@@ -30,6 +37,21 @@ const profileSchema = z.object({
 });
 
 type ProfileFormValues = z.infer<typeof profileSchema>;
+
+// ---------------------------------------------------------------------------
+// Helper: relative time formatter
+// ---------------------------------------------------------------------------
+
+function formatRelativeTime(isoString: string): string {
+  const diff = Date.now() - new Date(isoString).getTime();
+  const minutes = Math.floor(diff / 60_000);
+  const hours = Math.floor(diff / 3_600_000);
+  const days = Math.floor(diff / 86_400_000);
+  if (minutes < 1) return "just now";
+  if (minutes < 60) return `${minutes}m ago`;
+  if (hours < 24) return `${hours}h ago`;
+  return `${days}d ago`;
+}
 
 // ---------------------------------------------------------------------------
 // Profile section
@@ -191,6 +213,49 @@ function ProfileSection() {
 // ---------------------------------------------------------------------------
 
 export default function AccountPage() {
+  // ---------------------------------------------------------------------------
+  // Password section state + form
+  // ---------------------------------------------------------------------------
+  const [showCurrentPassword, setShowCurrentPassword] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [passwordSaved, setPasswordSaved] = useState(false);
+
+  const changePasswordMutation = useChangePassword();
+
+  const {
+    register: registerPassword,
+    handleSubmit: handlePasswordSubmit,
+    formState: { errors: passwordErrors },
+    reset: resetPasswordForm,
+  } = useForm<ChangePasswordFormData>({
+    resolver: zodResolver(changePasswordSchema),
+  });
+
+  const onPasswordSubmit = (data: ChangePasswordFormData) => {
+    changePasswordMutation.mutate(
+      { current_password: data.current_password, new_password: data.new_password },
+      {
+        onSuccess: () => {
+          resetPasswordForm();
+          setPasswordSaved(true);
+          setTimeout(() => setPasswordSaved(false), 3000);
+        },
+      }
+    );
+  };
+
+  // ---------------------------------------------------------------------------
+  // Sessions section state + hooks
+  // ---------------------------------------------------------------------------
+  const {
+    data: sessionsData,
+    isLoading: sessionsLoading,
+    isError: sessionsError,
+    error: sessionsErrorObj,
+  } = useUserSessions();
+
+  const revokeSessionMutation = useRevokeSession();
+
   return (
     <div className="flex flex-col gap-6 max-w-2xl">
       {/* Page header */}
@@ -204,23 +269,135 @@ export default function AccountPage() {
       {/* Profile section */}
       <ProfileSection />
 
-      {/* Password section — TODO: Plan 14-02 */}
-      <div className="rounded-lg border border-zinc-800 bg-obsidian-900/50 p-6">
-        <h2 className="text-xl font-semibold text-zinc-100 mb-1">Password</h2>
-        <p className="text-sm text-muted-foreground">
-          Change password — coming in Plan 14-02.
-        </p>
-      </div>
+      {/* Password section */}
+      <section className="rounded-lg border border-zinc-800 bg-obsidian-900/50 p-6">
+        <h2 className="text-base font-semibold text-zinc-100 mb-4">Change password</h2>
+        <form
+          onSubmit={handlePasswordSubmit(onPasswordSubmit)}
+          className="space-y-4 max-w-sm"
+          noValidate
+        >
+          <GlowInput
+            {...registerPassword("current_password")}
+            type={showCurrentPassword ? "text" : "password"}
+            label="Current password"
+            leftIcon={Lock}
+            rightIcon={showCurrentPassword ? EyeOff : Eye}
+            onRightIconClick={() => setShowCurrentPassword((prev) => !prev)}
+            error={passwordErrors.current_password?.message}
+            autoComplete="current-password"
+            fullWidth
+          />
+          <GlowInput
+            {...registerPassword("new_password")}
+            type={showNewPassword ? "text" : "password"}
+            label="New password"
+            leftIcon={Lock}
+            rightIcon={showNewPassword ? EyeOff : Eye}
+            onRightIconClick={() => setShowNewPassword((prev) => !prev)}
+            error={passwordErrors.new_password?.message}
+            autoComplete="new-password"
+            fullWidth
+          />
+          <GlowInput
+            {...registerPassword("confirm_password")}
+            type={showNewPassword ? "text" : "password"}
+            label="Confirm new password"
+            leftIcon={Lock}
+            error={passwordErrors.confirm_password?.message}
+            autoComplete="new-password"
+            fullWidth
+          />
 
-      {/* Sessions section — TODO: Plan 14-02 */}
-      <div className="rounded-lg border border-zinc-800 bg-obsidian-900/50 p-6">
-        <h2 className="text-xl font-semibold text-zinc-100 mb-1">
-          Active Sessions
-        </h2>
-        <p className="text-sm text-muted-foreground">
-          Manage active sessions — coming in Plan 14-02.
-        </p>
-      </div>
+          {/* API error */}
+          {changePasswordMutation.error && (
+            <p className="text-sm text-rose-400">
+              {changePasswordMutation.error instanceof ApiError
+                ? changePasswordMutation.error.status === 400
+                  ? "Current password is incorrect"
+                  : changePasswordMutation.error.message
+                : changePasswordMutation.error.message || "Something went wrong"}
+            </p>
+          )}
+
+          {/* Success message */}
+          {passwordSaved && (
+            <p className="text-sm text-emerald-400">Password changed successfully</p>
+          )}
+
+          <GlowButton
+            type="submit"
+            size="sm"
+            isLoading={changePasswordMutation.isPending}
+            loadingText="Changing..."
+          >
+            Change password
+          </GlowButton>
+        </form>
+      </section>
+
+      {/* Sessions section */}
+      <section className="rounded-lg border border-zinc-800 bg-obsidian-900/50 p-6">
+        <h2 className="text-base font-semibold text-zinc-100 mb-4">Active sessions</h2>
+
+        {sessionsLoading && <LoadingSkeleton lines={3} />}
+
+        {sessionsError && (
+          <ErrorState
+            title="Failed to load sessions"
+            message={sessionsErrorObj?.message ?? "An unexpected error occurred"}
+          />
+        )}
+
+        {!sessionsLoading && !sessionsError && (
+          <>
+            {!sessionsData?.sessions || sessionsData.sessions.length === 0 ? (
+              <p className="text-sm text-muted-foreground">No active sessions found.</p>
+            ) : (
+              <div>
+                {sessionsData.sessions.map((session) => (
+                  <div
+                    key={session.id}
+                    className="flex items-start justify-between gap-4 py-3 border-b border-zinc-800 last:border-0"
+                  >
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <Monitor className="h-4 w-4 shrink-0 text-zinc-500" />
+                        <span className="text-sm font-medium text-zinc-200 truncate">
+                          {session.device_info || "Unknown device"}
+                        </span>
+                        {session.is_current && (
+                          <span className="shrink-0 text-xs font-medium text-cyan-400 bg-cyan-400/10 px-1.5 py-0.5 rounded">
+                            Current
+                          </span>
+                        )}
+                      </div>
+                      <div className="mt-1 flex items-center gap-3 text-xs text-zinc-500">
+                        {session.ip_address && <span>{session.ip_address}</span>}
+                        <span>Last active {formatRelativeTime(session.last_active_at)}</span>
+                      </div>
+                    </div>
+                    {!session.is_current && (
+                      <GlowButton
+                        variant="secondary"
+                        size="sm"
+                        onClick={() => revokeSessionMutation.mutate(session.id)}
+                        isLoading={
+                          revokeSessionMutation.isPending &&
+                          revokeSessionMutation.variables === session.id
+                        }
+                        loadingText="Revoking..."
+                      >
+                        Revoke
+                      </GlowButton>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </>
+        )}
+      </section>
     </div>
   );
 }
