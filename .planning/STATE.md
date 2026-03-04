@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-03-04)
 ## Current Position
 
 Phase: 12 of 17 (Design System Foundation) — first phase of v2.0 Frontend UI milestone
-Plan: 1 of 3 in current phase
+Plan: 2 of 3 in current phase
 Status: In progress
-Last activity: 2026-03-04 — 12-01 complete (Next.js 16 + Tailwind v4 + shadcn/ui bootstrapped)
+Last activity: 2026-03-04 — 12-02 complete (Obsidian Studio theme + 6 custom UI components ported)
 
-Progress: [█████████████░░░░░░░░░░░░░░░░░] 40% (v1.0 complete; v2.0 Phase 12 Plan 1/3 done)
+Progress: [█████████████░░░░░░░░░░░░░░░░░] 41% (v1.0 complete; v2.0 Phase 12 Plan 2/3 done)
 
 ## Performance Metrics
 
@@ -56,6 +56,10 @@ Recent decisions affecting v2.0:
 - [12-01]: Port 3040 for wxcode-adm frontend (distinct from wxcode:3052 and backend:8040)
 - [12-01]: Tailwind v4 uses @theme inline CSS-first config — no tailwind.config.js needed
 - [12-01]: oklch color tokens for shadcn CSS variables (perceptually uniform, Tailwind v4 native)
+- [12-02]: globals.css ported exactly from wxcode source — Obsidian Studio is the authoritative design token set
+- [12-02]: Dark mode is primary/default mode for wxcode-adm (html element has dark class in layout.tsx)
+- [12-02]: button.tsx (shadcn base) co-exists with GlowButton — they serve different purposes
+- [12-02]: All 6 components importable from @/components/ui barrel export; animation variants from @/lib/animations
 
 ### Pending Todos
 
@@ -68,5 +72,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-03-04
-Stopped at: Completed 12-01-PLAN.md — Next.js 16 + Tailwind v4 + shadcn/ui frontend bootstrapped
-Resume file: None — continue with `/gsd:execute-phase 12` (Plans 02 and 03 remaining)
+Stopped at: Completed 12-02-PLAN.md — Obsidian Studio theme + 6 custom UI components ported
+Resume file: None — continue with `/gsd:execute-phase 12` (Plan 03 remaining)

@@ -220,8 +220,8 @@ Plans:
 **Plans**: 3 plans
 
 Plans:
-- [ ] 12-01-PLAN.md — Next.js 16 project init with pnpm, Tailwind CSS v4, shadcn/ui new-york config, TypeScript path aliases, dev server boot
-- [ ] 12-02-PLAN.md — Port Obsidian Studio theme (globals.css, design tokens) and 6 custom components (GlowButton, GlowInput, LoadingSkeleton, EmptyState, ErrorState, AnimatedList) from wxcode frontend
+- [x] 12-01-PLAN.md — Next.js 16 project init with pnpm, Tailwind CSS v4, shadcn/ui new-york config, TypeScript path aliases, dev server boot
+- [x] 12-02-PLAN.md — Port Obsidian Studio theme (globals.css, design tokens) and 6 custom components (GlowButton, GlowInput, LoadingSkeleton, EmptyState, ErrorState, AnimatedList) from wxcode frontend
 - [ ] 12-03-PLAN.md — App shell layout (responsive sidebar navigation, dark mode enforced), TanStack React Query provider, visual verification
 
 ### Phase 13: Auth Flows UI
@@ -319,7 +319,7 @@ v2.0 phases execute in numeric order: 12 → 13 → 14 → 15 → 16 → 17
 | 9. MFA-wxcode Redirect Fix | v1.0 | 1/1 | Complete | 2026-02-28 |
 | 10. API Key Management | v1.0 | 0/1 | Pending | - |
 | 11. Billing Integration Fixes | v1.0 | 1/1 | Complete | 2026-03-04 |
-| 12. Design System Foundation | 1/3 | In Progress|  | - |
+| 12. Design System Foundation | v2.0 | 2/3 | In Progress | - |
 | 13. Auth Flows UI | v2.0 | 0/4 | Not started | - |
 | 14. User Account UI | v2.0 | 0/2 | Not started | - |
 | 15. Tenant Management UI | v2.0 | 0/2 | Not started | - |

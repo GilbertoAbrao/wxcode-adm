@@ -75,7 +75,7 @@ Requirements for v2.0 milestone. Each maps to roadmap phases.
 ### Design System
 
 - [x] **DS-01**: Frontend Next.js project initialized with Tailwind CSS v4, shadcn/ui (new-york), TypeScript, and path aliases matching wxcode frontend
-- [ ] **DS-02**: Obsidian Studio theme (globals.css, tokens.css) and custom components (GlowButton, GlowInput, LoadingSkeleton, EmptyState, ErrorState, AnimatedList) ported from wxcode
+- [x] **DS-02**: Obsidian Studio theme (globals.css, tokens.css) and custom components (GlowButton, GlowInput, LoadingSkeleton, EmptyState, ErrorState, AnimatedList) ported from wxcode
 - [ ] **DS-03**: App shell layout with sidebar navigation, responsive design, and dark mode enforced
 
 ### Auth UI
@@ -213,7 +213,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | USER-03 | Phase 7 | Complete |
 | USER-04 | Phase 7 | Complete |
 | DS-01 | Phase 12 | Complete |
-| DS-02 | Phase 12 | Pending |
+| DS-02 | Phase 12 | Complete |
 | DS-03 | Phase 12 | Pending |
 | AUI-01 | Phase 13 | Pending |
 | AUI-02 | Phase 13 | Pending |
