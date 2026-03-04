@@ -212,6 +212,28 @@ Which phases cover which requirements. Updated during roadmap creation.
 | USER-02 | Phase 7 | Complete |
 | USER-03 | Phase 7 | Complete |
 | USER-04 | Phase 7 | Complete |
+| DS-01 | Phase 12 | Pending |
+| DS-02 | Phase 12 | Pending |
+| DS-03 | Phase 12 | Pending |
+| AUI-01 | Phase 13 | Pending |
+| AUI-02 | Phase 13 | Pending |
+| AUI-03 | Phase 13 | Pending |
+| AUI-04 | Phase 13 | Pending |
+| AUI-05 | Phase 13 | Pending |
+| AUI-06 | Phase 13 | Pending |
+| AUI-07 | Phase 13 | Pending |
+| UAI-01 | Phase 14 | Pending |
+| UAI-02 | Phase 14 | Pending |
+| UAI-03 | Phase 14 | Pending |
+| TMI-01 | Phase 15 | Pending |
+| TMI-02 | Phase 15 | Pending |
+| TMI-03 | Phase 15 | Pending |
+| BUI-01 | Phase 16 | Pending |
+| BUI-02 | Phase 16 | Pending |
+| BUI-03 | Phase 16 | Pending |
+| SAI-01 | Phase 17 | Pending |
+| SAI-02 | Phase 17 | Pending |
+| SAI-03 | Phase 17 | Pending |
 
 **Coverage (v1):**
 - v1 requirements: 40 total
@@ -220,9 +242,9 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 **Coverage (v2):**
 - v2 requirements: 22 total
-- Mapped to phases: 0 (pending roadmap)
-- Unmapped: 22
+- Mapped to phases: 22
+- Unmapped: 0
 
 ---
 *Requirements defined: 2026-02-22*
-*Last updated: 2026-03-04 after milestone v2.0 requirements definition*
+*Last updated: 2026-03-04 after milestone v2.0 roadmap creation (Phases 12-17)*
