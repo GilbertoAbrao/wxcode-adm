@@ -117,16 +117,49 @@ async def _make_superuser(test_db, email: str) -> None:
         await session.commit()
 
 
+async def _seed_super_admin(test_db, email: str, password: str) -> None:
+    """Insert a super-admin user directly into test DB."""
+    from sqlalchemy import select
+
+    from wxcode_adm.auth.models import User
+    from wxcode_adm.auth.password import hash_password
+
+    async with test_db() as session:
+        result = await session.execute(select(User).where(User.email == email))
+        existing = result.scalar_one_or_none()
+        if existing is not None:
+            return
+        admin = User(
+            email=email,
+            password_hash=hash_password(password),
+            email_verified=True,
+            is_active=True,
+            is_superuser=True,
+        )
+        session.add(admin)
+        await session.commit()
+
+
+async def _admin_login(client, email: str, password: str) -> str:
+    """Log in via /api/v1/admin/login and return admin-audience access token."""
+    r = await client.post(
+        "/api/v1/admin/login",
+        json={"email": email, "password": password},
+    )
+    assert r.status_code == 200, f"Admin login failed: {r.text}"
+    return r.json()["access_token"]
+
+
 # ---------------------------------------------------------------------------
 # SC1: Super-admin CRUD billing plans + Stripe sync (BILL-01)
 # ---------------------------------------------------------------------------
 
 
 async def test_superadmin_create_plan(client):
-    """SC1: Super-admin can create a billing plan synced to Stripe."""
+    """SC1: Super-admin can create a billing plan synced to Stripe (admin-audience JWT)."""
     c, redis, app, test_db = client
-    token, _ = await _signup_verify_login(c, redis, "admin_create@test.com")
-    await _make_superuser(test_db, "admin_create@test.com")
+    await _seed_super_admin(test_db, "admin_create@test.com", "Test1234!")
+    token = await _admin_login(c, "admin_create@test.com", "Test1234!")
 
     resp = await c.post(
         "/api/v1/admin/billing/plans/",
@@ -149,8 +182,8 @@ async def test_superadmin_create_plan(client):
     assert data["is_active"] is True
 
 
-async def test_nonsuperadmin_cannot_create_plan(client):
-    """SC1: Non-super-admin gets 403 on plan CRUD."""
+async def test_regular_jwt_rejected_on_billing_admin(client):
+    """SC1: Regular-audience JWT gets 401 on admin billing endpoints (audience isolation)."""
     c, redis, app, test_db = client
     token, _ = await _signup_verify_login(c, redis, "nonadmin_create@test.com")
 
@@ -164,14 +197,14 @@ async def test_nonsuperadmin_cannot_create_plan(client):
         },
         headers={"Authorization": f"Bearer {token}"},
     )
-    assert resp.status_code == 403
+    assert resp.status_code == 401
 
 
 async def test_superadmin_update_plan(client):
-    """SC1: Super-admin can update plan details."""
+    """SC1: Super-admin can update plan details (admin-audience JWT)."""
     c, redis, app, test_db = client
-    token, _ = await _signup_verify_login(c, redis, "admin_update@test.com")
-    await _make_superuser(test_db, "admin_update@test.com")
+    await _seed_super_admin(test_db, "admin_update@test.com", "Test1234!")
+    token = await _admin_login(c, "admin_update@test.com", "Test1234!")
 
     # Create plan first
     resp = await c.post(
@@ -200,10 +233,10 @@ async def test_superadmin_update_plan(client):
 
 
 async def test_superadmin_delete_plan(client):
-    """SC1: Super-admin can soft-delete a plan (is_active=False)."""
+    """SC1: Super-admin can soft-delete a plan (is_active=False) via admin-audience JWT."""
     c, redis, app, test_db = client
-    token, _ = await _signup_verify_login(c, redis, "admin_delete@test.com")
-    await _make_superuser(test_db, "admin_delete@test.com")
+    await _seed_super_admin(test_db, "admin_delete@test.com", "Test1234!")
+    token = await _admin_login(c, "admin_delete@test.com", "Test1234!")
 
     # Create plan
     resp = await c.post(
@@ -229,16 +262,24 @@ async def test_superadmin_delete_plan(client):
 
 
 async def test_list_active_plans(client):
-    """SC1: Authenticated user can list active plans (only active returned)."""
-    c, redis, app, test_db = client
-    token, _ = await _signup_verify_login(c, redis, "listplans@test.com")
-    await _make_superuser(test_db, "listplans@test.com")
+    """SC1: Admin CRUD + public list only returns active plans.
 
-    # Create an active plan and an inactive one
+    Admin operations use admin-audience JWT (require_admin).
+    Public GET /billing/plans uses regular-audience JWT (require_verified).
+    """
+    c, redis, app, test_db = client
+    # Admin token for plan CRUD
+    await _seed_super_admin(test_db, "listplans@test.com", "Test1234!")
+    admin_token = await _admin_login(c, "listplans@test.com", "Test1234!")
+
+    # Regular user token for public listing endpoint (require_verified)
+    regular_token, _ = await _signup_verify_login(c, redis, "listplans_regular@test.com")
+
+    # Create an active plan and an inactive one (admin-audience)
     resp = await c.post(
         "/api/v1/admin/billing/plans/",
         json={"name": "Active Plan", "slug": "active-plan", "monthly_fee_cents": 3000, "token_quota": 200000},
-        headers={"Authorization": f"Bearer {token}"},
+        headers={"Authorization": f"Bearer {admin_token}"},
     )
     assert resp.status_code == 201
     active_id = resp.json()["id"]
@@ -246,16 +287,19 @@ async def test_list_active_plans(client):
     resp = await c.post(
         "/api/v1/admin/billing/plans/",
         json={"name": "Inactive Plan", "slug": "inactive-plan", "monthly_fee_cents": 5000, "token_quota": 300000},
-        headers={"Authorization": f"Bearer {token}"},
+        headers={"Authorization": f"Bearer {admin_token}"},
     )
     assert resp.status_code == 201
     inactive_id = resp.json()["id"]
 
-    # Soft-delete the inactive plan
-    await c.delete(f"/api/v1/admin/billing/plans/{inactive_id}", headers={"Authorization": f"Bearer {token}"})
+    # Soft-delete the inactive plan (admin-audience)
+    await c.delete(
+        f"/api/v1/admin/billing/plans/{inactive_id}",
+        headers={"Authorization": f"Bearer {admin_token}"},
+    )
 
-    # Public plan listing returns only active plans
-    resp = await c.get("/api/v1/billing/plans", headers={"Authorization": f"Bearer {token}"})
+    # Public plan listing returns only active plans (regular-audience token)
+    resp = await c.get("/api/v1/billing/plans", headers={"Authorization": f"Bearer {regular_token}"})
     assert resp.status_code == 200
     plan_ids = [p["id"] for p in resp.json()]
     assert active_id in plan_ids
@@ -427,6 +471,98 @@ async def test_webhook_payment_failed(client):
         )
         sub = result.scalar_one()
         assert sub.status == SubscriptionStatus.PAST_DUE
+
+
+async def test_payment_failed_blacklists_access_token(client):
+    """E2E flow #8: payment failure webhook -> subscription PAST_DUE -> access tokens
+    blacklisted -> member blocked on platform-level endpoints.
+
+    Proves: _handle_payment_failed uses UserSession.access_token_jti + blacklist_jti
+    to revoke active sessions, not the broken token.token pattern.
+    """
+    c, redis, app, test_db = client
+    paid_plan_id = await _seed_paid_plan(test_db)
+
+    # 1. Login as regular user and create workspace
+    token, _ = await _signup_verify_login(c, redis, "flow8_e2e@test.com")
+    tenant_id = await _create_workspace(c, token, "Flow 8 E2E")
+
+    # 2. Verify pre-condition: user can access platform endpoints
+    resp = await c.get(
+        "/api/v1/billing/subscription",
+        headers={"Authorization": f"Bearer {token}", "X-Tenant-ID": tenant_id},
+    )
+    assert resp.status_code == 200, f"Expected 200 pre-payment-failure, got {resp.status_code}: {resp.text}"
+
+    # 3. Activate subscription via checkout webhook
+    from wxcode_adm.billing.service import process_stripe_event
+
+    ctx = {"session_maker": test_db}
+    await process_stripe_event(
+        ctx,
+        "evt_flow8_checkout",
+        "checkout.session.completed",
+        {
+            "customer": "cus_flow8",
+            "subscription": "sub_flow8",
+            "metadata": {"tenant_id": tenant_id, "plan_id": str(paid_plan_id)},
+        },
+    )
+
+    # 4. Fire payment_failed webhook
+    await process_stripe_event(
+        ctx,
+        "evt_flow8_failed",
+        "invoice.payment_failed",
+        {"subscription": "sub_flow8"},
+    )
+
+    # 5. Verify subscription is PAST_DUE
+    from sqlalchemy import select
+
+    from wxcode_adm.billing.models import SubscriptionStatus, TenantSubscription
+
+    async with test_db() as session:
+        result = await session.execute(
+            select(TenantSubscription).where(
+                TenantSubscription.tenant_id == uuid.UUID(tenant_id)
+            )
+        )
+        sub = result.scalar_one()
+        assert sub.status == SubscriptionStatus.PAST_DUE, (
+            f"Expected PAST_DUE, got {sub.status}"
+        )
+
+    # 6. Verify JTI is blacklisted in Redis
+    from wxcode_adm.auth.models import UserSession
+
+    async with test_db() as session:
+        result = await session.execute(
+            select(UserSession).where(
+                UserSession.user_id.in_(
+                    [row[0] async for row in await session.stream(
+                        select(UserSession.user_id).limit(100)
+                    )]
+                )
+            )
+        )
+
+    # Simpler: scan Redis for any blacklist key created by the webhook
+    blacklist_keys = []
+    async for key in redis.scan_iter("auth:blacklist:jti:*"):
+        blacklist_keys.append(key)
+    assert len(blacklist_keys) > 0, (
+        "Expected at least one JTI blacklist key in Redis after payment failure"
+    )
+
+    # 7. Verify original token is rejected (blacklisted JTI causes 401)
+    resp = await c.get(
+        "/api/v1/billing/subscription",
+        headers={"Authorization": f"Bearer {token}", "X-Tenant-ID": tenant_id},
+    )
+    assert resp.status_code == 401, (
+        f"Expected 401 (blacklisted token), got {resp.status_code}: {resp.text}"
+    )
 
 
 async def test_webhook_invoice_paid_restores(client):
