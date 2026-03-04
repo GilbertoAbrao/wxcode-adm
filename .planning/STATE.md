@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-03-04)
 ## Current Position
 
 Phase: 13 of 17 (Auth Flows UI) — second phase of v2.0 Frontend UI milestone
-Plan: 1 of 4 in current phase — in progress
+Plan: 2 of 4 in current phase — in progress
 Status: In progress
-Last activity: 2026-03-04 — 13-01 complete (API client, auth token management, AuthProvider, useAuth hooks, auth layout)
+Last activity: 2026-03-04 — 13-02 complete (signup page, login page with MFA/wxcode branching, shared validation schemas)
 
-Progress: [██████████████░░░░░░░░░░░░░░░░] 46% (v1.0 complete; v2.0 Phase 12 complete 3/3, Phase 13 1/4)
+Progress: [███████████████░░░░░░░░░░░░░░░] 48% (v1.0 complete; v2.0 Phase 12 complete 3/3, Phase 13 2/4)
 
 ## Performance Metrics
 
@@ -69,6 +69,9 @@ Recent decisions affecting v2.0:
 - [13-01]: Client-side route protection via AuthProvider useEffect — not Next.js middleware. Middleware cannot read in-memory tokens (no cookie). Can upgrade to middleware if tokens move to httpOnly cookies.
 - [13-01]: apiClient injects Authorization header from memory token; on 401 attempts silent refresh once then clears tokens
 - [13-01]: (auth) route group has no sidebar — completely separate layout from (app) group
+- [13-02]: Suspense boundary required for all pages using useSearchParams() in Next.js App Router — inner component pattern (<Suspense fallback={null}><Content /></Suspense>)
+- [13-02]: Login page uses contextual error messages: 401 = wrong credentials, 403 = unverified email with /verify-email link, default = error.message
+- [13-02]: Shared validation schemas in validations.ts — all auth forms import from @/lib/validations, not inline zod
 
 ### Pending Todos
 
@@ -81,5 +84,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-03-04
-Stopped at: Completed 13-01-PLAN.md — API client, auth token management, AuthProvider, useAuth hooks, (auth) layout
-Resume file: None — continue with 13-02-PLAN.md (Login and Signup pages)
+Stopped at: Completed 13-02-PLAN.md — signup page, login page with MFA/wxcode branching, shared zod validation schemas
+Resume file: None — continue with 13-03-PLAN.md (verify-email, forgot-password, reset-password pages)
