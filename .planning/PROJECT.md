@@ -8,35 +8,59 @@ Camada SaaS do WXCODE — o porteiro da plataforma. Gerencia autenticacao, ident
 
 Controlar acesso seguro a plataforma WXCODE com identidade, permissoes por tenant e cobranca recorrente — sem executar nenhuma operacao do wxcode engine.
 
+## Current Milestone: v2.0 Frontend UI
+
+**Goal:** Criar toda a interface web do wxcode-adm — auth flows, gestao de tenant, billing, user account e super-admin panel — usando a mesma identidade visual (Obsidian Studio) do wxcode frontend.
+
+**Target features:**
+- Auth flows: login, signup, email verification, password reset, OAuth, MFA setup/verify
+- User account: profile editing, password change, session management
+- Tenant management: workspace onboarding, member invites, role management, tenant settings
+- Billing & plans: subscription view, plan selection, Stripe Checkout, Customer Portal
+- Super-admin panel: tenant list, user management, MRR dashboard
+
 ## Requirements
 
 ### Validated
 
-(None yet — ship to validate)
+<!-- Shipped in v1.0 — backend API complete -->
+
+- ✓ Sign-up com email + senha — v1.0 Phase 2
+- ✓ Sign-in com email + senha, retornando JWT auto-contido — v1.0 Phase 2
+- ✓ OAuth 2.0 (Google, GitHub) — v1.0 Phase 6
+- ✓ MFA via TOTP (Google Authenticator, Authy) — v1.0 Phase 6
+- ✓ Recuperacao de senha via email — v1.0 Phase 2
+- ✓ Verificacao de email para novas contas — v1.0 Phase 2
+- ✓ Multi-tenancy com isolamento logico por tenant_id — v1.0 Phase 3
+- ✓ Convite de usuarios por tenant — v1.0 Phase 3
+- ✓ RBAC por tenant (Owner, Admin, Developer, Viewer) — v1.0 Phase 3
+- ✓ CRUD de planos de cobranca mensal (super-admin) — v1.0 Phase 4
+- ✓ Integracao Stripe (checkout, billing, customer portal, webhooks) — v1.0 Phase 4
+- ✓ Super-admin: gestao de tenants (ver, suspender, deletar) — v1.0 Phase 8
+- ✓ Super-admin: gestao de usuarios (ver, bloquear, resetar senha) — v1.0 Phase 8
+- ✓ Super-admin: dashboard MRR — v1.0 Phase 8
+- ✓ Audit log de acoes sensiveis — v1.0 Phase 5
+- ✓ Rate limiting por IP e por usuario — v1.0 Phase 5
+- ✓ Redirecionamento para wxcode com access token apos login — v1.0 Phase 7/9
 
 ### Active
 
-- [ ] Sign-up com email + senha
-- [ ] Sign-in com email + senha, retornando JWT auto-contido
-- [ ] OAuth 2.0 (Google, GitHub, Microsoft)
-- [ ] MFA via TOTP (Google Authenticator, Authy)
-- [ ] Recuperacao de senha via email
-- [ ] Verificacao de email para novas contas
-- [ ] Multi-tenancy com isolamento logico por tenant_id
-- [ ] Convite de usuarios por tenant (usuario pertence a um unico tenant)
-- [ ] RBAC por tenant (Owner, Admin, Developer, Viewer, Billing)
-- [ ] CRUD de planos de cobranca mensal (super-admin)
-- [ ] Integracao Stripe (checkout, billing recorrente, customer portal, webhooks)
-- [ ] Usage-based billing complementar (conversoes excedentes, tokens LLM, storage, API calls)
-- [ ] API keys por tenant com escopos granulares
-- [ ] Super-admin: gestao de tenants (ver, suspender, deletar)
-- [ ] Super-admin: gestao de usuarios (ver, bloquear, resetar senha)
-- [ ] Super-admin: dashboard de metricas (MRR, churn, conversoes totais, uso por tenant)
-- [ ] Super-admin: configuracoes da plataforma (feature flags, limites globais, manutencao)
-- [ ] Audit log de acoes sensíveis
-- [ ] Rate limiting por IP e por usuario
-- [ ] Redirecionamento para wxcode com access token apos login
-- [ ] UI propria (app separada) para auth, account settings e billing
+<!-- v2.0 — Frontend UI -->
+
+- [ ] UI de auth: login, signup, verificacao de email, reset de senha
+- [ ] UI de OAuth: botoes Google/GitHub, callback handling
+- [ ] UI de MFA: setup QR code, verificacao TOTP, backup codes, trusted device
+- [ ] UI de onboarding: criacao de workspace apos primeiro login
+- [ ] UI de perfil: edicao de nome, email, avatar, troca de senha
+- [ ] UI de sessoes: lista de sessoes ativas, revogacao
+- [ ] UI de tenant: convites, gestao de membros, roles, settings
+- [ ] UI de billing: plano atual, checkout Stripe, portal do cliente
+- [ ] UI super-admin: lista de tenants, gestao, suspensao
+- [ ] UI super-admin: busca de usuarios, block/unblock, force reset
+- [ ] UI super-admin: dashboard MRR com graficos
+- [ ] Design system: Obsidian Studio (mesmo tema visual do wxcode)
+
+### Out of Scope
 
 ### Out of Scope
 
@@ -81,4 +105,4 @@ Controlar acesso seguro a plataforma WXCODE com identidade, permissoes por tenan
 | Alembic para migrations | Schema versionado, auto-generate | — Pending |
 
 ---
-*Last updated: 2026-02-22 after phase 1 context gathering*
+*Last updated: 2026-03-04 after milestone v2.0 start*

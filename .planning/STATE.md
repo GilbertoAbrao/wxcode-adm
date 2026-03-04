@@ -2,19 +2,19 @@
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-02-22)
+See: .planning/PROJECT.md (updated 2026-03-04)
 
 **Core value:** Controlar acesso seguro a plataforma WXCODE com identidade, permissoes por tenant e cobranca recorrente — sem executar nenhuma operacao do wxcode engine.
-**Current focus:** Phase 11 — Billing Integration Fixes (Gap Closure) — Complete
+**Current focus:** Milestone v2.0 — Frontend UI
 
 ## Current Position
 
-Phase: 11 of 11 (Billing Integration Fixes) — Complete
-Plan: 1 of 1 in current phase (11-01 complete — fixed INT-01 blacklist_jti via UserSession.access_token_jti, fixed INT-02 require_admin on billing admin routes; 149 tests passing)
-Status: Phase 11 complete — 1 plan done; ALL PHASES COMPLETE (v1.0 billing integration gaps fully closed)
-Last activity: 2026-03-04 — Plan 11-01 complete: fixed _handle_payment_failed token blacklisting + require_admin on billing admin routes + E2E flow #8 test; 149 tests passing
+Phase: Not started (defining requirements)
+Plan: —
+Status: Defining requirements for milestone v2.0
+Last activity: 2026-03-04 — Milestone v2.0 started (Frontend UI)
 
-Progress: [██████████████████████████████] 100%
+Progress: [░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░] 0%
 
 ## Performance Metrics
 
