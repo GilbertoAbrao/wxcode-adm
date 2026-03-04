@@ -251,11 +251,11 @@ Plans:
   1. User can navigate to account settings, see their current display name and avatar, edit the display name inline, and upload a new avatar — changes persist after page refresh
   2. User can change their password by entering the current password and a new password with confirmation; an incorrect current password shows an inline error
   3. User can see a list of all active sessions showing device, IP, and last active time; clicking "Revoke" on any session removes it from the list immediately
-**Plans**: TBD
+**Plans**: 2 plans
 
 Plans:
-- [ ] 14-01: Account settings page layout, profile edit form (display name, avatar upload), TanStack Query mutations
-- [ ] 14-02: Password change form, session list with revocation UI
+- [ ] 14-01-PLAN.md — useUserAccount hooks (profile, avatar, password, sessions) + account page profile section
+- [ ] 14-02-PLAN.md — Password change form + sessions list with revocation UI
 
 ### Phase 15: Tenant Management UI
 **Goal**: A Tenant Owner or Admin can manage workspace membership — inviting new members, adjusting roles, removing members, and toggling MFA enforcement — entirely through the UI
@@ -265,7 +265,7 @@ Plans:
   1. Owner or Admin can view the full member list with each member's display name, email, role, and invitation status; the list updates after inviting a new member by email
   2. Owner or Admin can change a member's role via a dropdown and remove a member from the workspace; removed members disappear from the list immediately
   3. Tenant Owner can toggle MFA enforcement on or off for the workspace; the toggle reflects the current enforcement state on page load
-**Plans**: TBD
+**Plans**: 2 plans
 
 Plans:
 - [ ] 15-01: Team settings page, member list with roles (AnimatedList), invite member form, TanStack Query hooks for tenant endpoints
@@ -279,7 +279,7 @@ Plans:
   1. User with billing access can navigate to the billing page and see their current plan name, status (active, past_due, canceled), and renewal date
   2. User can view available plans, click "Subscribe" or "Upgrade", and be redirected to Stripe Checkout; after completing payment, they return to the billing page with the updated plan reflected
   3. User can click "Manage Billing" and be redirected to the Stripe Customer Portal where they can update payment methods and download invoices
-**Plans**: TBD
+**Plans**: 2 plans
 
 Plans:
 - [ ] 16-01: Billing page layout, current subscription display, plan catalog with plan cards (GlowButton CTAs)
@@ -293,7 +293,7 @@ Plans:
   1. Admin can navigate to /admin/login, enter credentials, and be authenticated with an admin-audience JWT; regular user credentials are rejected on the admin login page
   2. Admin can view a paginated tenant list, filter by plan and status, and suspend or reactivate a tenant — the tenant's status updates in the list immediately after the action
   3. Admin can search users by email, view user details (membership, account status), and block or unblock a user — the user's blocked status updates immediately after the action
-**Plans**: TBD
+**Plans**: 2 plans
 
 Plans:
 - [ ] 17-01: Admin section routing (/admin/*), admin login page with admin-audience JWT auth, admin route protection, admin API client hooks
