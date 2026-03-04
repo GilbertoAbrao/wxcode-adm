@@ -222,7 +222,7 @@ Plans:
 Plans:
 - [x] 12-01-PLAN.md — Next.js 16 project init with pnpm, Tailwind CSS v4, shadcn/ui new-york config, TypeScript path aliases, dev server boot
 - [x] 12-02-PLAN.md — Port Obsidian Studio theme (globals.css, design tokens) and 6 custom components (GlowButton, GlowInput, LoadingSkeleton, EmptyState, ErrorState, AnimatedList) from wxcode frontend
-- [ ] 12-03-PLAN.md — App shell layout (responsive sidebar navigation, dark mode enforced), TanStack React Query provider, visual verification
+- [x] 12-03-PLAN.md — App shell layout (responsive sidebar navigation, dark mode enforced), TanStack React Query provider, visual verification
 
 ### Phase 13: Auth Flows UI
 **Goal**: A user arriving at the wxcode-adm URL can complete the full authentication journey — sign up, verify email, log in, reset password, handle MFA, create their workspace, and land in the wxcode app — entirely through the UI with no manual API calls
@@ -235,13 +235,13 @@ Plans:
   4. User can log in with their email and password via the login form and be redirected to the wxcode app URL with the access token embedded
   5. When MFA is enabled on the account, the login flow shows a TOTP input step after password validation; user can enter a backup code as fallback
   6. User can request a password reset by entering their email, receive a reset link, click it, and set a new password — the form enforces password confirmation match
-**Plans**: TBD
+**Plans**: 4 plans
 
 Plans:
-- [ ] 13-01: API client layer (axios/fetch wrapper, TanStack Query hooks for auth endpoints), token storage strategy (httpOnly cookie or memory), route protection HOC
-- [ ] 13-02: Signup page, login page, form validation (react-hook-form + zod), auth state management
-- [ ] 13-03: Email verification page (OTP input), password reset request page, password reset confirm page
-- [ ] 13-04: MFA verify page (TOTP input + backup code fallback), workspace onboarding page, wxcode redirect handling
+- [ ] 13-01-PLAN.md — API client (typed fetch wrapper), auth token management (in-memory), AuthProvider context, TanStack Query auth hooks, (auth) route group layout, react-hook-form + zod install
+- [ ] 13-02-PLAN.md — Signup page and login page with react-hook-form + zod validation, shared validation schemas, MFA branching, wxcode redirect handling
+- [ ] 13-03-PLAN.md — Email verification page (6-digit OTP input, resend with cooldown), forgot password page, reset password page (new password + confirmation)
+- [ ] 13-04-PLAN.md — MFA verify page (TOTP input, backup code fallback, trust device), workspace onboarding page (create workspace name)
 
 ### Phase 14: User Account UI
 **Goal**: An authenticated user can view and manage their profile, change their password, and see and revoke active sessions entirely through the UI
@@ -319,7 +319,7 @@ v2.0 phases execute in numeric order: 12 → 13 → 14 → 15 → 16 → 17
 | 9. MFA-wxcode Redirect Fix | v1.0 | 1/1 | Complete | 2026-02-28 |
 | 10. API Key Management | v1.0 | 0/1 | Pending | - |
 | 11. Billing Integration Fixes | v1.0 | 1/1 | Complete | 2026-03-04 |
-| 12. Design System Foundation | 3/3 | Complete    | 2026-03-04 | - |
+| 12. Design System Foundation | v2.0 | 3/3 | Complete | 2026-03-04 |
 | 13. Auth Flows UI | v2.0 | 0/4 | Not started | - |
 | 14. User Account UI | v2.0 | 0/2 | Not started | - |
 | 15. Tenant Management UI | v2.0 | 0/2 | Not started | - |
