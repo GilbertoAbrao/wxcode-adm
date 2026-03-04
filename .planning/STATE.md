@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-03-04)
 ## Current Position
 
 Phase: 12 of 17 (Design System Foundation) — first phase of v2.0 Frontend UI milestone
-Plan: 2 of 3 in current phase
+Plan: 3 of 3 in current phase — PHASE COMPLETE
 Status: In progress
-Last activity: 2026-03-04 — 12-02 complete (Obsidian Studio theme + 6 custom UI components ported)
+Last activity: 2026-03-04 — 12-03 complete (app shell + responsive sidebar + TanStack React Query provider)
 
-Progress: [█████████████░░░░░░░░░░░░░░░░░] 41% (v1.0 complete; v2.0 Phase 12 Plan 2/3 done)
+Progress: [█████████████░░░░░░░░░░░░░░░░░] 43% (v1.0 complete; v2.0 Phase 12 complete 3/3)
 
 ## Performance Metrics
 
@@ -60,6 +60,11 @@ Recent decisions affecting v2.0:
 - [12-02]: Dark mode is primary/default mode for wxcode-adm (html element has dark class in layout.tsx)
 - [12-02]: button.tsx (shadcn base) co-exists with GlowButton — they serve different purposes
 - [12-02]: All 6 components importable from @/components/ui barrel export; animation variants from @/lib/animations
+- [12-03]: Custom sidebar built from scratch — shadcn/ui Sidebar component too complex for simple admin nav
+- [12-03]: wxCode brand logo-icon.png used with natural 2:1 aspect ratio (w-auto), not forced square
+- [12-03]: Cyan-400 active nav border matches wxCode brand identity (cyan + purple palette)
+- [12-03]: Root page.tsx removed — (app)/page.tsx handles / directly (route groups are URL-invisible)
+- [12-03]: TanStack React Query browser singleton pattern ported verbatim from wxcode source
 
 ### Pending Todos
 
@@ -72,5 +77,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-03-04
-Stopped at: Completed 12-02-PLAN.md — Obsidian Studio theme + 6 custom UI components ported
-Resume file: None — continue with `/gsd:execute-phase 12` (Plan 03 remaining)
+Stopped at: Completed 12-03-PLAN.md — app shell + responsive sidebar + TanStack React Query provider (Phase 12 COMPLETE)
+Resume file: None — continue with `/gsd:execute-phase 13` (Phase 13: Auth UI next)
