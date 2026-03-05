@@ -294,12 +294,12 @@ Plans:
   1. Admin can navigate to /admin/login, enter credentials, and be authenticated with an admin-audience JWT; regular user credentials are rejected on the admin login page
   2. Admin can view a paginated tenant list, filter by plan and status, and suspend or reactivate a tenant — the tenant's status updates in the list immediately after the action
   3. Admin can search users by email, view user details (membership, account status), and block or unblock a user — the user's blocked status updates immediately after the action
-**Plans**: 2 plans
+**Plans**: 3 plans
 
 Plans:
-- [ ] 17-01: Admin section routing (/admin/*), admin login page with admin-audience JWT auth, admin route protection, admin API client hooks
-- [ ] 17-02: Tenant list page (paginated, plan/status filters, suspend/reactivate actions)
-- [ ] 17-03: User search page (email search, user detail drawer, block/unblock actions)
+- [ ] 17-01-PLAN.md — Admin auth foundation (isolated token store, admin API client, admin login/logout hooks), AdminAuthProvider, admin layout, admin login page
+- [ ] 17-02-PLAN.md — Tenant list page (paginated, plan/status filters, suspend/reactivate actions with inline reason input)
+- [ ] 17-03-PLAN.md — User search page (email search with debounce, user detail drawer, per-tenant block/unblock actions)
 
 ## Progress
 
