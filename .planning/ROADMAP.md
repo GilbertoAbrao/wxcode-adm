@@ -324,5 +324,5 @@ v2.0 phases execute in numeric order: 12 → 13 → 14 → 15 → 16 → 17
 | 13. Auth Flows UI | 4/4 | Complete    | 2026-03-04 | - |
 | 14. User Account UI | 2/2 | Complete    | 2026-03-05 | - |
 | 15. Tenant Management UI | 3/3 | Complete    | 2026-03-05 | 2026-03-05 |
-| 16. Billing UI | v2.0 | 2/2 | Complete | 2026-03-05 |
+| 16. Billing UI | v2.0 | Complete    | 2026-03-05 | 2026-03-05 |
 | 17. Super-Admin UI | v2.0 | 0/3 | Not started | - |
