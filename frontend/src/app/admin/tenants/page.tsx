@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import React, { useState } from "react";
 import Link from "next/link";
 import {
   GlowButton,
@@ -380,9 +380,8 @@ export default function AdminTenantsPage() {
                       isMutationPending && actionTenant?.id === tenant.id;
 
                     return (
-                      <>
+                      <React.Fragment key={tenant.id}>
                         <tr
-                          key={tenant.id}
                           className="border-b border-zinc-800 hover:bg-zinc-900/30 transition-colors"
                         >
                           <td className="px-4 py-3 text-sm text-zinc-300 font-medium">
@@ -459,7 +458,7 @@ export default function AdminTenantsPage() {
                             error={actionError}
                           />
                         )}
-                      </>
+                      </React.Fragment>
                     );
                   })}
                 </tbody>
