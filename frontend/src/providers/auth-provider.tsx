@@ -65,6 +65,7 @@ const PUBLIC_PATHS = [
   "/reset-password",
   "/mfa-verify",
   "/onboarding",
+  "/admin", // Admin portal has its own AdminAuthProvider — tenant auth must not interfere
 ];
 
 function isPublicPath(pathname: string): boolean {
