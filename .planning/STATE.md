@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-03-04)
 
 **Core value:** Controlar acesso seguro a plataforma WXCODE com identidade, permissoes por tenant e cobranca recorrente — sem executar nenhuma operacao do wxcode engine.
-**Current focus:** Milestone v2.0 — Phase 17: Super-Admin UI — In progress (2/3 plans done)
+**Current focus:** Milestone v2.0 — Phase 17: Super-Admin UI — In progress (3/3 plans done)
 
 ## Current Position
 
 Phase: 17 of 17 (Super-Admin UI) — sixth phase of v2.0 Frontend UI milestone — IN PROGRESS
-Plan: 2 of 3 complete (17-02 done: useAdminTenants hooks, /admin/tenants page with filters, suspend/reactivate, pagination)
-Status: Phase 17 in progress — tenant management UI complete; next is user management UI (17-03)
-Last activity: 2026-03-05 — 17-02 complete (useAdminTenants.ts, admin/tenants/page.tsx)
+Plan: 3 of 3 complete (17-03 done: useAdminUsers hooks, /admin/users page with search/drawer/block-unblock)
+Status: Phase 17 COMPLETE — all 3 plans done: admin auth, tenant management, user management
+Last activity: 2026-03-05 — 17-03 complete (useAdminUsers.ts, admin/users/page.tsx)
 
-Progress: [██████████████████████░░░░░░░░] 70% (v1.0 complete; v2.0 Phase 12 complete 3/3, Phase 13 complete 4/4, Phase 14 complete 2/2, Phase 15 complete 3/3, Phase 16 complete 2/2, Phase 17 in progress 1/3)
+Progress: [█████████████████████████████░] 73% (v1.0 complete; v2.0 Phase 12 complete 3/3, Phase 13 complete 4/4, Phase 14 complete 2/2, Phase 15 complete 3/3, Phase 16 complete 2/2, Phase 17 complete 3/3)
 
 ## Performance Metrics
 
@@ -49,6 +49,7 @@ Progress: [██████████████████████░
 | 16-billing-ui | 02 | 2 min | 1 | 2 |
 | 17-super-admin-ui | 01 | 2 min | 2 | 7 |
 | 17-super-admin-ui | 02 | 2 min | 2 | 2 |
+| 17-super-admin-ui | 03 | 3 min | 2 | 2 |
 
 ## Accumulated Context
 
@@ -118,6 +119,11 @@ Recent decisions affecting v2.0:
 - [17-02]: ADMIN_TENANT_KEYS.list(params) includes all filter params in query key — each filter combination cached separately; invalidateQueries({ queryKey: ['admin', 'tenants'] }) clears all at once after suspend/reactivate
 - [17-02]: Inline action row rendered as sibling <tr> in same <tbody> — follows confirmRemove pattern from team/page.tsx; no modal needed
 - [17-02]: Filter changes reset page to 0 — prevents stale pagination after filter change reduces total count
+- [17-03]: useAdminUsers always enabled — shows all users when q is empty; filters by email/name when q is set
+- [17-03]: Mutation invalidation uses ["admin", "users"] prefix key — one invalidateQueries call clears both list and detail caches
+- [17-03]: MembershipRow manages its own blockAction state — keeps inline form complexity out of page-level state
+- [17-03]: SkeletonList/SkeletonTable used for loading states — SkeletonVariant has no "list" or "table" values (text/heading/avatar/card/button/input only)
+- [17-03]: UserDetailDrawer placed outside main content div — prevents overflow:hidden parent from clipping fixed-position drawer
 
 ### Pending Todos
 
@@ -130,5 +136,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-03-05
-Stopped at: Completed 17-02-PLAN.md — admin tenant management UI (useAdminTenants.ts, /admin/tenants page)
-Resume file: None — continue with Phase 17 Plan 03 (Admin User Management UI)
+Stopped at: Completed 17-03-PLAN.md — admin user management UI (useAdminUsers.ts, /admin/users page with search/drawer/block-unblock)
+Resume file: None — Phase 17 complete (3/3 plans done)

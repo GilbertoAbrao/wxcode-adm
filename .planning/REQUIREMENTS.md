@@ -110,7 +110,7 @@ Requirements for v2.0 milestone. Each maps to roadmap phases.
 
 - [x] **SAI-01**: Admin can log in via separate admin login page with admin-audience JWT
 - [x] **SAI-02**: Admin can view paginated tenant list with filters (plan, status) and suspend/reactivate tenants
-- [ ] **SAI-03**: Admin can search users by email, view details, and block/unblock users
+- [x] **SAI-03**: Admin can search users by email, view details, and block/unblock users
 
 ## v2.1 Deferred
 
@@ -233,7 +233,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | BUI-03 | Phase 16 | Complete |
 | SAI-01 | Phase 17 | Complete |
 | SAI-02 | Phase 17 | Complete |
-| SAI-03 | Phase 17 | Pending |
+| SAI-03 | Phase 17 | Complete |
 
 **Coverage (v1):**
 - v1 requirements: 40 total
