@@ -80,6 +80,13 @@ export const changePasswordSchema = z
     path: ["confirm_password"],
   });
 
+export const inviteMemberSchema = z.object({
+  email: emailSchema,
+  role: z.enum(["admin", "developer", "viewer"], {
+    message: "Please select a role",
+  }),
+});
+
 // ---------------------------------------------------------------------------
 // Type aliases (inferred from schemas)
 // ---------------------------------------------------------------------------
@@ -92,3 +99,4 @@ export type VerifyEmailFormData = z.infer<typeof verifyEmailSchema>;
 export type WorkspaceFormData = z.infer<typeof workspaceSchema>;
 export type MfaCodeFormData = z.infer<typeof mfaCodeSchema>;
 export type ChangePasswordFormData = z.infer<typeof changePasswordSchema>;
+export type InviteMemberFormData = z.infer<typeof inviteMemberSchema>;
