@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-03-04)
 
 **Core value:** Controlar acesso seguro a plataforma WXCODE com identidade, permissoes por tenant e cobranca recorrente — sem executar nenhuma operacao do wxcode engine.
-**Current focus:** Milestone v2.0 — Phase 16: Billing UI — Plan 1 of 2 complete
+**Current focus:** Milestone v2.0 — Phase 16: Billing UI — Complete (2/2 plans done); ready for Phase 17
 
 ## Current Position
 
-Phase: 16 of 17 (Billing UI) — fifth phase of v2.0 Frontend UI milestone
-Plan: 1 of 2 complete (16-01 complete)
-Status: Phase 16 in progress — 16-01 done (useBilling.ts hooks + /billing page), ready for 16-02 (Stripe Checkout + Portal)
-Last activity: 2026-03-05 — 16-01 complete (TanStack Query billing hooks and /billing page with subscription card and plan catalog)
+Phase: 16 of 17 (Billing UI) — fifth phase of v2.0 Frontend UI milestone — COMPLETE
+Plan: 2 of 2 complete (16-01 and 16-02 done)
+Status: Phase 16 complete — full billing UI with Stripe Checkout, Portal redirect, and post-checkout polling; ready for Phase 17 (Super-Admin UI)
+Last activity: 2026-03-05 — 16-02 complete (Stripe Checkout wiring, Portal redirect, post-checkout subscription polling)
 
-Progress: [████████████████████░░░░░░░░░░] 64% (v1.0 complete; v2.0 Phase 12 complete 3/3, Phase 13 complete 4/4, Phase 14 complete 2/2, Phase 15 complete 3/3, Phase 16 in progress 1/2)
+Progress: [█████████████████████░░░░░░░░░] 67% (v1.0 complete; v2.0 Phase 12 complete 3/3, Phase 13 complete 4/4, Phase 14 complete 2/2, Phase 15 complete 3/3, Phase 16 complete 2/2, Phase 17 pending)
 
 ## Performance Metrics
 
@@ -46,6 +46,7 @@ Progress: [████████████████████░░░
 | Phase | Plan | Duration | Tasks | Files |
 |-------|------|----------|-------|-------|
 | 16-billing-ui | 01 | 1 min | 2 | 2 |
+| 16-billing-ui | 02 | 2 min | 1 | 2 |
 
 ## Accumulated Context
 
@@ -102,6 +103,10 @@ Recent decisions affecting v2.0:
 - [15-03]: useEffect([tenantsData]) syncs toggle state on load and after PATCH invalidation — toggle stays consistent with server state
 - [Phase 16-billing-ui]: useQueryClient included in useCreateCheckout/useCreatePortal for Plan 16-02 readiness (post-Stripe polling)
 - [Phase 16-billing-ui]: PlanCard co-located as inline sub-component in billing/page.tsx — keeps subscription state accessible
+- [16-02]: window.location.href for Stripe redirects (Checkout + Portal) — router.push cannot navigate to external domains
+- [16-02]: isPolling = !!sessionId && subscription.status === 'free' && !pollTimedOut — passed as refetchInterval option to useSubscription
+- [16-02]: Poll timeout via setTimeout(20s) in useEffect — simpler than counting refetch cycles
+- [16-02]: 409 -> "You already have an active subscription"; 402 -> "Billing setup incomplete"; default -> err.message
 
 ### Pending Todos
 
@@ -114,5 +119,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-03-05
-Stopped at: Completed 16-01-PLAN.md — useBilling.ts TanStack Query billing hooks + /billing page with subscription card and plan catalog (Phase 16 in progress — 1/2 plans done)
-Resume file: None — continue with Phase 16 Plan 02 (Stripe Checkout + Portal wiring)
+Stopped at: Completed 16-02-PLAN.md — Stripe Checkout wiring, Portal redirect, post-checkout polling (Phase 16 complete — 2/2 plans done)
+Resume file: None — continue with Phase 17 (Super-Admin UI)

@@ -104,7 +104,7 @@ Requirements for v2.0 milestone. Each maps to roadmap phases.
 
 - [x] **BUI-01**: User with billing access can view current subscription plan and status
 - [x] **BUI-02**: User can select a plan and complete subscription via Stripe Checkout redirect
-- [ ] **BUI-03**: User can access Stripe Customer Portal for payment method and invoice management
+- [x] **BUI-03**: User can access Stripe Customer Portal for payment method and invoice management
 
 ### Super-Admin UI
 
@@ -230,7 +230,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | TMI-03 | Phase 15 | Complete |
 | BUI-01 | Phase 16 | Complete |
 | BUI-02 | Phase 16 | Complete |
-| BUI-03 | Phase 16 | Pending |
+| BUI-03 | Phase 16 | Complete |
 | SAI-01 | Phase 17 | Pending |
 | SAI-02 | Phase 17 | Pending |
 | SAI-03 | Phase 17 | Pending |
