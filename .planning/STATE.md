@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-03-04)
 
 **Core value:** Controlar acesso seguro a plataforma WXCODE com identidade, permissoes por tenant e cobranca recorrente — sem executar nenhuma operacao do wxcode engine.
-**Current focus:** Milestone v2.0 — Phase 16: Billing UI — Complete (2/2 plans done); ready for Phase 17
+**Current focus:** Milestone v2.0 — Phase 17: Super-Admin UI — In progress (1/3 plans done)
 
 ## Current Position
 
-Phase: 16 of 17 (Billing UI) — fifth phase of v2.0 Frontend UI milestone — COMPLETE
-Plan: 2 of 2 complete (16-01 and 16-02 done)
-Status: Phase 16 complete — full billing UI with Stripe Checkout, Portal redirect, and post-checkout polling; ready for Phase 17 (Super-Admin UI)
-Last activity: 2026-03-05 — 16-02 complete (Stripe Checkout wiring, Portal redirect, post-checkout subscription polling)
+Phase: 17 of 17 (Super-Admin UI) — sixth phase of v2.0 Frontend UI milestone — IN PROGRESS
+Plan: 1 of 3 complete (17-01 done: admin auth foundation, AdminAuthProvider, /admin/login page)
+Status: Phase 17 in progress — admin auth isolation complete; next is tenant management UI (17-02)
+Last activity: 2026-03-05 — 17-01 complete (admin-auth.ts, adminApiClient, AdminAuthProvider, admin login page)
 
-Progress: [█████████████████████░░░░░░░░░] 67% (v1.0 complete; v2.0 Phase 12 complete 3/3, Phase 13 complete 4/4, Phase 14 complete 2/2, Phase 15 complete 3/3, Phase 16 complete 2/2, Phase 17 pending)
+Progress: [██████████████████████░░░░░░░░] 70% (v1.0 complete; v2.0 Phase 12 complete 3/3, Phase 13 complete 4/4, Phase 14 complete 2/2, Phase 15 complete 3/3, Phase 16 complete 2/2, Phase 17 in progress 1/3)
 
 ## Performance Metrics
 
@@ -47,6 +47,7 @@ Progress: [█████████████████████░░
 |-------|------|----------|-------|-------|
 | 16-billing-ui | 01 | 1 min | 2 | 2 |
 | 16-billing-ui | 02 | 2 min | 1 | 2 |
+| 17-super-admin-ui | 01 | 2 min | 2 | 7 |
 
 ## Accumulated Context
 
@@ -107,6 +108,12 @@ Recent decisions affecting v2.0:
 - [16-02]: isPolling = !!sessionId && subscription.status === 'free' && !pollTimedOut — passed as refetchInterval option to useSubscription
 - [16-02]: Poll timeout via setTimeout(20s) in useEffect — simpler than counting refetch cycles
 - [16-02]: 409 -> "You already have an active subscription"; 402 -> "Billing setup incomplete"; default -> err.message
+- [17-01]: Admin token store uses separate module-scoped variables (_adminAccessToken, _adminRefreshToken) — never shared with user token variables from auth.ts
+- [17-01]: adminApiClient implements local parseErrorBody copy (not exported from api-client.ts) and reuses ApiError class via import
+- [17-01]: AdminAuthProvider does not fetch /users/me on mount — no admin profile endpoint; just checks isAdminAuthenticated() for in-memory token
+- [17-01]: admin/layout.tsx is a real URL segment (not a route group) so /admin appears in URLs; AdminAuthProvider wraps only this segment
+- [17-01]: /admin added to PUBLIC_PATHS in auth-provider.tsx so tenant AuthProvider never redirects admin paths to /login
+- [17-01]: Admin login page has no Forgot password / Create account links — admin accounts are seeded, not self-service
 
 ### Pending Todos
 
@@ -119,5 +126,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-03-05
-Stopped at: Completed 16-02-PLAN.md — Stripe Checkout wiring, Portal redirect, post-checkout polling (Phase 16 complete — 2/2 plans done)
-Resume file: None — continue with Phase 17 (Super-Admin UI)
+Stopped at: Completed 17-01-PLAN.md — admin auth foundation (admin-auth.ts, adminApiClient, AdminAuthProvider, /admin/login page)
+Resume file: None — continue with Phase 17 Plan 02 (Admin Tenant Management UI)
