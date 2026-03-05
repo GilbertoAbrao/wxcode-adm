@@ -5,14 +5,14 @@
 See: .planning/PROJECT.md (updated 2026-03-04)
 
 **Core value:** Controlar acesso seguro a plataforma WXCODE com identidade, permissoes por tenant e cobranca recorrente — sem executar nenhuma operacao do wxcode engine.
-**Current focus:** Milestone v2.0 — Phase 17: Super-Admin UI — In progress (1/3 plans done)
+**Current focus:** Milestone v2.0 — Phase 17: Super-Admin UI — In progress (2/3 plans done)
 
 ## Current Position
 
 Phase: 17 of 17 (Super-Admin UI) — sixth phase of v2.0 Frontend UI milestone — IN PROGRESS
-Plan: 1 of 3 complete (17-01 done: admin auth foundation, AdminAuthProvider, /admin/login page)
-Status: Phase 17 in progress — admin auth isolation complete; next is tenant management UI (17-02)
-Last activity: 2026-03-05 — 17-01 complete (admin-auth.ts, adminApiClient, AdminAuthProvider, admin login page)
+Plan: 2 of 3 complete (17-02 done: useAdminTenants hooks, /admin/tenants page with filters, suspend/reactivate, pagination)
+Status: Phase 17 in progress — tenant management UI complete; next is user management UI (17-03)
+Last activity: 2026-03-05 — 17-02 complete (useAdminTenants.ts, admin/tenants/page.tsx)
 
 Progress: [██████████████████████░░░░░░░░] 70% (v1.0 complete; v2.0 Phase 12 complete 3/3, Phase 13 complete 4/4, Phase 14 complete 2/2, Phase 15 complete 3/3, Phase 16 complete 2/2, Phase 17 in progress 1/3)
 
@@ -48,6 +48,7 @@ Progress: [██████████████████████░
 | 16-billing-ui | 01 | 1 min | 2 | 2 |
 | 16-billing-ui | 02 | 2 min | 1 | 2 |
 | 17-super-admin-ui | 01 | 2 min | 2 | 7 |
+| 17-super-admin-ui | 02 | 2 min | 2 | 2 |
 
 ## Accumulated Context
 
@@ -114,6 +115,9 @@ Recent decisions affecting v2.0:
 - [17-01]: admin/layout.tsx is a real URL segment (not a route group) so /admin appears in URLs; AdminAuthProvider wraps only this segment
 - [17-01]: /admin added to PUBLIC_PATHS in auth-provider.tsx so tenant AuthProvider never redirects admin paths to /login
 - [17-01]: Admin login page has no Forgot password / Create account links — admin accounts are seeded, not self-service
+- [17-02]: ADMIN_TENANT_KEYS.list(params) includes all filter params in query key — each filter combination cached separately; invalidateQueries({ queryKey: ['admin', 'tenants'] }) clears all at once after suspend/reactivate
+- [17-02]: Inline action row rendered as sibling <tr> in same <tbody> — follows confirmRemove pattern from team/page.tsx; no modal needed
+- [17-02]: Filter changes reset page to 0 — prevents stale pagination after filter change reduces total count
 
 ### Pending Todos
 
@@ -126,5 +130,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-03-05
-Stopped at: Completed 17-01-PLAN.md — admin auth foundation (admin-auth.ts, adminApiClient, AdminAuthProvider, /admin/login page)
-Resume file: None — continue with Phase 17 Plan 02 (Admin Tenant Management UI)
+Stopped at: Completed 17-02-PLAN.md — admin tenant management UI (useAdminTenants.ts, /admin/tenants page)
+Resume file: None — continue with Phase 17 Plan 03 (Admin User Management UI)
