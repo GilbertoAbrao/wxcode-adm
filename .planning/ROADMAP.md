@@ -200,6 +200,20 @@ Plans:
 
 </details>
 
+### Phase 18: Super-Admin Enhanced
+**Goal**: The super-admin portal gains MRR revenue dashboard, audit log viewer, tenant detail page, and force password reset — completing the full admin toolkit with all existing backend endpoints wired to the UI
+**Depends on**: Phase 17
+**Requirements**: SAI-04, SAI-05
+**Success Criteria** (what must be TRUE):
+  1. Admin can view an MRR dashboard showing active subscription count, monthly recurring revenue, plan distribution, churn rate, and a 30-day trend chart
+  2. Admin can view a paginated audit log filterable by action type, tenant, and actor — showing timestamp, action, resource, IP, and details
+  3. Admin can click a tenant in the list to navigate to a detail page showing full tenant info (subscription status, MFA enforcement, wxcode URL, member count, dates)
+  4. Admin can click "Force Password Reset" in the user detail drawer, enter a reason, and trigger immediate session invalidation + reset email for that user
+**Plans**: 0 plans
+
+Plans:
+- [ ] TBD (run /gsd:plan-phase 18 to break down)
+
 ---
 
 ### v2.0 Frontend UI (In Progress)
@@ -304,8 +318,8 @@ Plans:
 ## Progress
 
 **Execution Order:**
-v2.0 phases execute in numeric order: 12 → 13 → 14 → 15 → 16 → 17
-(Phase 17 depends only on Phase 12 for the design system; can be done in any order relative to 14-16)
+v2.0 phases execute in numeric order: 12 → 13 → 14 → 15 → 16 → 17 → 18
+(Phase 18 depends on Phase 17 for admin auth foundation and existing admin pages)
 
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
@@ -326,3 +340,4 @@ v2.0 phases execute in numeric order: 12 → 13 → 14 → 15 → 16 → 17
 | 15. Tenant Management UI | 3/3 | Complete    | 2026-03-05 | 2026-03-05 |
 | 16. Billing UI | v2.0 | Complete    | 2026-03-05 | 2026-03-05 |
 | 17. Super-Admin UI | 3/3 | Complete    | 2026-03-05 | - |
+| 18. Super-Admin Enhanced | v2.0 | 0/0 | Not started | - |

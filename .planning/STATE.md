@@ -125,6 +125,10 @@ Recent decisions affecting v2.0:
 - [17-03]: SkeletonList/SkeletonTable used for loading states — SkeletonVariant has no "list" or "table" values (text/heading/avatar/card/button/input only)
 - [17-03]: UserDetailDrawer placed outside main content div — prevents overflow:hidden parent from clipping fixed-position drawer
 
+### Roadmap Evolution
+
+- Phase 18 added: Super-Admin Enhanced — MRR Dashboard, Audit Log Viewer, Tenant Detail Page, Force Password Reset (all backend endpoints already exist)
+
 ### Pending Todos
 
 None yet.
