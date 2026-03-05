@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-03-04)
 
 **Core value:** Controlar acesso seguro a plataforma WXCODE com identidade, permissoes por tenant e cobranca recorrente — sem executar nenhuma operacao do wxcode engine.
-**Current focus:** Milestone v2.0 — Phase 14: User Account UI (complete) — moving to Phase 15
+**Current focus:** Milestone v2.0 — Phase 15: Tenant Management UI (in progress) — Plan 1 of 2 complete
 
 ## Current Position
 
-Phase: 14 of 17 (User Account UI) — third phase of v2.0 Frontend UI milestone — COMPLETE
-Plan: 2 of 2 in current phase — complete
+Phase: 15 of 17 (Tenant Management UI) — fourth phase of v2.0 Frontend UI milestone
+Plan: 1 of 2 complete (15-01 complete)
 Status: In progress
-Last activity: 2026-03-04 — 14-02 complete (password change form + sessions list on /account page)
+Last activity: 2026-03-05 — 15-01 complete (useTenant.ts hooks + /team page with member list and invite form)
 
-Progress: [█████████████████░░░░░░░░░░░░░] 56% (v1.0 complete; v2.0 Phase 12 complete 3/3, Phase 13 complete 4/4, Phase 14 complete 2/2)
+Progress: [██████████████████░░░░░░░░░░░░] 59% (v1.0 complete; v2.0 Phase 12 complete 3/3, Phase 13 complete 4/4, Phase 14 complete 2/2, Phase 15 in progress 1/2)
 
 ## Performance Metrics
 
@@ -83,6 +83,11 @@ Recent decisions affecting v2.0:
 - [14-02]: Password change 400 error shows "Current password is incorrect" (not generic message) — ApiError.status === 400 check differentiates auth failure from server errors
 - [14-02]: confirm_password shares showNewPassword toggle state with new_password — avoids redundant third toggle
 - [14-02]: Sessions section and password section rendered in AccountPage root (not sub-components) — single use-client component per plan spec
+- [15-01]: tenantHeaders helper encapsulates X-Tenant-ID injection — all tenant-scoped hooks use it via spread onto apiClient options
+- [15-01]: useTenantInvitations conditionally enabled on isAdminOrOwner check at page level — avoids 403 for non-admin users
+- [15-01]: ChangeRoleVariables type extends ChangeRoleRequest with user_id for dynamic URL mutation
+- [15-01]: inviteMemberSchema role enum excludes owner — only admin/developer/viewer are valid invite roles per backend validation
+- [15-01]: Zod v4 z.enum uses message param not required_error (breaking change from Zod v3)
 
 ### Pending Todos
 
@@ -94,6 +99,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-04
-Stopped at: Completed 14-02-PLAN.md — /account page password change form + sessions list (Phase 14 complete)
-Resume file: None — continue with Phase 15
+Last session: 2026-03-05
+Stopped at: Completed 15-01-PLAN.md — useTenant.ts hooks + /team page (Phase 15 Plan 1 of 2 complete)
+Resume file: None — continue with 15-02-PLAN.md

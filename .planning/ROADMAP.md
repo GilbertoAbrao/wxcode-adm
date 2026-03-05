@@ -322,6 +322,6 @@ v2.0 phases execute in numeric order: 12 → 13 → 14 → 15 → 16 → 17
 | 12. Design System Foundation | v2.0 | 3/3 | Complete | 2026-03-04 |
 | 13. Auth Flows UI | 4/4 | Complete    | 2026-03-04 | - |
 | 14. User Account UI | 2/2 | Complete    | 2026-03-05 | - |
-| 15. Tenant Management UI | v2.0 | 0/2 | Not started | - |
+| 15. Tenant Management UI | 1/2 | In Progress|  | - |
 | 16. Billing UI | v2.0 | 0/2 | Not started | - |
 | 17. Super-Admin UI | v2.0 | 0/3 | Not started | - |
