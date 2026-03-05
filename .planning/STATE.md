@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-03-04)
 
 **Core value:** Controlar acesso seguro a plataforma WXCODE com identidade, permissoes por tenant e cobranca recorrente — sem executar nenhuma operacao do wxcode engine.
-**Current focus:** Milestone v2.0 — Phase 15: Tenant Management UI (complete w/gap closure) — Plan 3 of 3 complete
+**Current focus:** Milestone v2.0 — Phase 16: Billing UI — Plan 1 of 2 complete
 
 ## Current Position
 
-Phase: 15 of 17 (Tenant Management UI) — fourth phase of v2.0 Frontend UI milestone
-Plan: 3 of 3 complete (15-01 complete, 15-02 complete, 15-03 complete)
-Status: Phase 15 complete (including gap closure 15-03) — ready for Phase 16 (Billing UI)
-Last activity: 2026-03-05 — 15-03 complete (expose mfa_enforced in GET /tenants/me, seed toggle from API data)
+Phase: 16 of 17 (Billing UI) — fifth phase of v2.0 Frontend UI milestone
+Plan: 1 of 2 complete (16-01 complete)
+Status: Phase 16 in progress — 16-01 done (useBilling.ts hooks + /billing page), ready for 16-02 (Stripe Checkout + Portal)
+Last activity: 2026-03-05 — 16-01 complete (TanStack Query billing hooks and /billing page with subscription card and plan catalog)
 
-Progress: [████████████████████░░░░░░░░░░] 62% (v1.0 complete; v2.0 Phase 12 complete 3/3, Phase 13 complete 4/4, Phase 14 complete 2/2, Phase 15 complete 2/2)
+Progress: [████████████████████░░░░░░░░░░] 64% (v1.0 complete; v2.0 Phase 12 complete 3/3, Phase 13 complete 4/4, Phase 14 complete 2/2, Phase 15 complete 3/3, Phase 16 in progress 1/2)
 
 ## Performance Metrics
 
@@ -40,6 +40,12 @@ Progress: [████████████████████░░░
 | 11-billing-fixes | 1/1 | Complete |
 
 *Updated after each plan completion*
+
+**v2.0 Metrics:**
+
+| Phase | Plan | Duration | Tasks | Files |
+|-------|------|----------|-------|-------|
+| 16-billing-ui | 01 | 1 min | 2 | 2 |
 
 ## Accumulated Context
 
@@ -94,6 +100,8 @@ Recent decisions affecting v2.0:
 - [15-03]: mfa_enforced exposed in get_user_tenants via membership.tenant.mfa_enforced — selectinload already eager-loads full Tenant, no extra query needed
 - [15-03]: Frontend MyTenantItem.mfa_enforced declared optional (?) for backward compatibility with cached responses
 - [15-03]: useEffect([tenantsData]) syncs toggle state on load and after PATCH invalidation — toggle stays consistent with server state
+- [Phase 16-billing-ui]: useQueryClient included in useCreateCheckout/useCreatePortal for Plan 16-02 readiness (post-Stripe polling)
+- [Phase 16-billing-ui]: PlanCard co-located as inline sub-component in billing/page.tsx — keeps subscription state accessible
 
 ### Pending Todos
 
@@ -106,5 +114,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-03-05
-Stopped at: Completed 15-03-PLAN.md — expose mfa_enforced in GET /tenants/me, seed toggle from API data (Phase 15 complete with gap closure — 3/3 plans done)
-Resume file: None — continue with Phase 16 (Billing UI)
+Stopped at: Completed 16-01-PLAN.md — useBilling.ts TanStack Query billing hooks + /billing page with subscription card and plan catalog (Phase 16 in progress — 1/2 plans done)
+Resume file: None — continue with Phase 16 Plan 02 (Stripe Checkout + Portal wiring)
