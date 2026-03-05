@@ -54,6 +54,16 @@ export interface PortalResponse {
 }
 
 // ---------------------------------------------------------------------------
+// Query key constants — used by polling logic in billing/page.tsx
+// ---------------------------------------------------------------------------
+
+export const BILLING_QUERY_KEYS = {
+  plans: ["billing", "plans"] as const,
+  subscription: (tenantId: string) =>
+    ["billing", "subscription", tenantId] as const,
+};
+
+// ---------------------------------------------------------------------------
 // Internal helper: inject X-Tenant-ID header
 // ---------------------------------------------------------------------------
 
@@ -72,7 +82,7 @@ function tenantHeaders(tenantId: string): { headers: Record<string, string> } {
  */
 export function usePlans() {
   return useQuery<BillingPlan[], Error>({
-    queryKey: ["billing", "plans"],
+    queryKey: BILLING_QUERY_KEYS.plans,
     queryFn: () => apiClient<BillingPlan[]>("/billing/plans"),
     staleTime: 5 * 60_000,
   });
@@ -82,16 +92,23 @@ export function usePlans() {
  * Fetch the current subscription for the tenant.
  * Requires X-Tenant-ID header. Any tenant member can view.
  * staleTime: 30s
+ *
+ * Accepts an optional options param to support refetchInterval for polling
+ * after Stripe Checkout return (post-checkout subscription status update).
  */
-export function useSubscription(tenantId: string | undefined) {
+export function useSubscription(
+  tenantId: string | undefined,
+  options?: { refetchInterval?: number | false }
+) {
   return useQuery<Subscription, Error>({
-    queryKey: ["billing", "subscription", tenantId],
+    queryKey: BILLING_QUERY_KEYS.subscription(tenantId ?? ""),
     queryFn: () =>
       apiClient<Subscription>("/billing/subscription", {
         ...tenantHeaders(tenantId!),
       }),
     enabled: !!tenantId,
     staleTime: 30_000,
+    refetchInterval: options?.refetchInterval,
   });
 }
 
@@ -106,7 +123,7 @@ export function useSubscription(tenantId: string | undefined) {
  * Returns CheckoutResponse with checkout_url and session_id.
  */
 export function useCreateCheckout(tenantId: string | undefined) {
-  // useQueryClient imported for Plan 16-02 readiness (polling after return)
+  // useQueryClient available for post-checkout query invalidation if needed
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const queryClient = useQueryClient();
   return useMutation<CheckoutResponse, Error, { plan_id: string }>({
@@ -125,7 +142,7 @@ export function useCreateCheckout(tenantId: string | undefined) {
  * Returns PortalResponse with portal_url.
  */
 export function useCreatePortal(tenantId: string | undefined) {
-  // useQueryClient imported for Plan 16-02 readiness
+  // useQueryClient available if post-portal invalidation needed
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const queryClient = useQueryClient();
   return useMutation<PortalResponse, Error, void>({

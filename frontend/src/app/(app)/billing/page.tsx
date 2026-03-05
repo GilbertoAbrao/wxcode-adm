@@ -1,5 +1,22 @@
 "use client";
 
+/**
+ * Billing page — subscription display, plan catalog, and Stripe Checkout/Portal wiring.
+ *
+ * - Displays current subscription (status badge, renewal date, token usage bar)
+ * - Lists all available plans with contextual CTAs (Subscribe/Upgrade)
+ * - Plan card CTA → POST /billing/checkout → window.location.href to Stripe Checkout
+ * - Manage Billing button → POST /billing/portal → window.location.href to Stripe Portal
+ * - Detects ?session_id= on return from Stripe Checkout → polls subscription every 2s
+ *   until status changes from "free"; shows success banner and clears URL param
+ * - Poll timeout: 20 seconds; shows "refresh in a moment" message if timed out
+ *
+ * Note: useSearchParams() requires Suspense boundary in Next.js App Router.
+ * The inner BillingPageContent reads search params; the exported default wraps it.
+ */
+
+import { Suspense, useState, useEffect } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
   CreditCard,
   Zap,
@@ -7,6 +24,7 @@ import {
   ExternalLink,
   Crown,
   CheckCircle2,
+  Loader2,
 } from "lucide-react";
 import {
   GlowButton,
@@ -21,6 +39,7 @@ import {
   useCreateCheckout,
   useCreatePortal,
 } from "@/hooks/useBilling";
+import { ApiError } from "@/lib/api-client";
 import type { BillingPlan, Subscription } from "@/hooks/useBilling";
 
 // ---------------------------------------------------------------------------
@@ -78,9 +97,17 @@ interface PlanCardProps {
   plan: BillingPlan;
   subscription: Subscription | undefined;
   hasBillingAccess: boolean;
+  onCheckout: (planId: string) => void;
+  checkoutPlanId: string | null; // which plan card is currently loading
 }
 
-function PlanCard({ plan, subscription, hasBillingAccess }: PlanCardProps) {
+function PlanCard({
+  plan,
+  subscription,
+  hasBillingAccess,
+  onCheckout,
+  checkoutPlanId,
+}: PlanCardProps) {
   const currentPlanId = subscription?.plan?.id;
   const isCurrent = plan.id === currentPlanId;
   const currentStatus = subscription?.status ?? "free";
@@ -111,6 +138,9 @@ function PlanCard({ plan, subscription, hasBillingAccess }: PlanCardProps) {
     plan.token_quota > 0
       ? `${plan.token_quota.toLocaleString()} tokens/month`
       : "No token quota";
+
+  const isThisCardLoading = checkoutPlanId === plan.id;
+  const anyCheckoutInProgress = checkoutPlanId !== null;
 
   return (
     <div
@@ -167,9 +197,10 @@ function PlanCard({ plan, subscription, hasBillingAccess }: PlanCardProps) {
           <GlowButton
             size="sm"
             className="w-full justify-center"
-            onClick={() => {
-              // Plan 16-02: wire useCreateCheckout
-            }}
+            onClick={() => onCheckout(plan.id)}
+            isLoading={isThisCardLoading}
+            loadingText="Redirecting..."
+            disabled={anyCheckoutInProgress}
           >
             {ctaLabel}
           </GlowButton>
@@ -184,10 +215,37 @@ function PlanCard({ plan, subscription, hasBillingAccess }: PlanCardProps) {
 }
 
 // ---------------------------------------------------------------------------
-// Billing page
+// Billing loading skeleton (used as Suspense fallback)
 // ---------------------------------------------------------------------------
 
-export default function BillingPage() {
+function BillingLoadingFallback() {
+  return (
+    <div className="max-w-4xl mx-auto space-y-8">
+      <div>
+        <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
+          <CreditCard className="h-6 w-6 text-cyan-400" />
+          Billing
+        </h1>
+        <p className="text-sm text-muted-foreground mt-1">
+          Manage your subscription and billing.
+        </p>
+      </div>
+      <div className="rounded-lg border border-zinc-800 bg-zinc-900/50 p-6">
+        <LoadingSkeleton lines={4} />
+      </div>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Inner content component — reads useSearchParams (must be inside Suspense)
+// ---------------------------------------------------------------------------
+
+function BillingPageContent() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const sessionId = searchParams.get("session_id");
+
   // Resolve tenant context (user belongs to exactly one tenant)
   const { data: tenantsData, isLoading: tenantsLoading } = useMyTenants();
 
@@ -197,6 +255,15 @@ export default function BillingPage() {
   const hasBillingAccess =
     currentRole === "owner" || billingAccess === true;
 
+  // Post-checkout polling state
+  const [checkoutComplete, setCheckoutComplete] = useState(false);
+  const [pollTimedOut, setPollTimedOut] = useState(false);
+  const [successPlanName, setSuccessPlanName] = useState<string | null>(null);
+
+  // Poll subscription while session_id present and status is still "free"
+  const isPolling =
+    !!sessionId && !checkoutComplete && !pollTimedOut;
+
   // Data fetching
   const {
     data: subscription,
@@ -204,37 +271,113 @@ export default function BillingPage() {
     isError: subscriptionError,
     error: subscriptionErrorObj,
     refetch: refetchSubscription,
-  } = useSubscription(tenantId);
+  } = useSubscription(tenantId, {
+    refetchInterval: isPolling ? 2000 : false,
+  });
 
   const { data: plans, isLoading: plansLoading } = usePlans();
 
-  // Mutations available for Plan 16-02 wiring
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const _createCheckout = useCreateCheckout(tenantId);
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const _createPortal = useCreatePortal(tenantId);
+  // Checkout mutation
+  const createCheckoutMutation = useCreateCheckout(tenantId);
+  // Portal mutation
+  const createPortalMutation = useCreatePortal(tenantId);
+
+  // Per-card loading state (which plan card is mid-checkout)
+  const [checkoutPlanId, setCheckoutPlanId] = useState<string | null>(null);
+
+  // ---------------------------------------------------------------------------
+  // Post-checkout polling: detect status change from "free"
+  // ---------------------------------------------------------------------------
+
+  useEffect(() => {
+    if (!sessionId) return;
+    if (!subscription) return;
+    if (subscription.status !== "free") {
+      // Payment processed — clean up URL and show success
+      setSuccessPlanName(subscription.plan?.name ?? null);
+      setCheckoutComplete(true);
+      router.replace("/billing", { scroll: false });
+    }
+  }, [sessionId, subscription, router]);
+
+  // ---------------------------------------------------------------------------
+  // Poll timeout: stop polling after 20 seconds
+  // ---------------------------------------------------------------------------
+
+  useEffect(() => {
+    if (!sessionId || pollTimedOut || checkoutComplete) return;
+    const timeout = setTimeout(() => setPollTimedOut(true), 20_000);
+    return () => clearTimeout(timeout);
+  }, [sessionId, pollTimedOut, checkoutComplete]);
+
+  // ---------------------------------------------------------------------------
+  // Auto-dismiss success banner after 5 seconds
+  // ---------------------------------------------------------------------------
+
+  useEffect(() => {
+    if (!checkoutComplete) return;
+    const dismiss = setTimeout(() => setCheckoutComplete(false), 5_000);
+    return () => clearTimeout(dismiss);
+  }, [checkoutComplete]);
+
+  // ---------------------------------------------------------------------------
+  // Checkout handler
+  // ---------------------------------------------------------------------------
+
+  async function handleCheckout(planId: string) {
+    setCheckoutPlanId(planId);
+    try {
+      const result = await createCheckoutMutation.mutateAsync({ plan_id: planId });
+      // Redirect to Stripe Checkout (external URL — must use window.location.href)
+      window.location.href = result.checkout_url;
+    } catch {
+      setCheckoutPlanId(null);
+      // Error displayed via createCheckoutMutation.isError
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // Portal handler
+  // ---------------------------------------------------------------------------
+
+  async function handlePortal() {
+    try {
+      const result = await createPortalMutation.mutateAsync(undefined);
+      // Redirect to Stripe Customer Portal (external URL — must use window.location.href)
+      window.location.href = result.portal_url;
+    } catch {
+      // Error displayed via createPortalMutation.isError
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // Checkout error message helpers
+  // ---------------------------------------------------------------------------
+
+  function getCheckoutErrorMessage(): string | null {
+    if (!createCheckoutMutation.isError) return null;
+    const err = createCheckoutMutation.error;
+    if (err instanceof ApiError) {
+      if (err.status === 409) return "You already have an active subscription.";
+      if (err.status === 402) return "Billing setup incomplete. Please contact support.";
+      return err.message;
+    }
+    return err?.message ?? "Failed to start checkout. Please try again.";
+  }
+
+  function getPortalErrorMessage(): string | null {
+    if (!createPortalMutation.isError) return null;
+    const err = createPortalMutation.error;
+    if (err instanceof ApiError) return err.message;
+    return err?.message ?? "Failed to open billing portal. Please try again.";
+  }
 
   // ---------------------------------------------------------------------------
   // Loading state
   // ---------------------------------------------------------------------------
 
   if (tenantsLoading || subscriptionLoading || plansLoading) {
-    return (
-      <div className="max-w-4xl mx-auto space-y-8">
-        <div>
-          <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
-            <CreditCard className="h-6 w-6 text-cyan-400" />
-            Billing
-          </h1>
-          <p className="text-sm text-muted-foreground mt-1">
-            Manage your subscription and billing.
-          </p>
-        </div>
-        <div className="rounded-lg border border-zinc-800 bg-zinc-900/50 p-6">
-          <LoadingSkeleton lines={4} />
-        </div>
-      </div>
-    );
+    return <BillingLoadingFallback />;
   }
 
   // ---------------------------------------------------------------------------
@@ -271,6 +414,9 @@ export default function BillingPage() {
   const usagePercent =
     tokenQuota > 0 ? Math.min(100, (tokensUsed / tokenQuota) * 100) : 0;
 
+  const checkoutErrorMessage = getCheckoutErrorMessage();
+  const portalErrorMessage = getPortalErrorMessage();
+
   return (
     <div className="max-w-4xl mx-auto space-y-8">
       {/* Page header */}
@@ -283,6 +429,58 @@ export default function BillingPage() {
           Manage your subscription and billing.
         </p>
       </div>
+
+      {/* Post-checkout: processing banner */}
+      {sessionId && !checkoutComplete && (
+        <div
+          className={`rounded-lg border p-4 flex items-start gap-3 ${
+            pollTimedOut
+              ? "bg-amber-400/10 border-amber-400/30"
+              : "bg-cyan-400/10 border-cyan-400/30"
+          }`}
+        >
+          {!pollTimedOut && (
+            <Loader2 className="h-5 w-5 text-cyan-400 shrink-0 mt-0.5 animate-spin" />
+          )}
+          <div className="space-y-1">
+            {pollTimedOut ? (
+              <>
+                <p className="text-sm font-medium text-amber-400">
+                  Payment received
+                </p>
+                <p className="text-sm text-zinc-400">
+                  Your subscription may take a moment to activate. Please refresh the page shortly.
+                </p>
+              </>
+            ) : (
+              <>
+                <p className="text-sm font-medium text-cyan-400">
+                  Processing your payment...
+                </p>
+                <p className="text-sm text-zinc-400">
+                  Waiting for subscription to activate. This usually takes a few seconds.
+                </p>
+              </>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Post-checkout: success banner (auto-dismisses after 5s) */}
+      {checkoutComplete && (
+        <div className="rounded-lg border border-emerald-400/30 bg-emerald-400/10 p-4 flex items-center gap-3">
+          <CheckCircle2 className="h-5 w-5 text-emerald-400 shrink-0" />
+          <p className="text-sm text-emerald-400 font-medium">
+            Subscription activated!
+            {successPlanName && (
+              <span className="font-normal text-zinc-300">
+                {" "}
+                You are now on the {successPlanName} plan.
+              </span>
+            )}
+          </p>
+        </div>
+      )}
 
       {/* Current Plan section */}
       <section className="rounded-lg border border-zinc-800 bg-zinc-900/50 p-6">
@@ -341,17 +539,22 @@ export default function BillingPage() {
           {hasBillingAccess &&
             (subscription?.status === "active" ||
               subscription?.status === "past_due") && (
-              <div>
-                <GlowButton
-                  variant="secondary"
-                  size="sm"
-                  onClick={() => {
-                    // Plan 16-02: wire useCreatePortal
-                  }}
-                >
-                  <ExternalLink className="h-4 w-4" />
-                  Manage Billing
-                </GlowButton>
+              <div className="flex flex-col gap-2">
+                <div>
+                  <GlowButton
+                    variant="secondary"
+                    size="sm"
+                    onClick={handlePortal}
+                    isLoading={createPortalMutation.isPending}
+                    loadingText="Opening..."
+                  >
+                    <ExternalLink className="h-4 w-4" />
+                    Manage Billing
+                  </GlowButton>
+                </div>
+                {portalErrorMessage && (
+                  <p className="text-sm text-rose-400">{portalErrorMessage}</p>
+                )}
               </div>
             )}
         </div>
@@ -370,18 +573,39 @@ export default function BillingPage() {
             description="There are currently no billing plans configured."
           />
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {plans.map((plan) => (
-              <PlanCard
-                key={plan.id}
-                plan={plan}
-                subscription={subscription}
-                hasBillingAccess={hasBillingAccess}
-              />
-            ))}
-          </div>
+          <>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {plans.map((plan) => (
+                <PlanCard
+                  key={plan.id}
+                  plan={plan}
+                  subscription={subscription}
+                  hasBillingAccess={hasBillingAccess}
+                  onCheckout={handleCheckout}
+                  checkoutPlanId={checkoutPlanId}
+                />
+              ))}
+            </div>
+
+            {/* Checkout error */}
+            {checkoutErrorMessage && (
+              <p className="mt-4 text-sm text-rose-400">{checkoutErrorMessage}</p>
+            )}
+          </>
         )}
       </section>
     </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Page export — wraps content in Suspense (required by Next.js for useSearchParams)
+// ---------------------------------------------------------------------------
+
+export default function BillingPage() {
+  return (
+    <Suspense fallback={<BillingLoadingFallback />}>
+      <BillingPageContent />
+    </Suspense>
   );
 }
