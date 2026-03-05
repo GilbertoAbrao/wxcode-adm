@@ -268,8 +268,8 @@ Plans:
 **Plans**: 2 plans
 
 Plans:
-- [ ] 15-01-PLAN.md — TanStack Query hooks for tenant endpoints (X-Tenant-ID header injection), /team page with member list (AnimatedList), invite member form
-- [ ] 15-02-PLAN.md — Role change dropdown, remove member action with confirmation, MFA enforcement toggle for Owner
+- [x] 15-01-PLAN.md — TanStack Query hooks for tenant endpoints (X-Tenant-ID header injection), /team page with member list (AnimatedList), invite member form
+- [x] 15-02-PLAN.md — Role change dropdown, remove member action with confirmation, MFA enforcement toggle for Owner
 
 ### Phase 16: Billing UI
 **Goal**: A user with billing access can view their current plan, subscribe or upgrade via Stripe Checkout, and access the Stripe Customer Portal for invoice and payment management — all through the UI
@@ -322,6 +322,6 @@ v2.0 phases execute in numeric order: 12 → 13 → 14 → 15 → 16 → 17
 | 12. Design System Foundation | v2.0 | 3/3 | Complete | 2026-03-04 |
 | 13. Auth Flows UI | 4/4 | Complete    | 2026-03-04 | - |
 | 14. User Account UI | 2/2 | Complete    | 2026-03-05 | - |
-| 15. Tenant Management UI | 1/2 | In Progress|  | - |
+| 15. Tenant Management UI | v2.0 | 2/2 | Complete | 2026-03-05 |
 | 16. Billing UI | v2.0 | 0/2 | Not started | - |
 | 17. Super-Admin UI | v2.0 | 0/3 | Not started | - |

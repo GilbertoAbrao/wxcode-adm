@@ -97,8 +97,8 @@ Requirements for v2.0 milestone. Each maps to roadmap phases.
 ### Tenant Management UI
 
 - [x] **TMI-01**: Owner/Admin can view member list with roles and invite new members by email
-- [ ] **TMI-02**: Owner/Admin can change member roles or remove members
-- [ ] **TMI-03**: Owner can enable/disable MFA enforcement for the tenant
+- [x] **TMI-02**: Owner/Admin can change member roles or remove members
+- [x] **TMI-03**: Owner can enable/disable MFA enforcement for the tenant
 
 ### Billing UI
 
@@ -226,8 +226,8 @@ Which phases cover which requirements. Updated during roadmap creation.
 | UAI-02 | Phase 14 | Complete |
 | UAI-03 | Phase 14 | Complete |
 | TMI-01 | Phase 15 | Complete |
-| TMI-02 | Phase 15 | Pending |
-| TMI-03 | Phase 15 | Pending |
+| TMI-02 | Phase 15 | Complete |
+| TMI-03 | Phase 15 | Complete |
 | BUI-01 | Phase 16 | Pending |
 | BUI-02 | Phase 16 | Pending |
 | BUI-03 | Phase 16 | Pending |

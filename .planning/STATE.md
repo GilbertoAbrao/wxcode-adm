@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-03-04)
 
 **Core value:** Controlar acesso seguro a plataforma WXCODE com identidade, permissoes por tenant e cobranca recorrente — sem executar nenhuma operacao do wxcode engine.
-**Current focus:** Milestone v2.0 — Phase 15: Tenant Management UI (in progress) — Plan 1 of 2 complete
+**Current focus:** Milestone v2.0 — Phase 15: Tenant Management UI (complete) — Plan 2 of 2 complete
 
 ## Current Position
 
 Phase: 15 of 17 (Tenant Management UI) — fourth phase of v2.0 Frontend UI milestone
-Plan: 1 of 2 complete (15-01 complete)
-Status: In progress
-Last activity: 2026-03-05 — 15-01 complete (useTenant.ts hooks + /team page with member list and invite form)
+Plan: 2 of 2 complete (15-01 complete, 15-02 complete)
+Status: Phase 15 complete — ready for Phase 16 (Billing UI)
+Last activity: 2026-03-05 — 15-02 complete (role change dropdown, remove member action, MFA enforcement toggle)
 
-Progress: [██████████████████░░░░░░░░░░░░] 59% (v1.0 complete; v2.0 Phase 12 complete 3/3, Phase 13 complete 4/4, Phase 14 complete 2/2, Phase 15 in progress 1/2)
+Progress: [████████████████████░░░░░░░░░░] 62% (v1.0 complete; v2.0 Phase 12 complete 3/3, Phase 13 complete 4/4, Phase 14 complete 2/2, Phase 15 complete 2/2)
 
 ## Performance Metrics
 
@@ -88,6 +88,9 @@ Recent decisions affecting v2.0:
 - [15-01]: ChangeRoleVariables type extends ChangeRoleRequest with user_id for dynamic URL mutation
 - [15-01]: inviteMemberSchema role enum excludes owner — only admin/developer/viewer are valid invite roles per backend validation
 - [15-01]: Zod v4 z.enum uses message param not required_error (breaking change from Zod v3)
+- [15-02]: confirmRemove string|null state for inline per-row remove confirmation — replaces trash icon with "Remove? Yes/No" without a modal
+- [15-02]: mfaEnforced local state initialized to false — TenantResponse schema does not expose mfa_enforced; state syncs from PATCH response; resets on page reload (known limitation, backend fix out of scope)
+- [15-02]: Role dropdown onChange is async with try/catch; errors surface per-row via changeRoleMutation.variables?.user_id === member.user_id
 
 ### Pending Todos
 
@@ -100,5 +103,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-03-05
-Stopped at: Completed 15-01-PLAN.md — useTenant.ts hooks + /team page (Phase 15 Plan 1 of 2 complete)
-Resume file: None — continue with 15-02-PLAN.md
+Stopped at: Completed 15-02-PLAN.md — role change, remove member, MFA enforcement toggle (Phase 15 complete — 2/2 plans done)
+Resume file: None — continue with Phase 16 (Billing UI)
