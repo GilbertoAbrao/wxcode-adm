@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Users, UserPlus, Mail, Shield, Trash2, Clock, Lock } from "lucide-react";
@@ -64,6 +64,13 @@ export default function TeamPage() {
 
   // Resolve tenant context (user belongs to exactly one tenant)
   const { data: tenantsData, isLoading: tenantsLoading } = useMyTenants();
+
+  // Seed MFA toggle from API data on load
+  useEffect(() => {
+    if (tenantsData?.tenants?.[0]?.mfa_enforced !== undefined) {
+      setMfaEnforced(tenantsData.tenants[0].mfa_enforced);
+    }
+  }, [tenantsData]);
   const tenantId = tenantsData?.tenants?.[0]?.id;
   const currentRole = tenantsData?.tenants?.[0]?.role;
   const isAdminOrOwner = currentRole === "owner" || currentRole === "admin";

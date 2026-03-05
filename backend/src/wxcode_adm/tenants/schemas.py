@@ -168,6 +168,7 @@ class MyTenantItem(BaseModel):
     slug: str
     role: str
     billing_access: bool
+    mfa_enforced: bool
 
 
 class MyTenantsResponse(BaseModel):

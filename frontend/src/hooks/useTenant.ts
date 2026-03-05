@@ -28,6 +28,7 @@ export interface MyTenantItem {
   slug: string;
   role: string;
   billing_access: boolean;
+  mfa_enforced?: boolean;
 }
 
 export interface MyTenantsResponse {

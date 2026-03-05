@@ -235,6 +235,7 @@ async def get_user_tenants(
             "slug": membership.tenant.slug,
             "role": membership.role.value,
             "billing_access": membership.billing_access,
+            "mfa_enforced": membership.tenant.mfa_enforced,
         }
         for membership in memberships
     ]
