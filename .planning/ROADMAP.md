@@ -265,11 +265,12 @@ Plans:
   1. Owner or Admin can view the full member list with each member's display name, email, role, and invitation status; the list updates after inviting a new member by email
   2. Owner or Admin can change a member's role via a dropdown and remove a member from the workspace; removed members disappear from the list immediately
   3. Tenant Owner can toggle MFA enforcement on or off for the workspace; the toggle reflects the current enforcement state on page load
-**Plans**: 2 plans
+**Plans**: 3 plans
 
 Plans:
 - [x] 15-01-PLAN.md — TanStack Query hooks for tenant endpoints (X-Tenant-ID header injection), /team page with member list (AnimatedList), invite member form
 - [x] 15-02-PLAN.md — Role change dropdown, remove member action with confirmation, MFA enforcement toggle for Owner
+- [ ] 15-03-PLAN.md — Gap closure: expose mfa_enforced in GET /tenants/me, seed MFA toggle from API data on page load
 
 ### Phase 16: Billing UI
 **Goal**: A user with billing access can view their current plan, subscribe or upgrade via Stripe Checkout, and access the Stripe Customer Portal for invoice and payment management — all through the UI
