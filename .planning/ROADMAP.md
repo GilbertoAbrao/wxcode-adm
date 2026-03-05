@@ -209,10 +209,11 @@ Plans:
   2. Admin can view a paginated audit log filterable by action type, tenant, and actor — showing timestamp, action, resource, IP, and details
   3. Admin can click a tenant in the list to navigate to a detail page showing full tenant info (subscription status, MFA enforcement, wxcode URL, member count, dates)
   4. Admin can click "Force Password Reset" in the user detail drawer, enter a reason, and trigger immediate session invalidation + reset email for that user
-**Plans**: 0 plans
+**Plans**: 2 plans
 
 Plans:
-- [ ] TBD (run /gsd:plan-phase 18 to break down)
+- [ ] 18-01-PLAN.md — Install Recharts, MRR dashboard page (metric cards + 30-day trend chart + plan distribution), audit log viewer page (paginated table + action/tenant/actor filters)
+- [ ] 18-02-PLAN.md — Tenant detail page (/admin/tenants/[tenantId]), force password reset in user detail drawer, AdminNav update with 4 links
 
 ---
 
@@ -340,4 +341,4 @@ v2.0 phases execute in numeric order: 12 → 13 → 14 → 15 → 16 → 17 → 
 | 15. Tenant Management UI | 3/3 | Complete    | 2026-03-05 | 2026-03-05 |
 | 16. Billing UI | v2.0 | Complete    | 2026-03-05 | 2026-03-05 |
 | 17. Super-Admin UI | 3/3 | Complete    | 2026-03-05 | - |
-| 18. Super-Admin Enhanced | v2.0 | 0/0 | Not started | - |
+| 18. Super-Admin Enhanced | v2.0 | 0/2 | Not started | - |
