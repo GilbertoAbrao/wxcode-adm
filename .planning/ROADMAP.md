@@ -283,8 +283,8 @@ Plans:
 **Plans**: 2 plans
 
 Plans:
-- [ ] 16-01: Billing page layout, current subscription display, plan catalog with plan cards (GlowButton CTAs)
-- [ ] 16-02: Stripe Checkout redirect flow, Customer Portal redirect, subscription status polling after checkout return
+- [ ] 16-01-PLAN.md — Billing hooks (useBilling.ts), billing page layout, current subscription display, plan catalog with plan cards (GlowButton CTAs)
+- [ ] 16-02-PLAN.md — Stripe Checkout redirect flow, Customer Portal redirect, subscription status polling after checkout return
 
 ### Phase 17: Super-Admin UI
 **Goal**: The platform super-admin can log in via a dedicated admin portal, manage tenants and users across the platform, and take moderation actions — all through a UI isolated from the tenant-facing application
