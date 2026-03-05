@@ -5,14 +5,14 @@
 See: .planning/PROJECT.md (updated 2026-03-04)
 
 **Core value:** Controlar acesso seguro a plataforma WXCODE com identidade, permissoes por tenant e cobranca recorrente — sem executar nenhuma operacao do wxcode engine.
-**Current focus:** Milestone v2.0 — Phase 15: Tenant Management UI (complete) — Plan 2 of 2 complete
+**Current focus:** Milestone v2.0 — Phase 15: Tenant Management UI (complete w/gap closure) — Plan 3 of 3 complete
 
 ## Current Position
 
 Phase: 15 of 17 (Tenant Management UI) — fourth phase of v2.0 Frontend UI milestone
-Plan: 2 of 2 complete (15-01 complete, 15-02 complete)
-Status: Phase 15 complete — ready for Phase 16 (Billing UI)
-Last activity: 2026-03-05 — 15-02 complete (role change dropdown, remove member action, MFA enforcement toggle)
+Plan: 3 of 3 complete (15-01 complete, 15-02 complete, 15-03 complete)
+Status: Phase 15 complete (including gap closure 15-03) — ready for Phase 16 (Billing UI)
+Last activity: 2026-03-05 — 15-03 complete (expose mfa_enforced in GET /tenants/me, seed toggle from API data)
 
 Progress: [████████████████████░░░░░░░░░░] 62% (v1.0 complete; v2.0 Phase 12 complete 3/3, Phase 13 complete 4/4, Phase 14 complete 2/2, Phase 15 complete 2/2)
 
@@ -89,8 +89,11 @@ Recent decisions affecting v2.0:
 - [15-01]: inviteMemberSchema role enum excludes owner — only admin/developer/viewer are valid invite roles per backend validation
 - [15-01]: Zod v4 z.enum uses message param not required_error (breaking change from Zod v3)
 - [15-02]: confirmRemove string|null state for inline per-row remove confirmation — replaces trash icon with "Remove? Yes/No" without a modal
-- [15-02]: mfaEnforced local state initialized to false — TenantResponse schema does not expose mfa_enforced; state syncs from PATCH response; resets on page reload (known limitation, backend fix out of scope)
+- [15-02]: mfaEnforced local state initialized to false — TenantResponse schema did not expose mfa_enforced; state synced from PATCH response; reset on page reload (known limitation — resolved in 15-03)
 - [15-02]: Role dropdown onChange is async with try/catch; errors surface per-row via changeRoleMutation.variables?.user_id === member.user_id
+- [15-03]: mfa_enforced exposed in get_user_tenants via membership.tenant.mfa_enforced — selectinload already eager-loads full Tenant, no extra query needed
+- [15-03]: Frontend MyTenantItem.mfa_enforced declared optional (?) for backward compatibility with cached responses
+- [15-03]: useEffect([tenantsData]) syncs toggle state on load and after PATCH invalidation — toggle stays consistent with server state
 
 ### Pending Todos
 
@@ -103,5 +106,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-03-05
-Stopped at: Completed 15-02-PLAN.md — role change, remove member, MFA enforcement toggle (Phase 15 complete — 2/2 plans done)
+Stopped at: Completed 15-03-PLAN.md — expose mfa_enforced in GET /tenants/me, seed toggle from API data (Phase 15 complete with gap closure — 3/3 plans done)
 Resume file: None — continue with Phase 16 (Billing UI)
