@@ -268,8 +268,8 @@ Plans:
 **Plans**: 2 plans
 
 Plans:
-- [ ] 15-01: Team settings page, member list with roles (AnimatedList), invite member form, TanStack Query hooks for tenant endpoints
-- [ ] 15-02: Role change dropdown, remove member action, MFA enforcement toggle
+- [ ] 15-01-PLAN.md — TanStack Query hooks for tenant endpoints (X-Tenant-ID header injection), /team page with member list (AnimatedList), invite member form
+- [ ] 15-02-PLAN.md — Role change dropdown, remove member action with confirmation, MFA enforcement toggle for Owner
 
 ### Phase 16: Billing UI
 **Goal**: A user with billing access can view their current plan, subscribe or upgrade via Stripe Checkout, and access the Stripe Customer Portal for invoice and payment management — all through the UI
