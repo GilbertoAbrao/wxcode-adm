@@ -40,11 +40,13 @@ import {
   useAdminUserDetail,
   useBlockUser,
   useUnblockUser,
+  useForcePasswordReset,
   type UserListItem,
   type UserMembershipItem,
   type UserSessionItem,
   type UserDetailResponse,
 } from "@/hooks/useAdminUsers";
+import { ApiError } from "@/lib/api-client";
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -73,6 +75,12 @@ function AdminNav() {
     <div className="flex items-center justify-between mb-6 pb-4 border-b border-zinc-800">
       <nav className="flex items-center gap-1">
         <Link
+          href="/admin/dashboard"
+          className="px-3 py-1.5 rounded text-sm text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/50 transition-colors"
+        >
+          Dashboard
+        </Link>
+        <Link
           href="/admin/tenants"
           className="px-3 py-1.5 rounded text-sm text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/50 transition-colors"
         >
@@ -83,6 +91,12 @@ function AdminNav() {
           className="px-3 py-1.5 rounded text-sm text-cyan-400 border-b-2 border-cyan-400 font-medium"
         >
           Users
+        </Link>
+        <Link
+          href="/admin/audit-logs"
+          className="px-3 py-1.5 rounded text-sm text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/50 transition-colors"
+        >
+          Audit Logs
         </Link>
       </nav>
       <div className="flex items-center gap-3">
@@ -383,8 +397,39 @@ function UserDetailDrawer({
   onClose: () => void;
 }) {
   const { data: user, isLoading, error } = useAdminUserDetail(userId);
+  const forceResetMutation = useForcePasswordReset();
+
+  const [resetReason, setResetReason] = useState("");
+  const [resetStatus, setResetStatus] = useState<"idle" | "success" | "error">("idle");
+  const [resetMessage, setResetMessage] = useState("");
 
   const isVisible = !!userId;
+
+  const handleForceReset = async () => {
+    if (!user || !resetReason.trim()) return;
+    try {
+      await forceResetMutation.mutateAsync({
+        user_id: user.id,
+        reason: resetReason.trim(),
+      });
+      setResetReason("");
+      setResetStatus("success");
+      setResetMessage("Password reset initiated");
+      setTimeout(() => {
+        setResetStatus("idle");
+        setResetMessage("");
+      }, 3000);
+    } catch (err) {
+      setResetStatus("error");
+      if (err instanceof ApiError) {
+        setResetMessage(err.message);
+      } else if (err instanceof Error) {
+        setResetMessage(err.message);
+      } else {
+        setResetMessage("Failed to initiate password reset. Please try again.");
+      }
+    }
+  };
 
   return (
     <>
@@ -524,6 +569,46 @@ function UserDetailDrawer({
                     ))}
                   </div>
                 )}
+              </div>
+
+              {/* Force Password Reset */}
+              <div className="space-y-2 border-t border-zinc-800/60 pt-4">
+                <p className="text-sm font-semibold text-zinc-300">
+                  Force Password Reset
+                </p>
+                <p className="text-xs text-zinc-500">
+                  Invalidates all sessions and sends a password reset email.
+                </p>
+                <div className="space-y-2">
+                  <GlowInput
+                    value={resetReason}
+                    onChange={(e) => {
+                      setResetReason(e.target.value);
+                      if (resetStatus === "error") {
+                        setResetStatus("idle");
+                        setResetMessage("");
+                      }
+                    }}
+                    placeholder="Reason for forced reset..."
+                    fullWidth
+                  />
+                  <GlowButton
+                    size="sm"
+                    onClick={handleForceReset}
+                    disabled={!resetReason.trim() || forceResetMutation.isPending}
+                    isLoading={forceResetMutation.isPending}
+                    loadingText="Resetting..."
+                    className="border text-rose-400 border-rose-400/30"
+                  >
+                    Force Reset
+                  </GlowButton>
+                  {resetStatus === "success" && (
+                    <p className="text-xs text-emerald-400">{resetMessage}</p>
+                  )}
+                  {resetStatus === "error" && (
+                    <p className="text-xs text-rose-400">{resetMessage}</p>
+                  )}
+                </div>
               </div>
             </>
           )}

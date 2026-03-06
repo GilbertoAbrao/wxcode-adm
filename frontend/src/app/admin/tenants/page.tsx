@@ -55,6 +55,12 @@ function AdminNav({ onLogout }: { onLogout: () => void }) {
     <nav className="flex items-center justify-between px-6 py-3 border-b border-zinc-800 bg-zinc-950 mb-6">
       <div className="flex items-center gap-1">
         <Link
+          href="/admin/dashboard"
+          className="px-3 py-1.5 text-sm font-medium text-zinc-400 hover:text-zinc-200 transition-colors"
+        >
+          Dashboard
+        </Link>
+        <Link
           href="/admin/tenants"
           className="px-3 py-1.5 text-sm font-medium text-cyan-400 border-b-2 border-cyan-400 -mb-px"
         >
@@ -65,6 +71,12 @@ function AdminNav({ onLogout }: { onLogout: () => void }) {
           className="px-3 py-1.5 text-sm font-medium text-zinc-400 hover:text-zinc-200 transition-colors"
         >
           Users
+        </Link>
+        <Link
+          href="/admin/audit-logs"
+          className="px-3 py-1.5 text-sm font-medium text-zinc-400 hover:text-zinc-200 transition-colors"
+        >
+          Audit Logs
         </Link>
       </div>
       <button
@@ -384,8 +396,13 @@ export default function AdminTenantsPage() {
                         <tr
                           className="border-b border-zinc-800 hover:bg-zinc-900/30 transition-colors"
                         >
-                          <td className="px-4 py-3 text-sm text-zinc-300 font-medium">
-                            {tenant.name}
+                          <td className="px-4 py-3 text-sm font-medium">
+                            <Link
+                              href={`/admin/tenants/${tenant.id}`}
+                              className="text-cyan-400 hover:text-cyan-300 hover:underline transition-colors"
+                            >
+                              {tenant.name}
+                            </Link>
                           </td>
                           <td className="px-4 py-3 text-sm font-mono text-zinc-500">
                             {tenant.slug}
