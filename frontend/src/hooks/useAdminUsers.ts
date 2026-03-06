@@ -10,6 +10,7 @@
  *   - useAdminUserDetail(userId)   — full user profile with memberships + sessions
  *   - useBlockUser()               — mutation: POST /admin/users/{id}/block
  *   - useUnblockUser()             — mutation: POST /admin/users/{id}/unblock
+ *   - useForcePasswordReset()      — mutation: POST /admin/users/{id}/force-reset
  */
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -75,6 +76,11 @@ export interface UserBlockRequest {
 export interface UserUnblockRequest {
   tenant_id: string;
   reason: string;
+}
+
+export interface ForceResetResponse {
+  message: string;
+  user_id: string;
 }
 
 // ---------------------------------------------------------------------------
@@ -190,6 +196,36 @@ export function useUnblockUser() {
         method: "POST",
         body: JSON.stringify({ tenant_id, reason } satisfies UserUnblockRequest),
       }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["admin", "users"] });
+    },
+  });
+}
+
+/**
+ * Force a password reset for a user.
+ *
+ * Invalidates all sessions and sends a password reset email.
+ *
+ * Variables: { user_id, reason }
+ * On success: invalidates all ["admin", "users"] queries (list + detail).
+ */
+export function useForcePasswordReset() {
+  const queryClient = useQueryClient();
+
+  return useMutation<
+    ForceResetResponse,
+    Error,
+    { user_id: string; reason: string }
+  >({
+    mutationFn: ({ user_id, reason }) =>
+      adminApiClient<ForceResetResponse>(
+        `/admin/users/${user_id}/force-reset`,
+        {
+          method: "POST",
+          body: JSON.stringify({ reason }),
+        }
+      ),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["admin", "users"] });
     },

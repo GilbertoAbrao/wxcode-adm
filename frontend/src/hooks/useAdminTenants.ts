@@ -4,6 +4,7 @@
  * TanStack Query hooks for admin tenant management endpoints.
  *
  * Covers: GET /admin/tenants (paginated + filterable),
+ *         GET /admin/tenants/{id} (tenant detail),
  *         POST /admin/tenants/{id}/suspend,
  *         POST /admin/tenants/{id}/reactivate
  *
@@ -35,6 +36,22 @@ export interface TenantListResponse {
   total: number;
 }
 
+export interface TenantDetailResponse {
+  id: string;
+  name: string;
+  slug: string;
+  is_suspended: boolean;
+  is_deleted: boolean;
+  mfa_enforced: boolean;
+  wxcode_url: string | null;
+  plan_name: string | null;
+  plan_slug: string | null;
+  subscription_status: string | null;
+  member_count: number;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface AdminActionRequest {
   reason: string;
 }
@@ -50,6 +67,7 @@ export const ADMIN_TENANT_KEYS = {
     plan_slug?: string | null;
     status?: string | null;
   }) => ["admin", "tenants", params] as const,
+  detail: (tenantId: string) => ["admin", "tenants", tenantId] as const,
 };
 
 // ---------------------------------------------------------------------------
@@ -91,6 +109,22 @@ export function useAdminTenants(params: {
       const endpoint = qs ? `/admin/tenants?${qs}` : "/admin/tenants";
       return adminApiClient<TenantListResponse>(endpoint);
     },
+    staleTime: 30_000,
+  });
+}
+
+/**
+ * Fetch full detail for a single tenant by ID.
+ *
+ * - Only enabled when tenantId is truthy
+ * - staleTime: 30s
+ */
+export function useAdminTenantDetail(tenantId: string | null) {
+  return useQuery<TenantDetailResponse, Error>({
+    queryKey: ADMIN_TENANT_KEYS.detail(tenantId ?? ""),
+    queryFn: () =>
+      adminApiClient<TenantDetailResponse>(`/admin/tenants/${tenantId}`),
+    enabled: !!tenantId,
     staleTime: 30_000,
   });
 }
