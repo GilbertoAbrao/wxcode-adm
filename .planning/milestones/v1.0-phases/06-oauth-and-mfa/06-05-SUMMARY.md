@@ -84,7 +84,7 @@ Each task was committed atomically:
 1. **Task 1: Alembic migration 005** - `aa4e64d` (feat)
 2. **Task 2: Integration tests + bug fixes** - `35f6027` (feat)
 
-**Plan metadata:** _committed with this summary_
+**Plan metadata:** `d6e8d03` (docs: complete plan)
 
 ## Files Created/Modified
 - `backend/alembic/versions/005_add_oauth_mfa_tables.py` - Migration 005: ALTER users/tenants, CREATE oauth_accounts/mfa_backup_codes/trusted_devices with correct FKs, indexes, unique constraints; downgrade reverses all
