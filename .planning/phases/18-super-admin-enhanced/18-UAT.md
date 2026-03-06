@@ -1,5 +1,5 @@
 ---
-status: complete
+status: diagnosed
 phase: 18-super-admin-enhanced
 source: [18-01-SUMMARY.md, 18-02-SUMMARY.md]
 started: 2026-03-06T15:00:00Z
@@ -67,25 +67,39 @@ skipped: 1
 ## Gaps
 
 - truth: "Admin can navigate between admin tabs without losing authentication"
-  status: failed
+  status: resolved
   reason: "User reported: Quando navego de um tab para outra estou precisando logar novamente."
   severity: major
   test: 3
-  artifacts: []
-  missing: []
+  root_cause: "adminApiClient called clearAdminTokens() on any 401, wiping in-memory session; AdminAuthProvider re-checked isAdminAuthenticated() on pathname change and redirected to login"
+  artifacts:
+    - path: "frontend/src/lib/admin-api-client.ts"
+      issue: "clearAdminTokens() called on 401 retry failure and refresh failure"
+  missing:
+    - "Remove clearAdminTokens() from API client — let ApiError propagate without wiping session"
+  fix_commit: "690fee7"
 
 - truth: "Audit log viewer loads and displays entries in a paginated table"
-  status: failed
+  status: resolved
   reason: "User reported: Vejo essa mensagem no centro da tela: Failed to load audit logs"
   severity: major
   test: 4
-  artifacts: []
-  missing: []
+  root_cause: "Backend audit endpoint used require_verified (tenant user auth) instead of require_admin — admin JWT with aud=wxcode-adm-admin was rejected"
+  artifacts:
+    - path: "backend/src/wxcode_adm/audit/router.py"
+      issue: "require_verified dependency instead of require_admin"
+  missing:
+    - "Change dependency from require_verified to require_admin"
+  fix_commit: "690fee7"
 
 - truth: "Admin can navigate between all admin tabs without losing authentication"
-  status: failed
+  status: resolved
   reason: "User reported: Erro continua, ao navegar pelas tabs o login é exigido novamente."
   severity: major
   test: 9
-  artifacts: []
+  root_cause: "Same root cause as test 3 — adminApiClient clearAdminTokens() side effect"
+  artifacts:
+    - path: "frontend/src/lib/admin-api-client.ts"
+      issue: "clearAdminTokens() on 401 wiped session state"
   missing: []
+  fix_commit: "690fee7"
