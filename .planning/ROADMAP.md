@@ -215,6 +215,21 @@ Plans:
 - [ ] 18-01-PLAN.md — Install Recharts, MRR dashboard page (metric cards + 30-day trend chart + plan distribution), audit log viewer page (paginated table + action/tenant/actor filters)
 - [ ] 18-02-PLAN.md — Tenant detail page (/admin/tenants/[tenantId]), force password reset in user detail drawer, AdminNav update with 4 links
 
+### Phase 19: UI Polish and Tech Debt Cleanup
+**Goal**: Close the broken sidebar settings link, replace the static dashboard placeholder, align admin post-login redirect to dashboard, and fix import pattern inconsistency — completing the v2.0 polish pass identified by milestone audit
+**Depends on**: Phase 18
+**Requirements**: (No new requirements — gap closure from v2.0 audit)
+**Gap Closure**: Closes INT-01, FLOW-01, and 4 tech debt items from v2.0-MILESTONE-AUDIT.md
+**Success Criteria** (what must be TRUE):
+  1. Clicking the Settings icon in the sidebar either navigates to a functional settings page or the dead link is removed — no 404 reachable from the sidebar
+  2. The main dashboard at `/` shows meaningful content (tenant name, quick stats, or a welcome state) instead of hardcoded placeholder dashes
+  3. After admin login, the admin is redirected to `/admin/dashboard` (not `/admin/tenants`)
+  4. `admin/users/page.tsx` imports design system components from the barrel export (`@/components/ui`) consistent with all other pages
+**Plans**: 1 plan
+
+Plans:
+- [ ] 19-01-PLAN.md — Fix settings 404 (remove or replace), replace static dashboard, update admin redirect to /admin/dashboard, fix barrel imports in admin/users
+
 ---
 
 ### v2.0 Frontend UI (In Progress)
@@ -319,8 +334,8 @@ Plans:
 ## Progress
 
 **Execution Order:**
-v2.0 phases execute in numeric order: 12 → 13 → 14 → 15 → 16 → 17 → 18
-(Phase 18 depends on Phase 17 for admin auth foundation and existing admin pages)
+v2.0 phases execute in numeric order: 12 → 13 → 14 → 15 → 16 → 17 → 18 → 19
+(Phase 19 is audit gap closure — polish and tech debt cleanup)
 
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
@@ -342,3 +357,4 @@ v2.0 phases execute in numeric order: 12 → 13 → 14 → 15 → 16 → 17 → 
 | 16. Billing UI | v2.0 | Complete    | 2026-03-05 | 2026-03-05 |
 | 17. Super-Admin UI | 3/3 | Complete    | 2026-03-05 | - |
 | 18. Super-Admin Enhanced | 2/2 | Complete    | 2026-03-06 | - |
+| 19. UI Polish and Tech Debt Cleanup | v2.0 | 0/1 | Pending | - |
