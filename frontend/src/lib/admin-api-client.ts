@@ -3,7 +3,7 @@
  *
  * - Prepends /api/v1 to all endpoints (same as apiClient)
  * - Injects Authorization: Bearer header from admin token store (NOT user tokens)
- * - On 401: attempts silent admin token refresh, retries once, then clears admin tokens
+ * - On 401: attempts silent admin token refresh, retries once, then throws ApiError
  * - Throws ApiError on non-ok responses with parsed error body
  *
  * IMPORTANT: This client uses getAdminAccessToken (NOT getAccessToken from auth.ts).
@@ -12,7 +12,6 @@
 
 import { ApiError } from "@/lib/api-client";
 import {
-  clearAdminTokens,
   getAdminAccessToken,
   refreshAdminTokens,
 } from "@/lib/admin-auth";
@@ -71,7 +70,6 @@ export async function adminApiClient<T>(
         headers,
       });
       if (!retryResponse.ok) {
-        clearAdminTokens();
         const errorBody = await parseErrorBody(retryResponse);
         throw new ApiError(
           retryResponse.status,
@@ -81,7 +79,6 @@ export async function adminApiClient<T>(
       }
       return retryResponse.json() as Promise<T>;
     } else {
-      clearAdminTokens();
       const errorBody = await parseErrorBody(response);
       throw new ApiError(response.status, errorBody.message, errorBody.errorCode);
     }

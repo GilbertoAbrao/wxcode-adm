@@ -18,9 +18,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from wxcode_adm.audit.models import AuditLog
 from wxcode_adm.audit.schemas import AuditLogListResponse, AuditLogResponse
-from wxcode_adm.auth.dependencies import require_verified
+from wxcode_adm.admin.dependencies import require_admin
 from wxcode_adm.auth.models import User
-from wxcode_adm.common.exceptions import ForbiddenError
 from wxcode_adm.dependencies import get_session
 
 audit_router = APIRouter(prefix="/admin/audit-logs", tags=["audit"])
@@ -30,7 +29,7 @@ audit_router = APIRouter(prefix="/admin/audit-logs", tags=["audit"])
 async def list_audit_logs(
     request: Request,
     db: Annotated[AsyncSession, Depends(get_session)],
-    user: Annotated[User, Depends(require_verified)],
+    user: Annotated[User, Depends(require_admin)],
     limit: int = Query(default=50, ge=1, le=200),
     offset: int = Query(default=0, ge=0),
     action: Optional[str] = Query(default=None),
@@ -46,12 +45,6 @@ async def list_audit_logs(
     - Returns 403 if the authenticated user is not a super-admin.
     - Returns 200 with items list and total count.
     """
-    if not user.is_superuser:
-        raise ForbiddenError(
-            error_code="FORBIDDEN",
-            message="Super-admin access required",
-        )
-
     # Build base query with optional filters
     base_query = select(AuditLog)
     count_query = select(func.count()).select_from(AuditLog)
