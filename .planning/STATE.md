@@ -50,7 +50,7 @@ Progress: [███████████████████████
 | 17-super-admin-ui | 01 | 2 min | 2 | 7 |
 | 17-super-admin-ui | 02 | 2 min | 2 | 2 |
 | 17-super-admin-ui | 03 | 3 min | 2 | 2 |
-| 18-super-admin-enhanced | 01 | 5 min | 2 | 4 |
+| 18-super-admin-enhanced | 01 | 3 min | 2 | 6 |
 | 18-super-admin-enhanced | 02 | 3 min | 2 | 5 |
 
 ## Accumulated Context
@@ -126,7 +126,12 @@ Recent decisions affecting v2.0:
 - [17-03]: MembershipRow manages its own blockAction state — keeps inline form complexity out of page-level state
 - [17-03]: SkeletonList/SkeletonTable used for loading states — SkeletonVariant has no "list" or "table" values (text/heading/avatar/card/button/input only)
 - [17-03]: UserDetailDrawer placed outside main content div — prevents overflow:hidden parent from clipping fixed-position drawer
-- [Phase 18-02]: Tenant detail page uses useParams() to extract tenantId from URL — consistent with Next.js App Router dynamic route pattern
+- [18-01]: useAdminDashboard staleTime 60s — MRR aggregate computed_at changes less frequently than list queries (30s)
+- [18-01]: audit-logs endpoint requires trailing slash: /admin/audit-logs/ — FastAPI router prefix + endpoint "/" combine that way
+- [18-01]: AdminNav extended to 4 links (Dashboard, Tenants, Users, Audit Logs) — active link highlighted with cyan-400 + border-b-2 + -mb-px
+- [18-01]: Recharts 3.x Tooltip formatter/labelFormatter must use generic value type — value: number|undefined, label: ReactNode not string
+- [18-01]: Plan Distribution rendered as proportional bar rows (not Recharts chart) — simpler, no extra chart component needed
+- [Phase 18-02]: Tenant detail page uses useParams() to extract tenantId from URL — consistent with Next.js App Router dynamic route pattern to extract tenantId from URL — consistent with Next.js App Router dynamic route pattern
 - [Phase 18-02]: Force reset uses local resetStatus state ('idle'|'success'|'error') + setTimeout auto-clear — enables independent success message reset without affecting mutation state
 - [Phase 18-02]: AdminNav expanded to 4 links (Dashboard, Tenants, Users, Audit Logs) across all modified admin pages for full consistency
 
@@ -145,5 +150,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-03-06
-Stopped at: Completed 18-02-PLAN.md — tenant detail page and force password reset UI (useAdminTenants.ts, useAdminUsers.ts, tenants/[tenantId]/page.tsx, tenants/page.tsx, users/page.tsx)
-Resume file: None — Phase 18 complete (2/2 plans done)
+Stopped at: Completed 18-01-PLAN.md — recharts MRR dashboard and audit log viewer (useAdminDashboard.ts, useAdminAuditLogs.ts, admin/dashboard/page.tsx, admin/audit-logs/page.tsx)
+Resume file: None — Phase 18 plan 18-02 is next (tenant detail page, force password reset)
