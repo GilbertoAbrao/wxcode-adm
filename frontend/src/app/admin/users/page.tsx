@@ -26,14 +26,14 @@ import {
   ChevronRight,
 } from "lucide-react";
 
-import { GlowButton } from "@/components/ui/GlowButton";
-import { GlowInput } from "@/components/ui/GlowInput";
 import {
+  GlowButton,
+  GlowInput,
   SkeletonList,
   SkeletonTable,
-} from "@/components/ui/LoadingSkeleton";
-import { ErrorState } from "@/components/ui/ErrorState";
-import { EmptyState } from "@/components/ui/EmptyState";
+  ErrorState,
+  EmptyState,
+} from "@/components/ui";
 import { useAdminAuthContext } from "@/providers/admin-auth-provider";
 import {
   useAdminUsers,

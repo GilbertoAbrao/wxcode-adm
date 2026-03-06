@@ -5,7 +5,7 @@
  *
  * Calls POST /api/v1/admin/login via the useAdminLogin mutation.
  * On success: stores admin tokens in the isolated admin memory store,
- * sets email in AdminAuthContext, and redirects to /admin/tenants.
+ * sets email in AdminAuthContext, and redirects to /admin/dashboard.
  *
  * API error handling:
  *   - 401 → "Invalid admin credentials"
@@ -23,8 +23,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { Mail, Lock, Eye, EyeOff } from "lucide-react";
 
-import { GlowButton } from "@/components/ui/GlowButton";
-import { GlowInput } from "@/components/ui/GlowInput";
+import { GlowButton, GlowInput } from "@/components/ui";
 import { useAdminLogin } from "@/hooks/useAdminAuth";
 import { useAdminAuthContext } from "@/providers/admin-auth-provider";
 import { ApiError } from "@/lib/api-client";
@@ -70,7 +69,7 @@ export default function AdminLoginPage() {
           },
           data.email
         );
-        router.push("/admin/tenants");
+        router.push("/admin/dashboard");
       },
     });
   };

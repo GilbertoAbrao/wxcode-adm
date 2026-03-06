@@ -7,7 +7,7 @@
  * - On mount: checks isAdminAuthenticated() to detect in-memory session
  * - Route protection:
  *     - Unauthenticated user on /admin/* (except /admin/login) → redirect to /admin/login
- *     - Authenticated admin on /admin/login → redirect to /admin/tenants
+ *     - Authenticated admin on /admin/login → redirect to /admin/dashboard
  * - login(tokens, email): stores admin tokens and email in state
  * - logout(): calls useAdminLogout mutation, then clears admin tokens, redirects to /admin/login
  *
@@ -95,7 +95,7 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
       router.push("/admin/login");
     } else if (authenticated && onPublicPath) {
       // Authenticated admin on /admin/login — redirect to admin dashboard
-      router.push("/admin/tenants");
+      router.push("/admin/dashboard");
     }
   }, [isLoading, pathname, router]);
 
