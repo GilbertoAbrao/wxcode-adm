@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-03-04)
 
 **Core value:** Controlar acesso seguro a plataforma WXCODE com identidade, permissoes por tenant e cobranca recorrente — sem executar nenhuma operacao do wxcode engine.
-**Current focus:** Milestone v2.0 — Phase 18: Super-Admin Enhanced — In progress (2/2 plans done)
+**Current focus:** Milestone v2.0 — Phase 19: UI Polish and Tech Debt Cleanup — In progress (1/1 plans done)
 
 ## Current Position
 
-Phase: 18 of 18 (Super-Admin Enhanced) — seventh phase of v2.0 Frontend UI milestone — COMPLETE
-Plan: 2 of 2 complete (18-02 done: tenant detail page, force password reset, 4-link AdminNav)
-Status: Phase 18 COMPLETE — all 2 plans done: MRR dashboard + audit log viewer + tenant detail + force password reset
-Last activity: 2026-03-06 — 18-02 complete (useAdminTenants.ts, useAdminUsers.ts, tenants/[tenantId]/page.tsx, tenants/page.tsx, users/page.tsx)
+Phase: 19 of 19 (UI Polish and Tech Debt Cleanup) — eighth phase of v2.0 Frontend UI milestone — IN PROGRESS
+Plan: 1 of 1 complete (19-01 done: remove dead settings link, live dashboard, admin redirect fix, barrel import normalization)
+Status: Phase 19 IN PROGRESS — 1/1 plan done
+Last activity: 2026-03-06 — 19-01 complete (Sidebar.tsx, (app)/page.tsx, admin/login/page.tsx, admin-auth-provider.tsx, admin/users/page.tsx)
 
-Progress: [██████████████████████████████] 76% (v1.0 complete; v2.0 Phase 12 complete 3/3, Phase 13 complete 4/4, Phase 14 complete 2/2, Phase 15 complete 3/3, Phase 16 complete 2/2, Phase 17 complete 3/3, Phase 18 complete 2/2)
+Progress: [████████████████████████████████] 79% (v1.0 complete; v2.0 Phase 12 complete 3/3, Phase 13 complete 4/4, Phase 14 complete 2/2, Phase 15 complete 3/3, Phase 16 complete 2/2, Phase 17 complete 3/3, Phase 18 complete 2/2, Phase 19 in progress 1/1)
 
 ## Performance Metrics
 
@@ -52,6 +52,7 @@ Progress: [███████████████████████
 | 17-super-admin-ui | 03 | 3 min | 2 | 2 |
 | 18-super-admin-enhanced | 01 | 3 min | 2 | 6 |
 | 18-super-admin-enhanced | 02 | 3 min | 2 | 5 |
+| 19-ui-polish-and-tech-debt-cleanup | 01 | 2 min | 2 | 5 |
 
 ## Accumulated Context
 
@@ -134,6 +135,10 @@ Recent decisions affecting v2.0:
 - [Phase 18-02]: Tenant detail page uses useParams() to extract tenantId from URL — consistent with Next.js App Router dynamic route pattern to extract tenantId from URL — consistent with Next.js App Router dynamic route pattern
 - [Phase 18-02]: Force reset uses local resetStatus state ('idle'|'success'|'error') + setTimeout auto-clear — enables independent success message reset without affecting mutation state
 - [Phase 18-02]: AdminNav expanded to 4 links (Dashboard, Tenants, Users, Audit Logs) across all modified admin pages for full consistency
+- [19-01]: Sidebar bottom section retains avatar A-badge but removes Settings gear icon and /settings link entirely — no settings page exists
+- [19-01]: Dashboard page uses useMyTenants().data?.tenants[0] to extract tenantId; all tenant-scoped hooks gated on enabled: !!tenantId
+- [19-01]: Admin post-login redirect changed from /admin/tenants to /admin/dashboard in both admin/login/page.tsx and admin-auth-provider.tsx
+- [19-01]: admin/users/page.tsx and admin/login/page.tsx now use single barrel import from @/components/ui — consistent with all other pages
 
 ### Roadmap Evolution
 
@@ -150,5 +155,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-03-06
-Stopped at: Completed 18-01-PLAN.md — recharts MRR dashboard and audit log viewer (useAdminDashboard.ts, useAdminAuditLogs.ts, admin/dashboard/page.tsx, admin/audit-logs/page.tsx)
-Resume file: None — Phase 18 plan 18-02 is next (tenant detail page, force password reset)
+Stopped at: Completed 19-01-PLAN.md — UI polish: dead settings link removed, live dashboard, admin redirect fix, barrel import normalization
+Resume file: None — Phase 19 plan 19-01 is complete; all v2.0 milestone plans delivered
