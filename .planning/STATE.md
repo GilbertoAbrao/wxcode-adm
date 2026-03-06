@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-03-04)
 
 **Core value:** Controlar acesso seguro a plataforma WXCODE com identidade, permissoes por tenant e cobranca recorrente — sem executar nenhuma operacao do wxcode engine.
-**Current focus:** Milestone v2.0 — Phase 17: Super-Admin UI — In progress (3/3 plans done)
+**Current focus:** Milestone v2.0 — Phase 18: Super-Admin Enhanced — In progress (2/2 plans done)
 
 ## Current Position
 
-Phase: 17 of 17 (Super-Admin UI) — sixth phase of v2.0 Frontend UI milestone — IN PROGRESS
-Plan: 3 of 3 complete (17-03 done: useAdminUsers hooks, /admin/users page with search/drawer/block-unblock)
-Status: Phase 17 COMPLETE — all 3 plans done: admin auth, tenant management, user management
-Last activity: 2026-03-05 — 17-03 complete (useAdminUsers.ts, admin/users/page.tsx)
+Phase: 18 of 18 (Super-Admin Enhanced) — seventh phase of v2.0 Frontend UI milestone — COMPLETE
+Plan: 2 of 2 complete (18-02 done: tenant detail page, force password reset, 4-link AdminNav)
+Status: Phase 18 COMPLETE — all 2 plans done: MRR dashboard + audit log viewer + tenant detail + force password reset
+Last activity: 2026-03-06 — 18-02 complete (useAdminTenants.ts, useAdminUsers.ts, tenants/[tenantId]/page.tsx, tenants/page.tsx, users/page.tsx)
 
-Progress: [█████████████████████████████░] 73% (v1.0 complete; v2.0 Phase 12 complete 3/3, Phase 13 complete 4/4, Phase 14 complete 2/2, Phase 15 complete 3/3, Phase 16 complete 2/2, Phase 17 complete 3/3)
+Progress: [██████████████████████████████] 76% (v1.0 complete; v2.0 Phase 12 complete 3/3, Phase 13 complete 4/4, Phase 14 complete 2/2, Phase 15 complete 3/3, Phase 16 complete 2/2, Phase 17 complete 3/3, Phase 18 complete 2/2)
 
 ## Performance Metrics
 
@@ -50,6 +50,8 @@ Progress: [███████████████████████
 | 17-super-admin-ui | 01 | 2 min | 2 | 7 |
 | 17-super-admin-ui | 02 | 2 min | 2 | 2 |
 | 17-super-admin-ui | 03 | 3 min | 2 | 2 |
+| 18-super-admin-enhanced | 01 | 5 min | 2 | 4 |
+| 18-super-admin-enhanced | 02 | 3 min | 2 | 5 |
 
 ## Accumulated Context
 
@@ -124,6 +126,9 @@ Recent decisions affecting v2.0:
 - [17-03]: MembershipRow manages its own blockAction state — keeps inline form complexity out of page-level state
 - [17-03]: SkeletonList/SkeletonTable used for loading states — SkeletonVariant has no "list" or "table" values (text/heading/avatar/card/button/input only)
 - [17-03]: UserDetailDrawer placed outside main content div — prevents overflow:hidden parent from clipping fixed-position drawer
+- [Phase 18-02]: Tenant detail page uses useParams() to extract tenantId from URL — consistent with Next.js App Router dynamic route pattern
+- [Phase 18-02]: Force reset uses local resetStatus state ('idle'|'success'|'error') + setTimeout auto-clear — enables independent success message reset without affecting mutation state
+- [Phase 18-02]: AdminNav expanded to 4 links (Dashboard, Tenants, Users, Audit Logs) across all modified admin pages for full consistency
 
 ### Roadmap Evolution
 
@@ -139,6 +144,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-05
-Stopped at: Completed 17-03-PLAN.md — admin user management UI (useAdminUsers.ts, /admin/users page with search/drawer/block-unblock)
-Resume file: None — Phase 17 complete (3/3 plans done)
+Last session: 2026-03-06
+Stopped at: Completed 18-02-PLAN.md — tenant detail page and force password reset UI (useAdminTenants.ts, useAdminUsers.ts, tenants/[tenantId]/page.tsx, tenants/page.tsx, users/page.tsx)
+Resume file: None — Phase 18 complete (2/2 plans done)
