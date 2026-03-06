@@ -9,7 +9,6 @@ import {
   UserCircle,
   Users,
   CreditCard,
-  Settings,
   Menu,
   X,
 } from "lucide-react";
@@ -72,13 +71,6 @@ function SidebarContent({ onNavClick }: { onNavClick?: () => void }) {
       {/* Bottom section */}
       <div className="border-t border-sidebar-border px-3 py-4">
         <div className="flex items-center gap-3">
-          <Link
-            href="/settings"
-            onClick={onNavClick}
-            className="flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-sidebar-accent/50 hover:text-foreground"
-          >
-            <Settings className="h-4 w-4" />
-          </Link>
           <div className="flex h-8 w-8 items-center justify-center rounded-full bg-zinc-700 text-xs font-medium text-foreground">
             A
           </div>
