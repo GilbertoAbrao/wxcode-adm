@@ -10,9 +10,9 @@ See: .planning/PROJECT.md (updated 2026-03-06)
 ## Current Position
 
 Phase: v3.0 Phase 20 (Crypto Service + Tenant Model Extension)
-Plan: 59 plans complete (38 v1.0 + 20 v2.0 + 1 v3.0), Plan 20-01 done
-Status: v3.0 IN PROGRESS — Phase 20, Plan 01 complete; Plan 02 next
-Last activity: 2026-03-07 — 20-01 Crypto Service executed
+Plan: 60 plans complete (38 v1.0 + 20 v2.0 + 2 v3.0), Plan 20-02 done
+Status: v3.0 IN PROGRESS — Phase 20 complete (2 plans done); Phase 21 next
+Last activity: 2026-03-07 — 20-02 Tenant Model Extension executed
 
 Progress: [████████████████████████████████] 100% (v1.0+v2.0) + v3.0 started
 
@@ -30,11 +30,16 @@ Progress: [███████████████████████
 - Total execution time: ~0.7 hours
 - Timeline: 3 days (2026-03-04 → 2026-03-06)
 
+**Velocity (v3.0):**
+- Plans completed: 2 (20-01, 20-02)
+- Average duration: 2 min
+- Phase 20 complete
+
 **Combined:**
-- 58 plans executed across 19 phases
-- Backend: 19,837 LOC Python, 148 tests
+- 60 plans executed across 20 phases
+- Backend: ~20,200 LOC Python, 154 tests (6 new in 20-02)
 - Frontend: 9,174 LOC TypeScript/React, 51 source files
-- Timeline: 13 days total (2026-02-22 → 2026-03-06)
+- Timeline: 13 days total (2026-02-22 → 2026-03-07)
 
 ## Accumulated Context
 
@@ -46,6 +51,12 @@ Decisions are logged in PROJECT.md Key Decisions table.
 - Lazy _get_fernet() helper reads key per call — enables test monkeypatching without module-level state
 - SHA-256 passphrase derivation — any string works as WXCODE_ENCRYPTION_KEY, no Fernet format requirement for dev
 - Dev default "change-me-in-production" — obvious sentinel, not a hardcoded fake Fernet key
+
+**20-02 (Tenant Model Extension):**
+- Plain String (not enum) for status field — consistent with MemberRole native_enum=False pattern, avoids PostgreSQL CREATE TYPE issues
+- String(2048) for claude_oauth_token — Fernet-encrypted tokens are longer than plaintext OAuth tokens
+- claude_monthly_token_budget nullable (null = unlimited) — avoids sentinel integer value ambiguity
+- server_default on non-nullable migration columns — existing rows get defaults without data migration
 
 ### Roadmap Evolution
 
@@ -65,5 +76,5 @@ None.
 ## Session Continuity
 
 Last session: 2026-03-07
-Stopped at: Completed 20-01-PLAN.md (Crypto Service — Fernet encrypt/decrypt service)
-Resume file: None — continue with Plan 20-02 (Tenant Model Extension)
+Stopped at: Completed 20-02-PLAN.md (Tenant Model Extension — 8 new Tenant fields + migration 008 + 6 tests)
+Resume file: None — Phase 20 complete; continue with Phase 21
