@@ -30,7 +30,7 @@ from datetime import datetime
 from typing import Optional
 
 import sqlalchemy
-from sqlalchemy import Boolean, DateTime, ForeignKey, String, UniqueConstraint
+from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, String, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from wxcode_adm.db.base import Base, TimestampMixin
@@ -104,6 +104,48 @@ class Tenant(TimestampMixin, Base):
         Boolean,
         default=False,
         nullable=False,
+    )
+
+    # Phase 20: Claude and wxcode integration fields (added by migration 008)
+    claude_oauth_token: Mapped[Optional[str]] = mapped_column(
+        String(2048),
+        nullable=True,
+        default=None,
+    )
+    claude_default_model: Mapped[str] = mapped_column(
+        String(50),
+        nullable=False,
+        default="sonnet",
+    )
+    claude_max_concurrent_sessions: Mapped[int] = mapped_column(
+        Integer,
+        nullable=False,
+        default=3,
+    )
+    claude_monthly_token_budget: Mapped[Optional[int]] = mapped_column(
+        Integer,
+        nullable=True,
+        default=None,
+    )
+    database_name: Mapped[Optional[str]] = mapped_column(
+        String(100),
+        nullable=True,
+        default=None,
+    )
+    default_target_stack: Mapped[str] = mapped_column(
+        String(50),
+        nullable=False,
+        default="fastapi-jinja2",
+    )
+    neo4j_enabled: Mapped[bool] = mapped_column(
+        Boolean,
+        nullable=False,
+        default=True,
+    )
+    status: Mapped[str] = mapped_column(
+        String(20),
+        nullable=False,
+        default="pending_setup",
     )
 
     memberships: Mapped[list["TenantMembership"]] = relationship(
