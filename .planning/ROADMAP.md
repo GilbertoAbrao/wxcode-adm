@@ -81,7 +81,7 @@ Full details: `milestones/v3.0-ROADMAP.md`
 | 17. Super-Admin UI | v2.0 | 3/3 | Complete | 2026-03-05 |
 | 18. Super-Admin Enhanced | v2.0 | 2/2 | Complete | 2026-03-06 |
 | 19. UI Polish and Tech Debt Cleanup | v2.0 | 1/1 | Complete | 2026-03-06 |
-| 20. Crypto Service + Tenant Model Extension | v3.0 | 0/2 | Planned | - |
+| 20. Crypto Service + Tenant Model Extension | 1/2 | In Progress|  | - |
 | 21. Plan Limits Extension | v3.0 | 0/0 | Planned | - |
 | 22. Claude Provisioning API | v3.0 | 0/0 | Planned | - |
 | 23. Admin UI — Claude Management | v3.0 | 0/0 | Planned | - |

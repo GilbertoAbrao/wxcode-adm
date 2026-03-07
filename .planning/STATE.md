@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-03-06)
 
 **Core value:** Controlar acesso seguro a plataforma WXCODE com identidade, permissoes por tenant e cobranca recorrente — sem executar nenhuma operacao do wxcode engine.
-**Current focus:** Both milestones complete (v1.0 + v2.0). Planning next milestone.
+**Current focus:** v3.0 WXCODE Engine Integration — planned, not yet started.
 
 ## Current Position
 
-Phase: All 19 phases complete (v1.0 Phases 1-11, v2.0 Phases 12-19)
-Plan: All 58 plans complete (38 v1.0 + 20 v2.0)
-Status: MILESTONES COMPLETE — v1.0 shipped 2026-03-04, v2.0 shipped 2026-03-06
-Last activity: 2026-03-06 — Milestone archival (v1.0 + v2.0)
+Phase: v3.0 Phase 20 (Crypto Service + Tenant Model Extension)
+Plan: 59 plans complete (38 v1.0 + 20 v2.0 + 1 v3.0), Plan 20-01 done
+Status: v3.0 IN PROGRESS — Phase 20, Plan 01 complete; Plan 02 next
+Last activity: 2026-03-07 — 20-01 Crypto Service executed
 
-Progress: [████████████████████████████████] 100%
+Progress: [████████████████████████████████] 100% (v1.0+v2.0) + v3.0 started
 
 ## Performance Metrics
 
@@ -42,6 +42,11 @@ Progress: [███████████████████████
 
 Decisions are logged in PROJECT.md Key Decisions table.
 
+**20-01 (Crypto Service):**
+- Lazy _get_fernet() helper reads key per call — enables test monkeypatching without module-level state
+- SHA-256 passphrase derivation — any string works as WXCODE_ENCRYPTION_KEY, no Fernet format requirement for dev
+- Dev default "change-me-in-production" — obvious sentinel, not a hardcoded fake Fernet key
+
 ### Roadmap Evolution
 
 - Phase 9 inserted: MFA-wxcode redirect fix (gap closure from v1.0 audit)
@@ -59,6 +64,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-06
-Stopped at: Milestone archival complete (v1.0 + v2.0)
-Resume file: None — start next milestone with `/gsd:new-milestone`
+Last session: 2026-03-07
+Stopped at: Completed 20-01-PLAN.md (Crypto Service — Fernet encrypt/decrypt service)
+Resume file: None — continue with Plan 20-02 (Tenant Model Extension)
