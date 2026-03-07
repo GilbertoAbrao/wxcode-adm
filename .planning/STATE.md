@@ -9,10 +9,10 @@ See: .planning/PROJECT.md (updated 2026-03-06)
 
 ## Current Position
 
-Phase: v3.0 Phase 20 (Crypto Service + Tenant Model Extension)
-Plan: 60 plans complete (38 v1.0 + 20 v2.0 + 2 v3.0), Plan 20-02 done
-Status: v3.0 IN PROGRESS — Phase 20 complete (2 plans done); Phase 21 next
-Last activity: 2026-03-07 — 20-02 Tenant Model Extension executed
+Phase: v3.0 Phase 21 (Plan Limits Extension)
+Plan: 61 plans complete (38 v1.0 + 20 v2.0 + 3 v3.0), Plan 21-01 done
+Status: v3.0 IN PROGRESS — Phase 21 complete (1 plan done); Phase 22 next
+Last activity: 2026-03-07 — 21-01 Plan Limits Extension executed
 
 Progress: [████████████████████████████████] 100% (v1.0+v2.0) + v3.0 started
 
@@ -31,13 +31,13 @@ Progress: [███████████████████████
 - Timeline: 3 days (2026-03-04 → 2026-03-06)
 
 **Velocity (v3.0):**
-- Plans completed: 2 (20-01, 20-02)
+- Plans completed: 3 (20-01, 20-02, 21-01)
 - Average duration: 2 min
-- Phase 20 complete
+- Phase 20 complete, Phase 21 complete
 
 **Combined:**
-- 60 plans executed across 20 phases
-- Backend: ~20,200 LOC Python, 154 tests (6 new in 20-02)
+- 61 plans executed across 21 phases
+- Backend: ~20,300 LOC Python, 157 tests (3 new in 21-01)
 - Frontend: 9,174 LOC TypeScript/React, 51 source files
 - Timeline: 13 days total (2026-02-22 → 2026-03-07)
 
@@ -58,6 +58,11 @@ Decisions are logged in PROJECT.md Key Decisions table.
 - claude_monthly_token_budget nullable (null = unlimited) — avoids sentinel integer value ambiguity
 - server_default on non-nullable migration columns — existing rows get defaults without data migration
 
+**21-01 (Plan Limits Extension):**
+- Limit fields not wired into Stripe re-sync — wxcode-only operational limits, not billing amounts
+- ge=1 validation on limit fields — zero limits are operationally invalid
+- Defaults consistent between model default= and migration server_default= (5, 20, 10)
+
 ### Roadmap Evolution
 
 - Phase 9 inserted: MFA-wxcode redirect fix (gap closure from v1.0 audit)
@@ -76,5 +81,5 @@ None.
 ## Session Continuity
 
 Last session: 2026-03-07
-Stopped at: Completed 20-02-PLAN.md (Tenant Model Extension — 8 new Tenant fields + migration 008 + 6 tests)
-Resume file: None — Phase 20 complete; continue with Phase 21
+Stopped at: Completed 21-01-PLAN.md (Plan Limits Extension — 3 new Plan fields + migration 009 + 3 tests)
+Resume file: None — Phase 21 complete; Phase 22 next
