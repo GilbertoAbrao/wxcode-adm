@@ -306,6 +306,88 @@ async def test_list_active_plans(client):
     assert inactive_id not in plan_ids
 
 
+async def test_create_plan_with_limits(client):
+    """SC1: Admin can create a plan with explicit wxcode limit values."""
+    c, redis, app, test_db = client
+    await _seed_super_admin(test_db, "admin_limits@test.com", "Test1234!")
+    token = await _admin_login(c, "admin_limits@test.com", "Test1234!")
+
+    resp = await c.post(
+        "/api/v1/admin/billing/plans/",
+        json={
+            "name": "Limits Plan",
+            "slug": "limits-plan",
+            "monthly_fee_cents": 4900,
+            "token_quota": 200000,
+            "max_projects": 10,
+            "max_output_projects": 50,
+            "max_storage_gb": 25,
+        },
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert resp.status_code == 201, f"Create plan with limits failed: {resp.text}"
+    data = resp.json()
+    assert data["max_projects"] == 10
+    assert data["max_output_projects"] == 50
+    assert data["max_storage_gb"] == 25
+
+
+async def test_create_plan_limits_defaults(client):
+    """SC1: Admin creates a plan without limit fields — response has correct defaults."""
+    c, redis, app, test_db = client
+    await _seed_super_admin(test_db, "admin_limits_defaults@test.com", "Test1234!")
+    token = await _admin_login(c, "admin_limits_defaults@test.com", "Test1234!")
+
+    resp = await c.post(
+        "/api/v1/admin/billing/plans/",
+        json={
+            "name": "Defaults Plan",
+            "slug": "defaults-plan",
+            "monthly_fee_cents": 1900,
+            "token_quota": 100000,
+        },
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert resp.status_code == 201, f"Create plan with defaults failed: {resp.text}"
+    data = resp.json()
+    assert data["max_projects"] == 5
+    assert data["max_output_projects"] == 20
+    assert data["max_storage_gb"] == 10
+
+
+async def test_update_plan_limits(client):
+    """SC1: Admin can patch individual limit fields; unpatched fields remain unchanged."""
+    c, redis, app, test_db = client
+    await _seed_super_admin(test_db, "admin_limits_update@test.com", "Test1234!")
+    token = await _admin_login(c, "admin_limits_update@test.com", "Test1234!")
+
+    # Create plan with default limits
+    resp = await c.post(
+        "/api/v1/admin/billing/plans/",
+        json={
+            "name": "Update Limits Plan",
+            "slug": "update-limits-plan",
+            "monthly_fee_cents": 7900,
+            "token_quota": 300000,
+        },
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert resp.status_code == 201, f"Create plan failed: {resp.text}"
+    plan_id = resp.json()["id"]
+
+    # Patch only max_projects and max_storage_gb; max_output_projects should remain 20
+    resp = await c.patch(
+        f"/api/v1/admin/billing/plans/{plan_id}",
+        json={"max_projects": 15, "max_storage_gb": 50},
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert resp.status_code == 200, f"Update plan limits failed: {resp.text}"
+    data = resp.json()
+    assert data["max_projects"] == 15
+    assert data["max_storage_gb"] == 50
+    assert data["max_output_projects"] == 20  # unchanged
+
+
 # ---------------------------------------------------------------------------
 # SC2: Stripe Checkout flow (BILL-02)
 # ---------------------------------------------------------------------------
