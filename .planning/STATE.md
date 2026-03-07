@@ -9,10 +9,10 @@ See: .planning/PROJECT.md (updated 2026-03-06)
 
 ## Current Position
 
-Phase: v3.0 Phase 21 (Plan Limits Extension)
-Plan: 61 plans complete (38 v1.0 + 20 v2.0 + 3 v3.0), Plan 21-01 done
-Status: v3.0 IN PROGRESS — Phase 21 complete (1 plan done); Phase 22 next
-Last activity: 2026-03-07 — 21-01 Plan Limits Extension executed
+Phase: v3.0 Phase 22 (Claude Provisioning API)
+Plan: 62 plans complete (38 v1.0 + 20 v2.0 + 4 v3.0), Plan 22-01 done
+Status: v3.0 IN PROGRESS — Phase 22 IN PROGRESS (1 of 2 plans done); Plan 22-02 next
+Last activity: 2026-03-07 — 22-01 Claude Provisioning API (schemas, service, endpoints)
 
 Progress: [████████████████████████████████] 100% (v1.0+v2.0) + v3.0 started
 
@@ -31,13 +31,13 @@ Progress: [███████████████████████
 - Timeline: 3 days (2026-03-04 → 2026-03-06)
 
 **Velocity (v3.0):**
-- Plans completed: 3 (20-01, 20-02, 21-01)
-- Average duration: 2 min
-- Phase 20 complete, Phase 21 complete
+- Plans completed: 4 (20-01, 20-02, 21-01, 22-01)
+- Average duration: 2-4 min
+- Phase 20 complete, Phase 21 complete, Phase 22 in progress
 
 **Combined:**
-- 61 plans executed across 21 phases
-- Backend: ~20,300 LOC Python, 157 tests (3 new in 21-01)
+- 62 plans executed across 22 phases
+- Backend: ~20,550 LOC Python, 147 tests passing
 - Frontend: 9,174 LOC TypeScript/React, 51 source files
 - Timeline: 13 days total (2026-02-22 → 2026-03-07)
 
@@ -63,6 +63,11 @@ Decisions are logged in PROJECT.md Key Decisions table.
 - ge=1 validation on limit fields — zero limits are operationally invalid
 - Defaults consistent between model default= and migration server_default= (5, 20, 10)
 
+**22-01 (Claude Provisioning API):**
+- Budget=0 in API means unlimited (NULL in DB); None means "no change" — avoids ambiguity
+- Claude OAuth token value never written to logs or audit details — only reason and tenant_id recorded
+- AdminActionRequest reused for DELETE /claude-token body — shared semantics for reason field
+
 ### Roadmap Evolution
 
 - Phase 9 inserted: MFA-wxcode redirect fix (gap closure from v1.0 audit)
@@ -81,5 +86,5 @@ None.
 ## Session Continuity
 
 Last session: 2026-03-07
-Stopped at: Completed 21-01-PLAN.md (Plan Limits Extension — 3 new Plan fields + migration 009 + 3 tests)
-Resume file: None — Phase 21 complete; Phase 22 next
+Stopped at: Completed 22-01-PLAN.md (Claude Provisioning API — 4 endpoints, 4 service functions, 3 schemas, TenantDetailResponse extended)
+Resume file: None — Phase 22 in progress; Plan 22-02 next
