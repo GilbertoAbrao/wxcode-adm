@@ -50,6 +50,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from wxcode_adm.admin.jwt import create_admin_access_token
 from wxcode_adm.audit.service import write_audit
+from wxcode_adm.common.crypto import encrypt_value
 from wxcode_adm.auth.exceptions import InvalidCredentialsError, InvalidTokenError, TokenExpiredError
 from wxcode_adm.auth.models import RefreshToken, User, UserSession
 from wxcode_adm.auth.password import verify_password
@@ -389,6 +390,15 @@ async def get_tenant_detail(
         "member_count": member_count,
         "created_at": tenant.created_at,
         "updated_at": tenant.updated_at,
+        # Phase 20: Claude/wxcode integration fields
+        "status": tenant.status,
+        "database_name": tenant.database_name,
+        "default_target_stack": tenant.default_target_stack,
+        "neo4j_enabled": tenant.neo4j_enabled,
+        "claude_default_model": tenant.claude_default_model,
+        "claude_max_concurrent_sessions": tenant.claude_max_concurrent_sessions,
+        "claude_monthly_token_budget": tenant.claude_monthly_token_budget,
+        "has_claude_token": tenant.claude_oauth_token is not None,
     }
 
 
@@ -954,6 +964,245 @@ async def force_password_reset(
         actor_id,
         reason,
     )
+
+
+# ---------------------------------------------------------------------------
+# Phase 22: Claude Provisioning
+# ---------------------------------------------------------------------------
+
+
+async def set_claude_token(
+    db: AsyncSession,
+    tenant_id: uuid.UUID,
+    token: str,
+    reason: str,
+    actor_id: uuid.UUID,
+) -> Tenant:
+    """
+    Encrypt and store a Claude OAuth token on the tenant.
+
+    The plaintext token is encrypted with Fernet before storage. The token
+    value is never written to logs or audit details.
+
+    Args:
+        db: async database session
+        tenant_id: the tenant to update
+        token: plaintext Claude OAuth token
+        reason: required reason string for audit log
+        actor_id: the admin user performing the action
+
+    Returns:
+        The updated Tenant instance.
+
+    Raises:
+        NotFoundError: tenant not found.
+    """
+    result = await db.execute(select(Tenant).where(Tenant.id == tenant_id))
+    tenant = result.scalar_one_or_none()
+    if tenant is None:
+        raise NotFoundError(error_code="TENANT_NOT_FOUND", message="Tenant not found")
+
+    # Encrypt the plaintext token before storage
+    encrypted = encrypt_value(token)
+    tenant.claude_oauth_token = encrypted
+
+    await write_audit(
+        db,
+        action="set_claude_token",
+        resource_type="tenant",
+        actor_id=actor_id,
+        resource_id=str(tenant_id),
+        details={"reason": reason},  # token value is NEVER logged
+    )
+
+    logger.info(
+        "Admin set_claude_token: tenant_id=%s actor_id=%s",
+        tenant_id,
+        actor_id,
+    )
+    return tenant
+
+
+async def revoke_claude_token(
+    db: AsyncSession,
+    tenant_id: uuid.UUID,
+    reason: str,
+    actor_id: uuid.UUID,
+) -> Tenant:
+    """
+    Revoke (remove) the Claude OAuth token from a tenant.
+
+    Args:
+        db: async database session
+        tenant_id: the tenant whose token should be revoked
+        reason: required reason string for audit log
+        actor_id: the admin user performing the action
+
+    Returns:
+        The updated Tenant instance.
+
+    Raises:
+        NotFoundError: tenant not found.
+        ConflictError: tenant has no Claude token to revoke.
+    """
+    result = await db.execute(select(Tenant).where(Tenant.id == tenant_id))
+    tenant = result.scalar_one_or_none()
+    if tenant is None:
+        raise NotFoundError(error_code="TENANT_NOT_FOUND", message="Tenant not found")
+
+    if tenant.claude_oauth_token is None:
+        raise ConflictError(
+            error_code="NO_TOKEN",
+            message="Tenant has no Claude token to revoke",
+        )
+
+    tenant.claude_oauth_token = None
+
+    await write_audit(
+        db,
+        action="revoke_claude_token",
+        resource_type="tenant",
+        actor_id=actor_id,
+        resource_id=str(tenant_id),
+        details={"reason": reason},
+    )
+
+    logger.info(
+        "Admin revoke_claude_token: tenant_id=%s actor_id=%s",
+        tenant_id,
+        actor_id,
+    )
+    return tenant
+
+
+async def update_claude_config(
+    db: AsyncSession,
+    tenant_id: uuid.UUID,
+    claude_default_model: str | None,
+    claude_max_concurrent_sessions: int | None,
+    claude_monthly_token_budget: int | None,
+    actor_id: uuid.UUID,
+) -> Tenant:
+    """
+    Update Claude configuration fields on a tenant.
+
+    Only non-None params are applied. Special case: if claude_monthly_token_budget
+    is 0, the field is set to None in the DB (meaning unlimited).
+
+    Args:
+        db: async database session
+        tenant_id: the tenant to update
+        claude_default_model: optional new model string (e.g. "sonnet", "opus")
+        claude_max_concurrent_sessions: optional new max sessions (1-100)
+        claude_monthly_token_budget: optional new budget (0 = unlimited = DB NULL)
+        actor_id: the admin user performing the action
+
+    Returns:
+        The updated Tenant instance.
+
+    Raises:
+        NotFoundError: tenant not found.
+    """
+    result = await db.execute(select(Tenant).where(Tenant.id == tenant_id))
+    tenant = result.scalar_one_or_none()
+    if tenant is None:
+        raise NotFoundError(error_code="TENANT_NOT_FOUND", message="Tenant not found")
+
+    changes: dict = {}
+
+    if claude_default_model is not None:
+        tenant.claude_default_model = claude_default_model
+        changes["claude_default_model"] = claude_default_model
+
+    if claude_max_concurrent_sessions is not None:
+        tenant.claude_max_concurrent_sessions = claude_max_concurrent_sessions
+        changes["claude_max_concurrent_sessions"] = claude_max_concurrent_sessions
+
+    if claude_monthly_token_budget is not None:
+        # 0 = unlimited, stored as NULL in DB
+        db_value = None if claude_monthly_token_budget == 0 else claude_monthly_token_budget
+        tenant.claude_monthly_token_budget = db_value
+        changes["claude_monthly_token_budget"] = db_value
+
+    await write_audit(
+        db,
+        action="update_claude_config",
+        resource_type="tenant",
+        actor_id=actor_id,
+        resource_id=str(tenant_id),
+        details=changes,
+    )
+
+    logger.info(
+        "Admin update_claude_config: tenant_id=%s actor_id=%s changes=%r",
+        tenant_id,
+        actor_id,
+        changes,
+    )
+    return tenant
+
+
+async def activate_tenant(
+    db: AsyncSession,
+    tenant_id: uuid.UUID,
+    reason: str,
+    actor_id: uuid.UUID,
+) -> Tenant:
+    """
+    Activate a tenant by transitioning its status from pending_setup to active.
+
+    Preconditions:
+    - Tenant must be in status "pending_setup"
+    - Tenant must have a database_name configured
+
+    Args:
+        db: async database session
+        tenant_id: the tenant to activate
+        reason: required reason string for audit log
+        actor_id: the admin user performing the action
+
+    Returns:
+        The updated Tenant instance.
+
+    Raises:
+        NotFoundError: tenant not found.
+        ConflictError: tenant status is not pending_setup, or database_name is None.
+    """
+    result = await db.execute(select(Tenant).where(Tenant.id == tenant_id))
+    tenant = result.scalar_one_or_none()
+    if tenant is None:
+        raise NotFoundError(error_code="TENANT_NOT_FOUND", message="Tenant not found")
+
+    if tenant.status != "pending_setup":
+        raise ConflictError(
+            error_code="INVALID_STATUS",
+            message=f"Cannot activate tenant with status '{tenant.status}'. Only 'pending_setup' tenants can be activated.",
+        )
+
+    if tenant.database_name is None:
+        raise ConflictError(
+            error_code="MISSING_DATABASE_NAME",
+            message="Tenant must have a database_name configured before activation",
+        )
+
+    tenant.status = "active"
+
+    await write_audit(
+        db,
+        action="activate_tenant",
+        resource_type="tenant",
+        actor_id=actor_id,
+        resource_id=str(tenant_id),
+        details={"reason": reason, "previous_status": "pending_setup"},
+    )
+
+    logger.info(
+        "Admin activate_tenant: tenant_id=%s actor_id=%s reason=%r",
+        tenant_id,
+        actor_id,
+        reason,
+    )
+    return tenant
 
 
 # ---------------------------------------------------------------------------
