@@ -23,6 +23,9 @@ class CreatePlanRequest(BaseModel):
     token_quota: int = Field(ge=0)
     overage_rate_cents_per_token: int = Field(ge=0, default=0)
     member_cap: int = Field(default=1)  # -1 = unlimited
+    max_projects: int = Field(ge=1, default=5)
+    max_output_projects: int = Field(ge=1, default=20)
+    max_storage_gb: int = Field(ge=1, default=10)
 
 
 class UpdatePlanRequest(BaseModel):
@@ -33,6 +36,9 @@ class UpdatePlanRequest(BaseModel):
     token_quota: Optional[int] = Field(default=None, ge=0)
     overage_rate_cents_per_token: Optional[int] = Field(default=None, ge=0)
     member_cap: Optional[int] = None
+    max_projects: Optional[int] = Field(default=None, ge=1)
+    max_output_projects: Optional[int] = Field(default=None, ge=1)
+    max_storage_gb: Optional[int] = Field(default=None, ge=1)
     is_active: Optional[bool] = None
 
 
@@ -48,6 +54,9 @@ class PlanResponse(BaseModel):
     token_quota: int
     overage_rate_cents_per_token: int
     member_cap: int
+    max_projects: int
+    max_output_projects: int
+    max_storage_gb: int
     is_active: bool
     created_at: datetime
     updated_at: datetime

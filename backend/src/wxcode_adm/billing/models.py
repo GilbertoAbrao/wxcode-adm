@@ -105,6 +105,21 @@ class Plan(TimestampMixin, Base):
         nullable=False,
         default=1,
     )
+    max_projects: Mapped[int] = mapped_column(
+        Integer,
+        nullable=False,
+        default=5,
+    )
+    max_output_projects: Mapped[int] = mapped_column(
+        Integer,
+        nullable=False,
+        default=20,
+    )
+    max_storage_gb: Mapped[int] = mapped_column(
+        Integer,
+        nullable=False,
+        default=10,
+    )
     is_active: Mapped[bool] = mapped_column(
         Boolean,
         nullable=False,

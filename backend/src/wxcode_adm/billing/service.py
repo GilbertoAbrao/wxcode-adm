@@ -67,6 +67,9 @@ async def create_plan(db: AsyncSession, body: CreatePlanRequest) -> Plan:
         token_quota=body.token_quota,
         overage_rate_cents_per_token=body.overage_rate_cents_per_token,
         member_cap=body.member_cap,
+        max_projects=body.max_projects,
+        max_output_projects=body.max_output_projects,
+        max_storage_gb=body.max_storage_gb,
     )
     db.add(plan)
     await db.flush()  # Get the plan.id assigned
@@ -180,6 +183,12 @@ async def update_plan(
         plan.overage_rate_cents_per_token = body.overage_rate_cents_per_token
     if body.member_cap is not None:
         plan.member_cap = body.member_cap
+    if body.max_projects is not None:
+        plan.max_projects = body.max_projects
+    if body.max_output_projects is not None:
+        plan.max_output_projects = body.max_output_projects
+    if body.max_storage_gb is not None:
+        plan.max_storage_gb = body.max_storage_gb
     if body.is_active is not None:
         plan.is_active = body.is_active
 
