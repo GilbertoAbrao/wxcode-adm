@@ -85,6 +85,12 @@ class Settings(BaseSettings):
     # Example: "1.2.3.4,5.6.7.8"
     ADMIN_ALLOWED_IPS: str = ""
 
+    # --- Phase 20 -- Crypto Service ---
+    # Fernet encryption key for storing sensitive values (e.g. OAuth tokens) at rest.
+    # In production, generate a real Fernet key: python3 -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
+    # The crypto service accepts any string and derives a valid key via SHA-256 if needed.
+    WXCODE_ENCRYPTION_KEY: SecretStr = SecretStr("change-me-in-production")
+
 
 # Module-level singleton — raises ValidationError at import if env vars missing
 settings = Settings()
