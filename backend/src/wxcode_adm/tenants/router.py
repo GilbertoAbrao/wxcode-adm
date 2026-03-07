@@ -698,6 +698,55 @@ async def accept_invitation(
 
 
 # ---------------------------------------------------------------------------
+# Phase 22: wxcode engine config endpoint
+# ---------------------------------------------------------------------------
+
+
+@router.get(
+    "/{tenant_id}/wxcode-config",
+    summary="Get wxcode engine configuration for a tenant",
+    description=(
+        "Returns the wxcode engine configuration for the specified tenant. "
+        "Includes database name, target stack, Neo4j flag, and Claude settings. "
+        "Does NOT return the Claude OAuth token — it never leaves wxcode-adm. "
+        "Requires DEVELOPER role or above."
+    ),
+)
+async def get_wxcode_config(
+    request: Request,
+    tenant_id: uuid.UUID,
+    ctx=Depends(require_role(MemberRole.DEVELOPER)),
+    db: AsyncSession = Depends(get_session),
+) -> dict:
+    """
+    GET /api/v1/tenants/{tenant_id}/wxcode-config
+
+    Requires X-Tenant-ID header and DEVELOPER role.
+    Returns configuration used by the wxcode engine — never returns the token.
+
+    Security: validates that tenant_id in path matches the tenant resolved from
+    X-Tenant-ID header, preventing cross-tenant config reads by guessing UUIDs.
+    """
+    tenant, membership = ctx
+
+    # Security: prevent DEVELOPER in tenant A from reading config of tenant B
+    if tenant.id != tenant_id:
+        raise NotFoundError(
+            error_code="TENANT_MISMATCH",
+            message="Tenant ID does not match current tenant context",
+        )
+
+    return {
+        "tenant_id": str(tenant.id),
+        "database_name": tenant.database_name,
+        "default_target_stack": tenant.default_target_stack,
+        "neo4j_enabled": tenant.neo4j_enabled,
+        "claude_default_model": tenant.claude_default_model,
+        "max_concurrent_sessions": tenant.claude_max_concurrent_sessions,
+    }
+
+
+# ---------------------------------------------------------------------------
 # UpdateTenantRequest (defined locally to keep schemas.py clean for Plan 03-03)
 # ---------------------------------------------------------------------------
 
