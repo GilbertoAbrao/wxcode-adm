@@ -50,9 +50,12 @@ from wxcode_adm.admin import service as admin_service
 from wxcode_adm.admin.dependencies import require_admin
 from wxcode_adm.admin.jwt import decode_admin_access_token
 from wxcode_adm.admin.schemas import (
+    ActivateTenantRequest,
     AdminActionRequest,
     AdminLoginRequest,
     AdminTokenResponse,
+    ClaudeConfigUpdateRequest,
+    ClaudeTokenRequest,
     MRRDashboardResponse,
     TenantDetailResponse,
     TenantListResponse,
@@ -422,6 +425,107 @@ async def force_password_reset(
         "message": "Password reset initiated",
         "user_id": str(user_id),
     }
+
+
+# ---------------------------------------------------------------------------
+# Phase 22: Claude Provisioning endpoints
+# ---------------------------------------------------------------------------
+
+
+@admin_router.put("/tenants/{tenant_id}/claude-token")
+async def set_claude_token(
+    request: Request,
+    tenant_id: uuid.UUID,
+    body: ClaudeTokenRequest,
+    admin: User = Depends(require_admin),
+    db: AsyncSession = Depends(get_session),
+) -> dict:
+    """
+    Set or update the encrypted Claude OAuth token for a tenant.
+
+    The plaintext token is encrypted at rest and never returned in responses.
+    Requires a reason string for audit trail.
+    """
+    await admin_service.set_claude_token(
+        db=db,
+        tenant_id=tenant_id,
+        token=body.token,
+        reason=body.reason,
+        actor_id=admin.id,
+    )
+    return {"message": "Claude token set", "tenant_id": str(tenant_id)}
+
+
+@admin_router.delete("/tenants/{tenant_id}/claude-token")
+async def revoke_claude_token(
+    request: Request,
+    tenant_id: uuid.UUID,
+    body: AdminActionRequest,
+    admin: User = Depends(require_admin),
+    db: AsyncSession = Depends(get_session),
+) -> dict:
+    """
+    Revoke (remove) the Claude OAuth token from a tenant.
+
+    Raises 409 if the tenant has no token to revoke.
+    Requires a reason string for audit trail.
+    """
+    await admin_service.revoke_claude_token(
+        db=db,
+        tenant_id=tenant_id,
+        reason=body.reason,
+        actor_id=admin.id,
+    )
+    return {"message": "Claude token revoked", "tenant_id": str(tenant_id)}
+
+
+@admin_router.patch("/tenants/{tenant_id}/claude-config")
+async def update_claude_config(
+    request: Request,
+    tenant_id: uuid.UUID,
+    body: ClaudeConfigUpdateRequest,
+    admin: User = Depends(require_admin),
+    db: AsyncSession = Depends(get_session),
+) -> dict:
+    """
+    Update Claude configuration (model, concurrent sessions, monthly budget) for a tenant.
+
+    All fields are optional — only provided fields are updated.
+    Budget of 0 sets the field to unlimited (NULL in DB).
+    """
+    await admin_service.update_claude_config(
+        db=db,
+        tenant_id=tenant_id,
+        claude_default_model=body.claude_default_model,
+        claude_max_concurrent_sessions=body.claude_max_concurrent_sessions,
+        claude_monthly_token_budget=body.claude_monthly_token_budget,
+        actor_id=admin.id,
+    )
+    return {"message": "Claude config updated", "tenant_id": str(tenant_id)}
+
+
+@admin_router.post("/tenants/{tenant_id}/activate")
+async def activate_tenant(
+    request: Request,
+    tenant_id: uuid.UUID,
+    body: ActivateTenantRequest,
+    admin: User = Depends(require_admin),
+    db: AsyncSession = Depends(get_session),
+) -> dict:
+    """
+    Activate a tenant, transitioning it from pending_setup to active.
+
+    Preconditions: tenant must be in pending_setup status and have a
+    database_name configured. Raises 409 if either precondition fails.
+    Requires a reason string for audit trail.
+    """
+    await admin_service.activate_tenant(
+        db=db,
+        tenant_id=tenant_id,
+        reason=body.reason,
+        actor_id=admin.id,
+    )
+    return {"message": "Tenant activated", "tenant_id": str(tenant_id)}
 
 
 # ---------------------------------------------------------------------------
