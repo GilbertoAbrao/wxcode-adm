@@ -4,6 +4,7 @@
 
 - ✅ **v1.0 Backend API** — Phases 1-11 (shipped 2026-03-04)
 - ✅ **v2.0 Frontend UI** — Phases 12-19 (shipped 2026-03-06)
+- 🔲 **v3.0 WXCODE Engine Integration** — Phases 20-24 (planned)
 
 ## Phases
 
@@ -42,6 +43,21 @@ Full details: `milestones/v2.0-ROADMAP.md`
 
 </details>
 
+<details>
+<summary>🔲 v3.0 WXCODE Engine Integration (Phases 20-24) — PLANNED</summary>
+
+- [ ] Phase 20: Crypto Service + Tenant Model Extension (2 plans)
+  - [ ] 20-01-PLAN.md — Fernet crypto service + encryption key config
+  - [ ] 20-02-PLAN.md — Tenant model extension + migration 008 + tests
+- [ ] Phase 21: Plan Limits Extension (0 plans)
+- [ ] Phase 22: Claude Provisioning API (0 plans)
+- [ ] Phase 23: Admin UI — Claude Management (0 plans)
+- [ ] Phase 24: CORS Fix + Integration Contract (0 plans)
+
+Full details: `milestones/v3.0-ROADMAP.md`
+
+</details>
+
 ## Progress
 
 | Phase | Milestone | Plans Complete | Status | Completed |
@@ -65,3 +81,8 @@ Full details: `milestones/v2.0-ROADMAP.md`
 | 17. Super-Admin UI | v2.0 | 3/3 | Complete | 2026-03-05 |
 | 18. Super-Admin Enhanced | v2.0 | 2/2 | Complete | 2026-03-06 |
 | 19. UI Polish and Tech Debt Cleanup | v2.0 | 1/1 | Complete | 2026-03-06 |
+| 20. Crypto Service + Tenant Model Extension | v3.0 | 0/2 | Planned | - |
+| 21. Plan Limits Extension | v3.0 | 0/0 | Planned | - |
+| 22. Claude Provisioning API | v3.0 | 0/0 | Planned | - |
+| 23. Admin UI — Claude Management | v3.0 | 0/0 | Planned | - |
+| 24. CORS Fix + Integration Contract | v3.0 | 0/0 | Planned | - |
