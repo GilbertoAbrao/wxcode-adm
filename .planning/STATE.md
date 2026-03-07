@@ -9,10 +9,10 @@ See: .planning/PROJECT.md (updated 2026-03-06)
 
 ## Current Position
 
-Phase: v3.0 Phase 22 (Claude Provisioning API)
-Plan: 62 plans complete (38 v1.0 + 20 v2.0 + 4 v3.0), Plan 22-01 done
-Status: v3.0 IN PROGRESS — Phase 22 IN PROGRESS (1 of 2 plans done); Plan 22-02 next
-Last activity: 2026-03-07 — 22-01 Claude Provisioning API (schemas, service, endpoints)
+Phase: v3.0 Phase 22 (Claude Provisioning API) — COMPLETE
+Plan: 63 plans complete (38 v1.0 + 20 v2.0 + 5 v3.0), Plan 22-02 done
+Status: v3.0 IN PROGRESS — Phase 22 COMPLETE (2 of 2 plans done)
+Last activity: 2026-03-07 — 22-02 wxcode-config endpoint + 14 integration tests
 
 Progress: [████████████████████████████████] 100% (v1.0+v2.0) + v3.0 started
 
@@ -31,13 +31,13 @@ Progress: [███████████████████████
 - Timeline: 3 days (2026-03-04 → 2026-03-06)
 
 **Velocity (v3.0):**
-- Plans completed: 4 (20-01, 20-02, 21-01, 22-01)
+- Plans completed: 5 (20-01, 20-02, 21-01, 22-01, 22-02)
 - Average duration: 2-4 min
-- Phase 20 complete, Phase 21 complete, Phase 22 in progress
+- Phase 20 complete, Phase 21 complete, Phase 22 complete
 
 **Combined:**
-- 62 plans executed across 22 phases
-- Backend: ~20,550 LOC Python, 147 tests passing
+- 63 plans executed across 22 phases
+- Backend: ~20,600 LOC Python, 161 tests passing
 - Frontend: 9,174 LOC TypeScript/React, 51 source files
 - Timeline: 13 days total (2026-02-22 → 2026-03-07)
 
@@ -68,6 +68,11 @@ Decisions are logged in PROJECT.md Key Decisions table.
 - Claude OAuth token value never written to logs or audit details — only reason and tenant_id recorded
 - AdminActionRequest reused for DELETE /claude-token body — shared semantics for reason field
 
+**22-02 (wxcode-config endpoint + integration tests):**
+- tenant-mismatch-404: wxcode-config validates path tenant_id vs X-Tenant-ID to prevent cross-tenant reads (404, not 403)
+- max_concurrent_sessions: no 'claude_' prefix in wxcode-config response, matching ROADMAP spec
+- httpx-delete-body: Use c.request('DELETE', url, content=json.dumps(...)) for DELETE with body in tests
+
 ### Roadmap Evolution
 
 - Phase 9 inserted: MFA-wxcode redirect fix (gap closure from v1.0 audit)
@@ -86,5 +91,5 @@ None.
 ## Session Continuity
 
 Last session: 2026-03-07
-Stopped at: Completed 22-01-PLAN.md (Claude Provisioning API — 4 endpoints, 4 service functions, 3 schemas, TenantDetailResponse extended)
-Resume file: None — Phase 22 in progress; Plan 22-02 next
+Stopped at: Completed 22-02-PLAN.md (wxcode-config endpoint + 14 integration tests; Phase 22 COMPLETE)
+Resume file: None — Phase 22 complete; next phase TBD

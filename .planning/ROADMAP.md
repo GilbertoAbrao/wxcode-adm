@@ -51,7 +51,7 @@ Full details: `milestones/v2.0-ROADMAP.md`
   - [ ] 20-02-PLAN.md — Tenant model extension + migration 008 + tests
 - [x] Phase 21: Plan Limits Extension (1 plan) (completed 2026-03-07)
   - [ ] 21-01-PLAN.md — Plan model limits + migration 009 + schemas + tests
-- [ ] Phase 22: Claude Provisioning API (2 plans)
+- [x] Phase 22: Claude Provisioning API (2 plans) (completed 2026-03-07)
   - [ ] 22-01-PLAN.md — Admin provisioning endpoints (schemas + service + 4 admin routes)
   - [ ] 22-02-PLAN.md — wxcode-config endpoint + integration tests
 - [ ] Phase 23: Admin UI — Claude Management (0 plans)
@@ -86,6 +86,6 @@ Full details: `milestones/v3.0-ROADMAP.md`
 | 19. UI Polish and Tech Debt Cleanup | v2.0 | 1/1 | Complete | 2026-03-06 |
 | 20. Crypto Service + Tenant Model Extension | v3.0 | 2/2 | Complete | 2026-03-07 |
 | 21. Plan Limits Extension | v3.0 | 1/1 | Complete | 2026-03-07 |
-| 22. Claude Provisioning API | 1/2 | In Progress|  | - |
+| 22. Claude Provisioning API | 2/2 | Complete   | 2026-03-07 | - |
 | 23. Admin UI — Claude Management | v3.0 | 0/0 | Planned | - |
 | 24. CORS Fix + Integration Contract | v3.0 | 0/0 | Planned | - |
