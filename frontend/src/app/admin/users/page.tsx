@@ -87,6 +87,12 @@ function AdminNav() {
           Tenants
         </Link>
         <Link
+          href="/admin/plans"
+          className="px-3 py-1.5 rounded text-sm text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/50 transition-colors"
+        >
+          Plans
+        </Link>
+        <Link
           href="/admin/users"
           className="px-3 py-1.5 rounded text-sm text-cyan-400 border-b-2 border-cyan-400 font-medium"
         >

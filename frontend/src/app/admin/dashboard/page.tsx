@@ -40,6 +40,12 @@ function AdminNav({ onLogout }: { onLogout: () => void }) {
           Tenants
         </Link>
         <Link
+          href="/admin/plans"
+          className="px-3 py-1.5 text-sm font-medium text-zinc-400 hover:text-zinc-200 transition-colors"
+        >
+          Plans
+        </Link>
+        <Link
           href="/admin/users"
           className="px-3 py-1.5 text-sm font-medium text-zinc-400 hover:text-zinc-200 transition-colors"
         >
