@@ -31,14 +31,14 @@ Progress: [███████████████████████
 - Timeline: 3 days (2026-03-04 → 2026-03-06)
 
 **Velocity (v3.0):**
-- Plans completed: 13 (20-01, 20-02, 21-01, 22-01, 22-02, 23-01, 23-02, 23-03, 23-04, 23-05, 23-06 + gap closure plans)
-- Average duration: 2-5 min
-- Phase 20 complete, Phase 21 complete, Phase 22 complete, Phase 23 COMPLETE (6 of 6 plans)
+- Plans completed: 14 (20-01, 20-02, 21-01, 22-01, 22-02, 23-01, 23-02, 23-03, 23-04, 23-05, 23-06 + gap closure plans including 23-03 backend re-do)
+- Average duration: 2-11 min
+- Phase 20 complete, Phase 21 complete, Phase 22 complete, Phase 23 complete (6 of 6 + gap closures)
 
 **Combined:**
-- 65 plans executed across 23 phases
-- Backend: ~20,600 LOC Python, 161 tests passing
-- Frontend: ~10,765 LOC TypeScript/React (+723 LOC from Phase 23-02 plans page + hook), 53 source files
+- 66+ plans executed across 23 phases
+- Backend: ~20,700 LOC Python, 175 tests passing (+14 from dual quota field tests)
+- Frontend: ~10,765 LOC TypeScript/React, 53 source files
 - Timeline: 14 days total (2026-02-22 → 2026-03-08)
 
 ## Accumulated Context
@@ -93,6 +93,8 @@ Decisions are logged in PROJECT.md Key Decisions table.
 - WXCODE Provisioning section visible only for pending_setup tenants — prevents confusing display in other states
 - database_name displays amber "Not configured" warning when null — direct visual cue that activation will fail
 - neo4j_enabled uses string state with "no change" option — prevents accidental boolean overwrites
+- [Phase 23-03]: token_quota_5h used as enforcement field in _enforce_token_quota (tighter 5h window = primary constraint)
+- [Phase 23-03]: Data migration copies existing values to BOTH new columns to preserve prior data in migration 010
 
 ### Roadmap Evolution
 
@@ -112,5 +114,5 @@ None.
 ## Session Continuity
 
 Last session: 2026-03-08
-Stopped at: Completed 23-06-PLAN.md (WXCODE Provisioning config endpoint + UI section — Phase 23 COMPLETE)
-Resume file: None — Phase 23 complete, all v3.0 gap closure plans done
+Stopped at: Completed 23-03-PLAN.md (dual budget/quota fields: model, migration 010, schemas, services, tests — 175 tests pass)
+Resume file: None — gap closure plan 23-03 complete
