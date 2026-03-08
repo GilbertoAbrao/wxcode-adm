@@ -561,6 +561,31 @@ export default function AdminPlansPage() {
                             <div className="flex items-center gap-2">
                               <button
                                 type="button"
+                                onClick={async () => {
+                                  try {
+                                    await updateMutation.mutateAsync({
+                                      plan_id: plan.id,
+                                      is_active: !plan.is_active,
+                                    });
+                                  } catch (err) {
+                                    window.alert(
+                                      err instanceof Error
+                                        ? err.message
+                                        : "Failed to update plan status"
+                                    );
+                                  }
+                                }}
+                                disabled={updateMutation.isPending}
+                                className={`text-xs font-medium px-2 py-1 rounded transition-colors disabled:opacity-50 ${
+                                  plan.is_active
+                                    ? "text-amber-400 hover:bg-amber-400/10"
+                                    : "text-emerald-400 hover:bg-emerald-400/10"
+                                }`}
+                              >
+                                {plan.is_active ? "Inactivate" : "Activate"}
+                              </button>
+                              <button
+                                type="button"
                                 onClick={() => handleEdit(plan)}
                                 className="text-xs font-medium text-cyan-400 hover:bg-cyan-400/10 px-2 py-1 rounded transition-colors"
                               >

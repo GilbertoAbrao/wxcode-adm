@@ -29,7 +29,7 @@ import logging
 import uuid
 from datetime import datetime, timezone
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from wxcode_adm.billing.exceptions import PaymentRequiredError
@@ -64,7 +64,8 @@ async def create_plan(db: AsyncSession, body: CreatePlanRequest) -> Plan:
         name=body.name,
         slug=body.slug,
         monthly_fee_cents=body.monthly_fee_cents,
-        token_quota=body.token_quota,
+        token_quota_5h=body.token_quota_5h,
+        token_quota_weekly=body.token_quota_weekly,
         overage_rate_cents_per_token=body.overage_rate_cents_per_token,
         member_cap=body.member_cap,
         max_projects=body.max_projects,
@@ -175,8 +176,10 @@ async def update_plan(
         if body.monthly_fee_cents != plan.monthly_fee_cents:
             price_changed = True
         plan.monthly_fee_cents = body.monthly_fee_cents
-    if body.token_quota is not None:
-        plan.token_quota = body.token_quota
+    if body.token_quota_5h is not None:
+        plan.token_quota_5h = body.token_quota_5h
+    if body.token_quota_weekly is not None:
+        plan.token_quota_weekly = body.token_quota_weekly
     if body.overage_rate_cents_per_token is not None:
         if body.overage_rate_cents_per_token != plan.overage_rate_cents_per_token:
             overage_changed = True
@@ -260,6 +263,19 @@ async def delete_plan(db: AsyncSession, plan_id: uuid.UUID) -> Plan:
         raise NotFoundError(
             error_code="PLAN_NOT_FOUND",
             message=f"Plan with id '{plan_id}' not found",
+        )
+
+    # Check if any tenant is using this plan
+    in_use_result = await db.execute(
+        select(func.count(TenantSubscription.id)).where(
+            TenantSubscription.plan_id == plan_id
+        )
+    )
+    in_use_count = in_use_result.scalar_one()
+    if in_use_count > 0:
+        raise ConflictError(
+            error_code="PLAN_IN_USE",
+            message=f"Cannot delete plan — {in_use_count} tenant(s) are currently using it",
         )
 
     plan.is_active = False
