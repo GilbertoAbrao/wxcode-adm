@@ -61,7 +61,9 @@ Full details: `milestones/v2.0-ROADMAP.md`
   - [ ] 23-04-PLAN.md — Session persistence + plan inactivate/delete fixes
   - [ ] 23-05-PLAN.md — Frontend: dual budget/quota fields in hooks + UI pages
   - [ ] 23-06-PLAN.md — WXCODE provisioning endpoint + tenant detail UI section
-- [ ] Phase 24: CORS Fix + Integration Contract (0 plans)
+- [ ] Phase 24: CORS Fix + Integration Contract (2 plans)
+  - [ ] 24-01-PLAN.md — CORS production fix + dynamic tenant wxcode_url origins + tests
+  - [ ] 24-02-PLAN.md — Integration health endpoint + contract documentation + tests
 
 Full details: `milestones/v3.0-ROADMAP.md`
 
@@ -94,4 +96,4 @@ Full details: `milestones/v3.0-ROADMAP.md`
 | 21. Plan Limits Extension | v3.0 | 1/1 | Complete | 2026-03-07 |
 | 22. Claude Provisioning API | v3.0 | 2/2 | Complete | 2026-03-07 |
 | 23. Admin UI — Claude Management | 6/6 | Complete    | 2026-03-08 | - |
-| 24. CORS Fix + Integration Contract | v3.0 | 0/0 | Planned | - |
+| 24. CORS Fix + Integration Contract | v3.0 | 0/2 | Planned | - |
