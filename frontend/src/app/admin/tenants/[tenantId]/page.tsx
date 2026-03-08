@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { ArrowLeft, Key, Settings, Zap } from "lucide-react";
+import { ArrowLeft, Database, Key, Settings, Zap } from "lucide-react";
 import {
   GlowButton,
   GlowInput,
@@ -15,6 +15,7 @@ import {
   useSetClaudeToken,
   useRevokeClaudeToken,
   useUpdateClaudeConfig,
+  useUpdateWxcodeConfig,
   useActivateTenant,
   type TenantDetailResponse,
 } from "@/hooks/useAdminTenants";
@@ -161,10 +162,18 @@ export default function TenantDetailPage() {
   const [activateReason, setActivateReason] = useState("");
   const [activateError, setActivateError] = useState<string | null>(null);
 
+  // WXCODE Provisioning form state
+  const [showProvisioningForm, setShowProvisioningForm] = useState(false);
+  const [provDbName, setProvDbName] = useState("");
+  const [provTargetStack, setProvTargetStack] = useState("");
+  const [provNeo4j, setProvNeo4j] = useState<string>("");
+  const [provisioningError, setProvisioningError] = useState<string | null>(null);
+
   // Mutation hooks
   const setTokenMutation = useSetClaudeToken();
   const revokeTokenMutation = useRevokeClaudeToken();
   const updateConfigMutation = useUpdateClaudeConfig();
+  const updateWxcodeConfigMutation = useUpdateWxcodeConfig();
   const activateMutation = useActivateTenant();
 
   // ---------------------------------------------------------------------------
@@ -272,6 +281,45 @@ export default function TenantDetailPage() {
         setActivateError(err.message);
       } else {
         setActivateError("Failed to activate tenant. Please try again.");
+      }
+    }
+  };
+
+  const handleUpdateProvisioning = async () => {
+    if (!tenant) return;
+    if (!provDbName && !provTargetStack && provNeo4j === "") return;
+    setProvisioningError(null);
+
+    const payload: {
+      tenant_id: string;
+      database_name?: string;
+      default_target_stack?: string;
+      neo4j_enabled?: boolean;
+    } = { tenant_id: tenant.id };
+
+    if (provDbName) {
+      payload.database_name = provDbName.trim();
+    }
+    if (provTargetStack) {
+      payload.default_target_stack = provTargetStack.trim();
+    }
+    if (provNeo4j !== "") {
+      payload.neo4j_enabled = provNeo4j === "true";
+    }
+
+    try {
+      await updateWxcodeConfigMutation.mutateAsync(payload);
+      setShowProvisioningForm(false);
+      setProvDbName("");
+      setProvTargetStack("");
+      setProvNeo4j("");
+    } catch (err) {
+      if (err instanceof ApiError) {
+        setProvisioningError(err.message);
+      } else if (err instanceof Error) {
+        setProvisioningError(err.message);
+      } else {
+        setProvisioningError("Failed to update provisioning config. Please try again.");
       }
     }
   };
@@ -678,6 +726,111 @@ export default function TenantDetailPage() {
                   </div>
                 )}
               </div>
+
+              {/* WXCODE Provisioning subsection — visible for pending_setup */}
+              {tenant.status === "pending_setup" && (
+                <div className="space-y-3 border-t border-zinc-800 pt-4">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-xs font-semibold text-zinc-500 uppercase tracking-wider flex items-center gap-1.5">
+                      <Database className="h-3.5 w-3.5" /> WXCODE Provisioning
+                    </h3>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowProvisioningForm(!showProvisioningForm);
+                        setProvisioningError(null);
+                      }}
+                      className="text-xs font-medium text-cyan-400 hover:bg-cyan-400/10 px-2 py-1 rounded transition-colors"
+                    >
+                      Edit
+                    </button>
+                  </div>
+
+                  {/* Current provisioning display */}
+                  <dl className="space-y-2">
+                    <div className="flex items-start justify-between gap-3">
+                      <dt className="text-sm text-zinc-500">Database Name</dt>
+                      <dd className="text-sm text-zinc-300">
+                        {tenant.database_name ?? <span className="text-amber-400">Not configured</span>}
+                      </dd>
+                    </div>
+                    <div className="flex items-start justify-between gap-3">
+                      <dt className="text-sm text-zinc-500">Target Stack</dt>
+                      <dd className="text-sm text-zinc-300">{tenant.default_target_stack}</dd>
+                    </div>
+                    <div className="flex items-start justify-between gap-3">
+                      <dt className="text-sm text-zinc-500">Neo4j Enabled</dt>
+                      <dd>
+                        <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
+                          tenant.neo4j_enabled
+                            ? "bg-emerald-400/10 text-emerald-400"
+                            : "bg-zinc-400/10 text-zinc-400"
+                        }`}>
+                          {tenant.neo4j_enabled ? "Yes" : "No"}
+                        </span>
+                      </dd>
+                    </div>
+                  </dl>
+
+                  {/* Inline Provisioning edit form */}
+                  {showProvisioningForm && (
+                    <div className="space-y-3 bg-zinc-900/80 rounded-lg p-4 border border-zinc-800">
+                      <GlowInput
+                        label="Database Name"
+                        value={provDbName}
+                        onChange={(e) => setProvDbName(e.target.value)}
+                        placeholder={tenant.database_name ?? "e.g. tenant_acme_db"}
+                        fullWidth
+                        autoFocus
+                      />
+                      <GlowInput
+                        label="Target Stack"
+                        value={provTargetStack}
+                        onChange={(e) => setProvTargetStack(e.target.value)}
+                        placeholder={tenant.default_target_stack}
+                        fullWidth
+                      />
+                      <div>
+                        <label className="block text-sm font-medium text-zinc-400 mb-1">Neo4j Enabled</label>
+                        <select
+                          value={provNeo4j}
+                          onChange={(e) => setProvNeo4j(e.target.value)}
+                          className="w-full rounded-md border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm text-zinc-300 focus:outline-none focus:ring-1 focus:ring-cyan-500"
+                        >
+                          <option value="">— No change —</option>
+                          <option value="true">Yes</option>
+                          <option value="false">No</option>
+                        </select>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <GlowButton
+                          size="sm"
+                          onClick={handleUpdateProvisioning}
+                          disabled={(!provDbName && !provTargetStack && provNeo4j === "") || updateWxcodeConfigMutation.isPending}
+                          isLoading={updateWxcodeConfigMutation.isPending}
+                          loadingText="Saving..."
+                        >
+                          Save Provisioning
+                        </GlowButton>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setShowProvisioningForm(false);
+                            setProvDbName("");
+                            setProvTargetStack("");
+                            setProvNeo4j("");
+                            setProvisioningError(null);
+                          }}
+                          className="text-sm text-zinc-500 hover:text-zinc-300 transition-colors"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                      {provisioningError && <p className="text-xs text-rose-400">{provisioningError}</p>}
+                    </div>
+                  )}
+                </div>
+              )}
 
               {/* Activate Tenant subsection — only visible when status=pending_setup */}
               {tenant.status === "pending_setup" && (

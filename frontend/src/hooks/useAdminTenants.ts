@@ -273,6 +273,36 @@ export function useUpdateClaudeConfig() {
 }
 
 /**
+ * Update wxcode provisioning config for a tenant.
+ *
+ * Calls PATCH /admin/tenants/{tenant_id}/wxcode-config.
+ * On success: invalidates all admin tenant queries.
+ */
+export interface WxcodeConfigUpdate {
+  database_name?: string;
+  default_target_stack?: string;
+  neo4j_enabled?: boolean;
+}
+
+export function useUpdateWxcodeConfig() {
+  const queryClient = useQueryClient();
+  return useMutation<
+    unknown,
+    Error,
+    { tenant_id: string } & WxcodeConfigUpdate
+  >({
+    mutationFn: ({ tenant_id, ...configFields }) =>
+      adminApiClient(`/admin/tenants/${tenant_id}/wxcode-config`, {
+        method: "PATCH",
+        body: JSON.stringify(configFields),
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["admin", "tenants"] });
+    },
+  });
+}
+
+/**
  * Activate a tenant that is in pending_setup status.
  *
  * Calls POST /admin/tenants/{tenant_id}/activate with { reason }.
