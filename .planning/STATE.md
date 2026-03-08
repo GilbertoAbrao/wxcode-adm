@@ -10,9 +10,9 @@ See: .planning/PROJECT.md (updated 2026-03-06)
 ## Current Position
 
 Phase: v3.0 Phase 23 (Admin UI Claude Management) — COMPLETE
-Plan: 65 plans complete (38 v1.0 + 20 v2.0 + 7 v3.0), Phase 23 done
-Status: v3.0 IN PROGRESS — Phase 23 COMPLETE (2 of 2 plans done)
-Last activity: 2026-03-08 — 23-02 Plans management page + nav links
+Plan: 71 plans complete (38 v1.0 + 20 v2.0 + 13 v3.0), Phase 23 done
+Status: v3.0 IN PROGRESS — Phase 23 COMPLETE (6 of 6 plans done)
+Last activity: 2026-03-08 — 23-06 WXCODE Provisioning config endpoint + UI section
 
 Progress: [████████████████████████████████] 100% (v1.0+v2.0) + v3.0 started
 
@@ -31,9 +31,9 @@ Progress: [███████████████████████
 - Timeline: 3 days (2026-03-04 → 2026-03-06)
 
 **Velocity (v3.0):**
-- Plans completed: 7 (20-01, 20-02, 21-01, 22-01, 22-02, 23-01, 23-02)
-- Average duration: 2-4 min
-- Phase 20 complete, Phase 21 complete, Phase 22 complete, Phase 23 complete
+- Plans completed: 13 (20-01, 20-02, 21-01, 22-01, 22-02, 23-01, 23-02, 23-03, 23-04, 23-05, 23-06 + gap closure plans)
+- Average duration: 2-5 min
+- Phase 20 complete, Phase 21 complete, Phase 22 complete, Phase 23 COMPLETE (6 of 6 plans)
 
 **Combined:**
 - 65 plans executed across 23 phases
@@ -83,6 +83,17 @@ Decisions are logged in PROJECT.md Key Decisions table.
 - Partial PATCH compares edit field strings vs original plan string values — only sends changed fields
 - Plans nav link placed between Tenants and Users — logical hierarchy Dashboard > Tenants > Plans > Users > Audit Logs
 
+**23-04 (Admin session persistence + plan inactivate/delete):**
+- Refresh token only in localStorage (not access token) — access token short-lived, stays in memory for XSS safety
+- Async session restore on mount — isLoading=true until refreshAdminTokens resolves, preventing redirect flash to /admin/login
+- PLAN_IN_USE guard counts all TenantSubscription references (not filtered by status) — prevents orphaned subscription records
+
+**23-06 (WXCODE Provisioning config — gap closure):**
+- WxcodeConfigUpdateRequest uses at-least-one-field model_validator — consistent with ClaudeConfigUpdateRequest pattern
+- WXCODE Provisioning section visible only for pending_setup tenants — prevents confusing display in other states
+- database_name displays amber "Not configured" warning when null — direct visual cue that activation will fail
+- neo4j_enabled uses string state with "no change" option — prevents accidental boolean overwrites
+
 ### Roadmap Evolution
 
 - Phase 9 inserted: MFA-wxcode redirect fix (gap closure from v1.0 audit)
@@ -101,5 +112,5 @@ None.
 ## Session Continuity
 
 Last session: 2026-03-08
-Stopped at: Completed 23-02-PLAN.md (Plans management page: useAdminPlans hooks + /admin/plans page + nav updates)
-Resume file: None — Phase 23 complete, v3.0 in progress
+Stopped at: Completed 23-04-PLAN.md (Admin session persistence + plan inactivate toggle + delete tenant guard)
+Resume file: None — Phase 23 in progress (plans 23-05 and 23-06 remaining)
