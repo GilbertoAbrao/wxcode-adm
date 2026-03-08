@@ -1,9 +1,9 @@
 ---
-status: diagnosed
+status: resolved
 phase: 23-admin-ui-claude-management
 source: [23-01-SUMMARY.md, 23-02-SUMMARY.md]
 started: 2026-03-08T15:00:00Z
-updated: 2026-03-08T15:20:00Z
+updated: 2026-03-08T18:30:00Z
 ---
 
 ## Current Test
@@ -75,7 +75,7 @@ skipped: 0
 ## Gaps
 
 - truth: "WXCODE Integration card shows budget config per time window"
-  status: failed
+  status: resolved
   reason: "User reported: Monthly Budget precisa ser substituido por 5-hour-window budget e por weekly budget"
   severity: major
   test: 1
@@ -98,7 +98,7 @@ skipped: 0
   debug_session: ".planning/debug/budget-fields-single-to-dual.md"
 
 - truth: "Page refresh preserves authentication session"
-  status: failed
+  status: resolved
   reason: "User reported: quando refresh a pagina sou obrigado a fazer novo login, isso nao pode acontecer"
   severity: major
   test: 3
@@ -117,7 +117,7 @@ skipped: 0
   debug_session: ".planning/debug/auth-session-persistence.md"
 
 - truth: "Activate tenant changes status to active"
-  status: failed
+  status: resolved
   reason: "User reported: Tomei essa mensagem ao clicar em activate: Tenant must have a database_name configured before activation"
   severity: major
   test: 5
@@ -137,7 +137,7 @@ skipped: 0
   debug_session: ".planning/debug/tenant-activation-database-name.md"
 
 - truth: "Plans table shows token quota per time window"
-  status: failed
+  status: resolved
   reason: "User reported: O token quota deve ser por 5-hour-window e weekly"
   severity: major
   test: 7
@@ -158,7 +158,7 @@ skipped: 0
   debug_session: ".planning/debug/budget-fields-single-to-dual.md"
 
 - truth: "Plans page has delete button with tenant validation"
-  status: failed
+  status: resolved
   reason: "User reported: faltou botao para excluir planos, essa exclusao deve validar se não há nenhum tenant usando o plano a ser excluido"
   severity: major
   test: 8
@@ -174,7 +174,7 @@ skipped: 0
   debug_session: ".planning/debug/plans-delete-inactivate.md"
 
 - truth: "Plans can be inactivated and only inactive plans can be deleted"
-  status: failed
+  status: resolved
   reason: "User reported: I can't find how to inactivate a plan."
   severity: major
   test: 10
