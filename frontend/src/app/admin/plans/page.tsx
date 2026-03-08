@@ -105,7 +105,8 @@ export default function AdminPlansPage() {
   const [createName, setCreateName] = useState("");
   const [createSlug, setCreateSlug] = useState("");
   const [createFee, setCreateFee] = useState("");
-  const [createQuota, setCreateQuota] = useState("");
+  const [createQuota5h, setCreateQuota5h] = useState("");
+  const [createQuotaWeekly, setCreateQuotaWeekly] = useState("");
   const [createOverage, setCreateOverage] = useState("0");
   const [createMemberCap, setCreateMemberCap] = useState("1");
   const [createMaxProjects, setCreateMaxProjects] = useState("5");
@@ -117,7 +118,8 @@ export default function AdminPlansPage() {
   const [editingPlan, setEditingPlan] = useState<PlanResponse | null>(null);
   const [editName, setEditName] = useState("");
   const [editFee, setEditFee] = useState("");
-  const [editQuota, setEditQuota] = useState("");
+  const [editTokenQuota5h, setEditTokenQuota5h] = useState("");
+  const [editTokenQuotaWeekly, setEditTokenQuotaWeekly] = useState("");
   const [editOverage, setEditOverage] = useState("");
   const [editMemberCap, setEditMemberCap] = useState("");
   const [editMaxProjects, setEditMaxProjects] = useState("");
@@ -136,7 +138,8 @@ export default function AdminPlansPage() {
     if (editingPlan) {
       setEditName(editingPlan.name);
       setEditFee(String(editingPlan.monthly_fee_cents));
-      setEditQuota(String(editingPlan.token_quota));
+      setEditTokenQuota5h(String(editingPlan.token_quota_5h));
+      setEditTokenQuotaWeekly(String(editingPlan.token_quota_weekly));
       setEditOverage(String(editingPlan.overage_rate_cents_per_token));
       setEditMemberCap(String(editingPlan.member_cap));
       setEditMaxProjects(String(editingPlan.max_projects));
@@ -160,7 +163,8 @@ export default function AdminPlansPage() {
     setCreateName("");
     setCreateSlug("");
     setCreateFee("");
-    setCreateQuota("");
+    setCreateQuota5h("");
+    setCreateQuotaWeekly("");
     setCreateOverage("0");
     setCreateMemberCap("1");
     setCreateMaxProjects("5");
@@ -170,14 +174,15 @@ export default function AdminPlansPage() {
   };
 
   const handleCreate = async () => {
-    if (!createName.trim() || !createSlug.trim() || !createFee || !createQuota) return;
+    if (!createName.trim() || !createSlug.trim() || !createFee) return;
     setCreateError(null);
     try {
       await createMutation.mutateAsync({
         name: createName.trim(),
         slug: createSlug.trim(),
         monthly_fee_cents: parseInt(createFee, 10),
-        token_quota: parseInt(createQuota, 10),
+        token_quota_5h: parseInt(createQuota5h, 10) || 0,
+        token_quota_weekly: parseInt(createQuotaWeekly, 10) || 0,
         overage_rate_cents_per_token: parseInt(createOverage || "0", 10),
         member_cap: parseInt(createMemberCap || "1", 10),
         max_projects: parseInt(createMaxProjects || "5", 10),
@@ -217,8 +222,10 @@ export default function AdminPlansPage() {
     if (editName !== editingPlan.name) payload.name = editName;
     if (editFee !== String(editingPlan.monthly_fee_cents))
       payload.monthly_fee_cents = parseInt(editFee, 10);
-    if (editQuota !== String(editingPlan.token_quota))
-      payload.token_quota = parseInt(editQuota, 10);
+    if (editTokenQuota5h !== String(editingPlan.token_quota_5h))
+      payload.token_quota_5h = parseInt(editTokenQuota5h, 10);
+    if (editTokenQuotaWeekly !== String(editingPlan.token_quota_weekly))
+      payload.token_quota_weekly = parseInt(editTokenQuotaWeekly, 10);
     if (editOverage !== String(editingPlan.overage_rate_cents_per_token))
       payload.overage_rate_cents_per_token = parseInt(editOverage, 10);
     if (editMemberCap !== String(editingPlan.member_cap))
@@ -392,11 +399,19 @@ export default function AdminPlansPage() {
                 fullWidth
               />
               <GlowInput
-                label="Token Quota"
+                label="Token Quota (5h)"
                 type="number"
-                value={createQuota}
-                onChange={(e) => setCreateQuota(e.target.value)}
-                placeholder="1000000"
+                value={createQuota5h}
+                onChange={(e) => setCreateQuota5h(e.target.value)}
+                placeholder="0"
+                fullWidth
+              />
+              <GlowInput
+                label="Token Quota (Weekly)"
+                type="number"
+                value={createQuotaWeekly}
+                onChange={(e) => setCreateQuotaWeekly(e.target.value)}
+                placeholder="0"
                 fullWidth
               />
               <GlowInput
@@ -454,7 +469,6 @@ export default function AdminPlansPage() {
                   !createName.trim() ||
                   !createSlug.trim() ||
                   !createFee ||
-                  !createQuota ||
                   createMutation.isPending
                 }
                 isLoading={createMutation.isPending}
@@ -499,7 +513,10 @@ export default function AdminPlansPage() {
                       Fee/mo
                     </th>
                     <th className="px-4 py-3 text-left text-xs font-medium text-zinc-400 uppercase tracking-wider">
-                      Token Quota
+                      Quota 5h
+                    </th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-zinc-400 uppercase tracking-wider">
+                      Quota Weekly
                     </th>
                     <th className="px-4 py-3 text-left text-xs font-medium text-zinc-400 uppercase tracking-wider">
                       Max Projects
@@ -535,7 +552,10 @@ export default function AdminPlansPage() {
                             {formatCurrency(plan.monthly_fee_cents)}
                           </td>
                           <td className="px-4 py-3 text-sm text-zinc-300">
-                            {plan.token_quota.toLocaleString()}
+                            {plan.token_quota_5h.toLocaleString()}
+                          </td>
+                          <td className="px-4 py-3 text-sm text-zinc-300">
+                            {plan.token_quota_weekly.toLocaleString()}
                           </td>
                           <td className="px-4 py-3 text-sm text-zinc-300">
                             {plan.max_projects}
@@ -610,7 +630,7 @@ export default function AdminPlansPage() {
                         {/* Inline edit row */}
                         {isEditRow && (
                           <tr className="bg-zinc-900/60">
-                            <td colSpan={9} className="px-4 py-4">
+                            <td colSpan={10} className="px-4 py-4">
                               <div className="space-y-4">
                                 <div className="flex items-center justify-between">
                                   <h3 className="text-sm font-semibold text-zinc-300">
@@ -642,11 +662,20 @@ export default function AdminPlansPage() {
                                     fullWidth
                                   />
                                   <GlowInput
-                                    label="Token Quota"
+                                    label="Token Quota (5h)"
                                     type="number"
-                                    value={editQuota}
+                                    value={editTokenQuota5h}
                                     onChange={(e) =>
-                                      setEditQuota(e.target.value)
+                                      setEditTokenQuota5h(e.target.value)
+                                    }
+                                    fullWidth
+                                  />
+                                  <GlowInput
+                                    label="Token Quota (Weekly)"
+                                    type="number"
+                                    value={editTokenQuotaWeekly}
+                                    onChange={(e) =>
+                                      setEditTokenQuotaWeekly(e.target.value)
                                     }
                                     fullWidth
                                   />

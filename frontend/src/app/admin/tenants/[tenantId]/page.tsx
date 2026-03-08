@@ -154,7 +154,8 @@ export default function TenantDetailPage() {
   const [showConfigForm, setShowConfigForm] = useState(false);
   const [configModel, setConfigModel] = useState("");
   const [configSessions, setConfigSessions] = useState("");
-  const [configBudget, setConfigBudget] = useState("");
+  const [configBudget5h, setConfigBudget5h] = useState("");
+  const [configBudgetWeekly, setConfigBudgetWeekly] = useState("");
   const [configError, setConfigError] = useState<string | null>(null);
 
   // Activate form state
@@ -226,14 +227,15 @@ export default function TenantDetailPage() {
 
   const handleUpdateConfig = async () => {
     if (!tenant) return;
-    if (!configModel && !configSessions && !configBudget) return;
+    if (!configModel && !configSessions && !configBudget5h && !configBudgetWeekly) return;
     setConfigError(null);
 
     const payload: {
       tenant_id: string;
       claude_default_model?: string;
       claude_max_concurrent_sessions?: number;
-      claude_monthly_token_budget?: number;
+      claude_5h_token_budget?: number;
+      claude_weekly_token_budget?: number;
     } = { tenant_id: tenant.id };
 
     if (configModel) {
@@ -242,9 +244,12 @@ export default function TenantDetailPage() {
     if (configSessions) {
       payload.claude_max_concurrent_sessions = parseInt(configSessions, 10);
     }
-    if (configBudget) {
+    if (configBudget5h) {
       // 0 means unlimited (maps to NULL in DB)
-      payload.claude_monthly_token_budget = parseInt(configBudget, 10);
+      payload.claude_5h_token_budget = parseInt(configBudget5h, 10);
+    }
+    if (configBudgetWeekly) {
+      payload.claude_weekly_token_budget = parseInt(configBudgetWeekly, 10);
     }
 
     try {
@@ -252,7 +257,8 @@ export default function TenantDetailPage() {
       setShowConfigForm(false);
       setConfigModel("");
       setConfigSessions("");
-      setConfigBudget("");
+      setConfigBudget5h("");
+      setConfigBudgetWeekly("");
     } catch (err) {
       if (err instanceof ApiError) {
         setConfigError(err.message);
@@ -659,10 +665,18 @@ export default function TenantDetailPage() {
                     <dd className="text-sm text-zinc-300">{tenant.claude_max_concurrent_sessions}</dd>
                   </div>
                   <div className="flex items-start justify-between gap-3">
-                    <dt className="text-sm text-zinc-500">Monthly Budget</dt>
+                    <dt className="text-sm text-zinc-500">5h Budget</dt>
                     <dd className="text-sm text-zinc-300">
-                      {tenant.claude_monthly_token_budget != null
-                        ? tenant.claude_monthly_token_budget.toLocaleString() + " tokens"
+                      {tenant.claude_5h_token_budget != null
+                        ? tenant.claude_5h_token_budget.toLocaleString() + " tokens"
+                        : "Unlimited"}
+                    </dd>
+                  </div>
+                  <div className="flex items-start justify-between gap-3">
+                    <dt className="text-sm text-zinc-500">Weekly Budget</dt>
+                    <dd className="text-sm text-zinc-300">
+                      {tenant.claude_weekly_token_budget != null
+                        ? tenant.claude_weekly_token_budget.toLocaleString() + " tokens"
                         : "Unlimited"}
                     </dd>
                   </div>
@@ -687,13 +701,25 @@ export default function TenantDetailPage() {
                       fullWidth
                     />
                     <GlowInput
-                      label="Monthly Budget (0 = unlimited)"
+                      label="5h Budget (0 = unlimited)"
                       type="number"
-                      value={configBudget}
-                      onChange={(e) => setConfigBudget(e.target.value)}
+                      value={configBudget5h}
+                      onChange={(e) => setConfigBudget5h(e.target.value)}
                       placeholder={
-                        tenant.claude_monthly_token_budget != null
-                          ? String(tenant.claude_monthly_token_budget)
+                        tenant.claude_5h_token_budget != null
+                          ? String(tenant.claude_5h_token_budget)
+                          : "Unlimited"
+                      }
+                      fullWidth
+                    />
+                    <GlowInput
+                      label="Weekly Budget (0 = unlimited)"
+                      type="number"
+                      value={configBudgetWeekly}
+                      onChange={(e) => setConfigBudgetWeekly(e.target.value)}
+                      placeholder={
+                        tenant.claude_weekly_token_budget != null
+                          ? String(tenant.claude_weekly_token_budget)
                           : "Unlimited"
                       }
                       fullWidth
@@ -702,7 +728,7 @@ export default function TenantDetailPage() {
                       <GlowButton
                         size="sm"
                         onClick={handleUpdateConfig}
-                        disabled={(!configModel && !configSessions && !configBudget) || updateConfigMutation.isPending}
+                        disabled={(!configModel && !configSessions && !configBudget5h && !configBudgetWeekly) || updateConfigMutation.isPending}
                         isLoading={updateConfigMutation.isPending}
                         loadingText="Saving..."
                       >
@@ -714,7 +740,8 @@ export default function TenantDetailPage() {
                           setShowConfigForm(false);
                           setConfigModel("");
                           setConfigSessions("");
-                          setConfigBudget("");
+                          setConfigBudget5h("");
+                          setConfigBudgetWeekly("");
                           setConfigError(null);
                         }}
                         className="text-sm text-zinc-500 hover:text-zinc-300 transition-colors"
