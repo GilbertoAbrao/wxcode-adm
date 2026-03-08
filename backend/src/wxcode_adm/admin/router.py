@@ -42,7 +42,7 @@ from __future__ import annotations
 import uuid
 
 from pydantic import BaseModel
-from fastapi import APIRouter, Depends, Query, Request
+from fastapi import APIRouter, Depends, Query, Request, Response
 from redis.asyncio import Redis
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -97,6 +97,7 @@ class LogoutBody(BaseModel):
 @limiter.limit("10/minute")
 async def admin_login(
     request: Request,
+    response: Response,
     body: AdminLoginRequest,
     db: AsyncSession = Depends(get_session),
     redis: Redis = Depends(get_redis),
