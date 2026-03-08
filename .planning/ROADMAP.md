@@ -54,9 +54,13 @@ Full details: `milestones/v2.0-ROADMAP.md`
 - [x] Phase 22: Claude Provisioning API (2 plans) (completed 2026-03-07)
   - [ ] 22-01-PLAN.md — Admin provisioning endpoints (schemas + service + 4 admin routes)
   - [ ] 22-02-PLAN.md — wxcode-config endpoint + integration tests
-- [x] Phase 23: Admin UI — Claude Management (2 plans) (completed 2026-03-08)
-  - [ ] 23-01-PLAN.md — API hooks + tenant detail WXCODE Integration section
-  - [ ] 23-02-PLAN.md — Plan management page with wxcode limits + admin nav update
+- [ ] Phase 23: Admin UI — Claude Management (6 plans) (UAT gap closure in progress)
+  - [x] 23-01-PLAN.md — API hooks + tenant detail WXCODE Integration section
+  - [x] 23-02-PLAN.md — Plan management page with wxcode limits + admin nav update
+  - [ ] 23-03-PLAN.md — Backend: split budget/quota to dual 5h + weekly fields
+  - [ ] 23-04-PLAN.md — Session persistence + plan inactivate/delete fixes
+  - [ ] 23-05-PLAN.md — Frontend: dual budget/quota fields in hooks + UI pages
+  - [ ] 23-06-PLAN.md — WXCODE provisioning endpoint + tenant detail UI section
 - [ ] Phase 24: CORS Fix + Integration Contract (0 plans)
 
 Full details: `milestones/v3.0-ROADMAP.md`
@@ -89,5 +93,5 @@ Full details: `milestones/v3.0-ROADMAP.md`
 | 20. Crypto Service + Tenant Model Extension | v3.0 | 2/2 | Complete | 2026-03-07 |
 | 21. Plan Limits Extension | v3.0 | 1/1 | Complete | 2026-03-07 |
 | 22. Claude Provisioning API | v3.0 | 2/2 | Complete | 2026-03-07 |
-| 23. Admin UI — Claude Management | 2/2 | Complete    | 2026-03-08 | - |
+| 23. Admin UI — Claude Management | v3.0 | 2/6 | Gap Closure | - |
 | 24. CORS Fix + Integration Contract | v3.0 | 0/0 | Planned | - |
