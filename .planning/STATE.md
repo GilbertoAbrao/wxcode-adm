@@ -95,6 +95,7 @@ Decisions are logged in PROJECT.md Key Decisions table.
 - neo4j_enabled uses string state with "no change" option — prevents accidental boolean overwrites
 - [Phase 23-03]: token_quota_5h used as enforcement field in _enforce_token_quota (tighter 5h window = primary constraint)
 - [Phase 23-03]: Data migration copies existing values to BOTH new columns to preserve prior data in migration 010
+- [Phase 23]: token_quota fields in billing/page.tsx (tenant-facing) left untouched — out of scope for plan 23-05; different API endpoint and interface
 
 ### Roadmap Evolution
 
@@ -114,5 +115,5 @@ None.
 ## Session Continuity
 
 Last session: 2026-03-08
-Stopped at: Completed 23-03-PLAN.md (dual budget/quota fields: model, migration 010, schemas, services, tests — 175 tests pass)
-Resume file: None — gap closure plan 23-03 complete
+Stopped at: Completed 23-05-PLAN.md (frontend dual budget/quota fields: hook interfaces + tenant detail + plans page)
+Resume file: None — all 6 plans in phase 23 now complete
