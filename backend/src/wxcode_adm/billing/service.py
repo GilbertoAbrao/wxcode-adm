@@ -278,8 +278,7 @@ async def delete_plan(db: AsyncSession, plan_id: uuid.UUID) -> Plan:
             message=f"Cannot delete plan — {in_use_count} tenant(s) are currently using it",
         )
 
-    plan.is_active = False
-
+    # Hard-delete: no tenants reference this plan, safe to remove
     if plan.stripe_product_id:
         try:
             await stripe_client.products.update_async(
@@ -294,6 +293,7 @@ async def delete_plan(db: AsyncSession, plan_id: uuid.UUID) -> Plan:
                 exc,
             )
 
+    await db.delete(plan)
     return plan
 
 

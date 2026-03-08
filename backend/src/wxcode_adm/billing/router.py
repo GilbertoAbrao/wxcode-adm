@@ -101,16 +101,16 @@ async def update_plan(
 
 @billing_admin_router.delete(
     "/{plan_id}",
-    response_model=PlanResponse,
+    status_code=204,
 )
 async def delete_plan(
     request: Request,
     plan_id: uuid.UUID,
     db: Annotated[AsyncSession, Depends(get_session)],
     user: Annotated[User, Depends(require_admin)],
-) -> PlanResponse:
-    """Soft-delete a billing plan (sets is_active=False). Archives Stripe Product."""
-    plan = await service.delete_plan(db, plan_id)
+) -> None:
+    """Hard-delete a billing plan. Rejects if tenants reference it."""
+    await service.delete_plan(db, plan_id)
     await write_audit(
         db,
         actor_id=user.id,
@@ -119,7 +119,6 @@ async def delete_plan(
         resource_id=str(plan_id),
         ip_address=request.client.host if request.client else None,
     )
-    return PlanResponse.model_validate(plan)
 
 
 @billing_admin_router.get(

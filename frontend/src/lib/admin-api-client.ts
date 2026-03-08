@@ -90,6 +90,9 @@ export async function adminApiClient<T>(
   }
 
   // Handle empty responses (204 No Content, etc.)
+  if (response.status === 204) {
+    return undefined as T;
+  }
   const contentType = response.headers.get("content-type");
   if (!contentType || !contentType.includes("application/json")) {
     return undefined as T;
