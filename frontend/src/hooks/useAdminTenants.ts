@@ -61,7 +61,8 @@ export interface TenantDetailResponse {
   neo4j_enabled: boolean;
   claude_default_model: string;
   claude_max_concurrent_sessions: number;
-  claude_monthly_token_budget: number | null; // null = unlimited
+  claude_5h_token_budget: number | null;    // null = unlimited
+  claude_weekly_token_budget: number | null; // null = unlimited
   has_claude_token: boolean;
 }
 
@@ -246,12 +247,14 @@ export function useRevokeClaudeToken() {
  * On success: invalidates all admin tenant queries.
  *
  * Variables: { tenant_id: string; claude_default_model?: string;
- *   claude_max_concurrent_sessions?: number; claude_monthly_token_budget?: number }
+ *   claude_max_concurrent_sessions?: number; claude_5h_token_budget?: number;
+ *   claude_weekly_token_budget?: number }
  */
 export interface ClaudeConfigUpdate {
   claude_default_model?: string;
   claude_max_concurrent_sessions?: number;
-  claude_monthly_token_budget?: number;
+  claude_5h_token_budget?: number;
+  claude_weekly_token_budget?: number;
 }
 
 export function useUpdateClaudeConfig() {

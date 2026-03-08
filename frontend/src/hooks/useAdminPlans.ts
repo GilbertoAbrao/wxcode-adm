@@ -24,7 +24,8 @@ export interface PlanResponse {
   name: string;
   slug: string;
   monthly_fee_cents: number;
-  token_quota: number;
+  token_quota_5h: number;
+  token_quota_weekly: number;
   overage_rate_cents_per_token: number;
   member_cap: number;
   max_projects: number;
@@ -39,7 +40,8 @@ export interface CreatePlanData {
   name: string;
   slug: string;
   monthly_fee_cents: number;
-  token_quota: number;
+  token_quota_5h: number;
+  token_quota_weekly: number;
   overage_rate_cents_per_token?: number;
   member_cap?: number;
   max_projects?: number;
@@ -50,7 +52,8 @@ export interface CreatePlanData {
 export interface UpdatePlanData {
   name?: string;
   monthly_fee_cents?: number;
-  token_quota?: number;
+  token_quota_5h?: number;
+  token_quota_weekly?: number;
   overage_rate_cents_per_token?: number;
   member_cap?: number;
   max_projects?: number;
