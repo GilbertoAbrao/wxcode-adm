@@ -91,7 +91,11 @@ class Plan(TimestampMixin, Base):
         nullable=False,
         default=0,
     )
-    token_quota: Mapped[int] = mapped_column(
+    token_quota_5h: Mapped[int] = mapped_column(
+        Integer,
+        nullable=False,
+    )
+    token_quota_weekly: Mapped[int] = mapped_column(
         Integer,
         nullable=False,
     )

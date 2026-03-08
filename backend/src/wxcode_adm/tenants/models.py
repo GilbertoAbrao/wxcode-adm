@@ -122,7 +122,12 @@ class Tenant(TimestampMixin, Base):
         nullable=False,
         default=3,
     )
-    claude_monthly_token_budget: Mapped[Optional[int]] = mapped_column(
+    claude_5h_token_budget: Mapped[Optional[int]] = mapped_column(
+        Integer,
+        nullable=True,
+        default=None,
+    )
+    claude_weekly_token_budget: Mapped[Optional[int]] = mapped_column(
         Integer,
         nullable=True,
         default=None,
