@@ -106,7 +106,8 @@ class TenantDetailResponse(BaseModel):
     neo4j_enabled: bool
     claude_default_model: str
     claude_max_concurrent_sessions: int
-    claude_monthly_token_budget: int | None
+    claude_5h_token_budget: int | None
+    claude_weekly_token_budget: int | None
     has_claude_token: bool  # True if claude_oauth_token is not None — token itself is never exposed
 
     model_config = ConfigDict(from_attributes=True)
@@ -254,7 +255,8 @@ class ClaudeConfigUpdateRequest(BaseModel):
     claude_default_model: str | None = Field(default=None, max_length=50)
     claude_max_concurrent_sessions: int | None = Field(default=None, ge=1, le=100)
     # 0 means "set to unlimited" (stored as NULL in DB); None means "no change"
-    claude_monthly_token_budget: int | None = Field(default=None, ge=0)
+    claude_5h_token_budget: int | None = Field(default=None, ge=0)
+    claude_weekly_token_budget: int | None = Field(default=None, ge=0)
 
     @model_validator(mode="after")
     def at_least_one_field_set(self) -> "ClaudeConfigUpdateRequest":
@@ -262,11 +264,12 @@ class ClaudeConfigUpdateRequest(BaseModel):
         if (
             self.claude_default_model is None
             and self.claude_max_concurrent_sessions is None
-            and self.claude_monthly_token_budget is None
+            and self.claude_5h_token_budget is None
+            and self.claude_weekly_token_budget is None
         ):
             raise ValueError(
                 "At least one of claude_default_model, claude_max_concurrent_sessions, "
-                "or claude_monthly_token_budget must be provided"
+                "claude_5h_token_budget, or claude_weekly_token_budget must be provided"
             )
         return self
 
@@ -275,6 +278,30 @@ class ActivateTenantRequest(BaseModel):
     """Request body for POST /admin/tenants/{id}/activate."""
 
     reason: str = Field(min_length=1, max_length=500)  # audit trail reason
+
+
+class WxcodeConfigUpdateRequest(BaseModel):
+    """
+    Request body for PATCH /admin/tenants/{id}/wxcode-config.
+
+    All fields are optional — partial updates. At least one must be provided.
+    """
+
+    database_name: str | None = Field(default=None, min_length=1, max_length=100)
+    default_target_stack: str | None = Field(default=None, min_length=1, max_length=50)
+    neo4j_enabled: bool | None = None
+
+    @model_validator(mode="after")
+    def at_least_one_field_set(self) -> "WxcodeConfigUpdateRequest":
+        if (
+            self.database_name is None
+            and self.default_target_stack is None
+            and self.neo4j_enabled is None
+        ):
+            raise ValueError(
+                "At least one of database_name, default_target_stack, or neo4j_enabled must be provided"
+            )
+        return self
 
 
 # ---------------------------------------------------------------------------

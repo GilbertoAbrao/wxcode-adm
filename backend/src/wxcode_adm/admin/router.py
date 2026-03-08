@@ -64,6 +64,7 @@ from wxcode_adm.admin.schemas import (
     UserForceResetRequest,
     UserListResponse,
     UserUnblockRequest,
+    WxcodeConfigUpdateRequest,
 )
 from wxcode_adm.auth.models import User
 from wxcode_adm.common.exceptions import ForbiddenError
@@ -502,6 +503,31 @@ async def update_claude_config(
         actor_id=admin.id,
     )
     return {"message": "Claude config updated", "tenant_id": str(tenant_id)}
+
+
+@admin_router.patch("/tenants/{tenant_id}/wxcode-config")
+async def update_wxcode_config(
+    request: Request,
+    tenant_id: uuid.UUID,
+    body: WxcodeConfigUpdateRequest,
+    admin: User = Depends(require_admin),
+    db: AsyncSession = Depends(get_session),
+) -> dict:
+    """
+    Update wxcode provisioning config (database_name, default_target_stack, neo4j_enabled).
+
+    All fields are optional — only provided fields are updated.
+    This must be called before activating a tenant (database_name is required for activation).
+    """
+    await admin_service.update_wxcode_config(
+        db=db,
+        tenant_id=tenant_id,
+        database_name=body.database_name,
+        default_target_stack=body.default_target_stack,
+        neo4j_enabled=body.neo4j_enabled,
+        actor_id=admin.id,
+    )
+    return {"message": "WXCODE config updated", "tenant_id": str(tenant_id)}
 
 
 @admin_router.post("/tenants/{tenant_id}/activate")

@@ -1142,6 +1142,70 @@ async def update_claude_config(
     return tenant
 
 
+async def update_wxcode_config(
+    db: AsyncSession,
+    tenant_id: uuid.UUID,
+    database_name: str | None,
+    default_target_stack: str | None,
+    neo4j_enabled: bool | None,
+    actor_id: uuid.UUID,
+) -> Tenant:
+    """
+    Update wxcode provisioning fields on a tenant.
+
+    Only non-None params are applied.
+
+    Args:
+        db: async database session
+        tenant_id: the tenant to update
+        database_name: optional database name
+        default_target_stack: optional target stack string
+        neo4j_enabled: optional boolean
+        actor_id: the admin user performing the action
+
+    Returns:
+        The updated Tenant instance.
+
+    Raises:
+        NotFoundError: tenant not found.
+    """
+    result = await db.execute(select(Tenant).where(Tenant.id == tenant_id))
+    tenant = result.scalar_one_or_none()
+    if tenant is None:
+        raise NotFoundError(error_code="TENANT_NOT_FOUND", message="Tenant not found")
+
+    changes: dict = {}
+
+    if database_name is not None:
+        tenant.database_name = database_name
+        changes["database_name"] = database_name
+
+    if default_target_stack is not None:
+        tenant.default_target_stack = default_target_stack
+        changes["default_target_stack"] = default_target_stack
+
+    if neo4j_enabled is not None:
+        tenant.neo4j_enabled = neo4j_enabled
+        changes["neo4j_enabled"] = neo4j_enabled
+
+    await write_audit(
+        db,
+        action="update_wxcode_config",
+        resource_type="tenant",
+        actor_id=actor_id,
+        resource_id=str(tenant_id),
+        details=changes,
+    )
+
+    logger.info(
+        "Admin update_wxcode_config: tenant_id=%s actor_id=%s changes=%r",
+        tenant_id,
+        actor_id,
+        changes,
+    )
+    return tenant
+
+
 async def activate_tenant(
     db: AsyncSession,
     tenant_id: uuid.UUID,
