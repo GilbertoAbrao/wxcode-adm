@@ -9,10 +9,10 @@ See: .planning/PROJECT.md (updated 2026-03-06)
 
 ## Current Position
 
-Phase: v3.0 Phase 22 (Claude Provisioning API) — COMPLETE
-Plan: 63 plans complete (38 v1.0 + 20 v2.0 + 5 v3.0), Plan 22-02 done
-Status: v3.0 IN PROGRESS — Phase 22 COMPLETE (2 of 2 plans done)
-Last activity: 2026-03-07 — 22-02 wxcode-config endpoint + 14 integration tests
+Phase: v3.0 Phase 23 (Admin UI Claude Management) — IN PROGRESS
+Plan: 64 plans complete (38 v1.0 + 20 v2.0 + 6 v3.0), Plan 23-01 done
+Status: v3.0 IN PROGRESS — Phase 23 IN PROGRESS (1 of 2 plans done)
+Last activity: 2026-03-08 — 23-01 WXCODE Integration UI (hooks + tenant detail WXCODE card)
 
 Progress: [████████████████████████████████] 100% (v1.0+v2.0) + v3.0 started
 
@@ -31,15 +31,15 @@ Progress: [███████████████████████
 - Timeline: 3 days (2026-03-04 → 2026-03-06)
 
 **Velocity (v3.0):**
-- Plans completed: 5 (20-01, 20-02, 21-01, 22-01, 22-02)
+- Plans completed: 6 (20-01, 20-02, 21-01, 22-01, 22-02, 23-01)
 - Average duration: 2-4 min
-- Phase 20 complete, Phase 21 complete, Phase 22 complete
+- Phase 20 complete, Phase 21 complete, Phase 22 complete, Phase 23 in progress
 
 **Combined:**
-- 63 plans executed across 22 phases
+- 64 plans executed across 23 phases
 - Backend: ~20,600 LOC Python, 161 tests passing
-- Frontend: 9,174 LOC TypeScript/React, 51 source files
-- Timeline: 13 days total (2026-02-22 → 2026-03-07)
+- Frontend: 9,612 LOC TypeScript/React (+438 LOC from Phase 23-01), 51 source files
+- Timeline: 14 days total (2026-02-22 → 2026-03-08)
 
 ## Accumulated Context
 
@@ -73,6 +73,11 @@ Decisions are logged in PROJECT.md Key Decisions table.
 - max_concurrent_sessions: no 'claude_' prefix in wxcode-config response, matching ROADMAP spec
 - httpx-delete-body: Use c.request('DELETE', url, content=json.dumps(...)) for DELETE with body in tests
 
+**23-01 (Admin UI WXCODE Integration — hooks + tenant detail page):**
+- wxcodeStatusBadge as separate function from statusBadge — handles wxcode lifecycle (pending_setup/active/suspended/cancelled) vs legacy is_suspended/is_deleted booleans
+- Token entry uses type=password for shoulder-surfing prevention; has_claude_token display always shows masked ****-****-****
+- Config form sends partial PATCH — only non-empty fields included; 0 for budget maps to unlimited (NULL in DB)
+
 ### Roadmap Evolution
 
 - Phase 9 inserted: MFA-wxcode redirect fix (gap closure from v1.0 audit)
@@ -90,6 +95,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-07
-Stopped at: Completed 22-02-PLAN.md (wxcode-config endpoint + 14 integration tests; Phase 22 COMPLETE)
-Resume file: None — Phase 22 complete; next phase TBD
+Last session: 2026-03-08
+Stopped at: Completed 23-01-PLAN.md (WXCODE Integration UI: 4 mutation hooks + tenant detail WXCODE card)
+Resume file: None — Phase 23 plan 23-02 is next
