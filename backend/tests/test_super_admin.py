@@ -668,7 +668,8 @@ async def test_mrr_dashboard(client):
             name="Pro",
             slug="pro",
             monthly_fee_cents=4900,  # $49.00/month
-            token_quota=100000,
+            token_quota_5h=100000,
+            token_quota_weekly=400000,
             overage_rate_cents_per_token=4,
             member_cap=-1,
             is_active=True,

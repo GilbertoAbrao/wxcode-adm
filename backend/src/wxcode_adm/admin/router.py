@@ -489,7 +489,7 @@ async def update_claude_config(
     db: AsyncSession = Depends(get_session),
 ) -> dict:
     """
-    Update Claude configuration (model, concurrent sessions, monthly budget) for a tenant.
+    Update Claude configuration (model, concurrent sessions, 5h/weekly budgets) for a tenant.
 
     All fields are optional — only provided fields are updated.
     Budget of 0 sets the field to unlimited (NULL in DB).
@@ -499,7 +499,8 @@ async def update_claude_config(
         tenant_id=tenant_id,
         claude_default_model=body.claude_default_model,
         claude_max_concurrent_sessions=body.claude_max_concurrent_sessions,
-        claude_monthly_token_budget=body.claude_monthly_token_budget,
+        claude_5h_token_budget=body.claude_5h_token_budget,
+        claude_weekly_token_budget=body.claude_weekly_token_budget,
         actor_id=admin.id,
     )
     return {"message": "Claude config updated", "tenant_id": str(tenant_id)}

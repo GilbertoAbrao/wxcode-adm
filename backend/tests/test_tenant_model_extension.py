@@ -1,11 +1,12 @@
 """
 Integration tests for Phase 20 Plan 02 — Tenant model extension.
 
-Tests cover the 8 new fields added to the Tenant model:
+Tests cover the new fields added to the Tenant model:
 - claude_oauth_token (nullable, stores Fernet-encrypted value)
 - claude_default_model (default "sonnet")
 - claude_max_concurrent_sessions (default 3)
-- claude_monthly_token_budget (nullable, null = unlimited)
+- claude_5h_token_budget (nullable, null = unlimited, 5-hour window)
+- claude_weekly_token_budget (nullable, null = unlimited, weekly window)
 - database_name (nullable)
 - default_target_stack (default "fastapi-jinja2")
 - neo4j_enabled (default True)
@@ -52,7 +53,8 @@ async def test_tenant_claude_fields_defaults(test_db):
         assert tenant.claude_oauth_token is None
         assert tenant.claude_default_model == "sonnet"
         assert tenant.claude_max_concurrent_sessions == 3
-        assert tenant.claude_monthly_token_budget is None
+        assert tenant.claude_5h_token_budget is None
+        assert tenant.claude_weekly_token_budget is None
 
 
 @pytest.mark.asyncio
@@ -139,7 +141,8 @@ async def test_tenant_custom_claude_config(test_db):
             slug="custom-claude",
             claude_default_model="opus",
             claude_max_concurrent_sessions=10,
-            claude_monthly_token_budget=1_000_000,
+            claude_5h_token_budget=1_000_000,
+            claude_weekly_token_budget=5_000_000,
         )
         session.add(tenant)
         await session.commit()
@@ -154,7 +157,8 @@ async def test_tenant_custom_claude_config(test_db):
 
         assert loaded.claude_default_model == "opus"
         assert loaded.claude_max_concurrent_sessions == 10
-        assert loaded.claude_monthly_token_budget == 1_000_000
+        assert loaded.claude_5h_token_budget == 1_000_000
+        assert loaded.claude_weekly_token_budget == 5_000_000
 
 
 @pytest.mark.asyncio

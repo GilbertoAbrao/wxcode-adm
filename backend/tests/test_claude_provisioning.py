@@ -326,7 +326,8 @@ async def test_update_claude_config_partial(client, test_db, monkeypatch):
     assert detail["claude_default_model"] == "opus"
     # Default values should remain
     assert detail["claude_max_concurrent_sessions"] == 3
-    assert detail["claude_monthly_token_budget"] is None
+    assert detail["claude_5h_token_budget"] is None
+    assert detail["claude_weekly_token_budget"] is None
 
 
 @pytest.mark.asyncio
@@ -342,19 +343,20 @@ async def test_update_claude_config_all_fields(client, test_db, monkeypatch):
 
     tenant_id = await _create_tenant_in_db(test_db, name="Config All Corp", slug="config-all-corp")
 
-    # PATCH all 3 fields
+    # PATCH all 4 fields
     r = await c.patch(
         f"/api/v1/admin/tenants/{tenant_id}/claude-config",
         json={
             "claude_default_model": "haiku",
             "claude_max_concurrent_sessions": 5,
-            "claude_monthly_token_budget": 500000,
+            "claude_5h_token_budget": 500000,
+            "claude_weekly_token_budget": 2000000,
         },
         headers={"Authorization": f"Bearer {admin_token}"},
     )
     assert r.status_code == 200, r.text
 
-    # GET detail — verify all 3 updated
+    # GET detail — verify all 4 updated
     r = await c.get(
         f"/api/v1/admin/tenants/{tenant_id}",
         headers={"Authorization": f"Bearer {admin_token}"},
@@ -363,7 +365,8 @@ async def test_update_claude_config_all_fields(client, test_db, monkeypatch):
     detail = r.json()
     assert detail["claude_default_model"] == "haiku"
     assert detail["claude_max_concurrent_sessions"] == 5
-    assert detail["claude_monthly_token_budget"] == 500000
+    assert detail["claude_5h_token_budget"] == 500000
+    assert detail["claude_weekly_token_budget"] == 2000000
 
 
 @pytest.mark.asyncio

@@ -89,7 +89,8 @@ async def _seed_paid_plan(test_db) -> uuid.UUID:
             name="Starter",
             slug="starter",
             monthly_fee_cents=2900,
-            token_quota=100000,
+            token_quota_5h=100000,
+            token_quota_weekly=500000,
             overage_rate_cents_per_token=4,
             member_cap=10,
             is_active=True,
@@ -167,7 +168,8 @@ async def test_superadmin_create_plan(client):
             "name": "Pro",
             "slug": "pro",
             "monthly_fee_cents": 9900,
-            "token_quota": 500000,
+            "token_quota_5h": 500000,
+            "token_quota_weekly": 2000000,
             "overage_rate_cents_per_token": 2,
             "member_cap": 50,
         },
@@ -178,7 +180,8 @@ async def test_superadmin_create_plan(client):
     assert data["name"] == "Pro"
     assert data["slug"] == "pro"
     assert data["monthly_fee_cents"] == 9900
-    assert data["token_quota"] == 500000
+    assert data["token_quota_5h"] == 500000
+    assert data["token_quota_weekly"] == 2000000
     assert data["is_active"] is True
 
 
@@ -193,7 +196,8 @@ async def test_regular_jwt_rejected_on_billing_admin(client):
             "name": "Pro",
             "slug": "pro-noadmin",
             "monthly_fee_cents": 9900,
-            "token_quota": 500000,
+            "token_quota_5h": 500000,
+            "token_quota_weekly": 2000000,
         },
         headers={"Authorization": f"Bearer {token}"},
     )
@@ -213,7 +217,8 @@ async def test_superadmin_update_plan(client):
             "name": "UpdateMe",
             "slug": "update-me",
             "monthly_fee_cents": 1000,
-            "token_quota": 50000,
+            "token_quota_5h": 50000,
+            "token_quota_weekly": 200000,
         },
         headers={"Authorization": f"Bearer {token}"},
     )
@@ -245,7 +250,8 @@ async def test_superadmin_delete_plan(client):
             "name": "DeleteMe",
             "slug": "delete-me",
             "monthly_fee_cents": 500,
-            "token_quota": 5000,
+            "token_quota_5h": 5000,
+            "token_quota_weekly": 20000,
         },
         headers={"Authorization": f"Bearer {token}"},
     )
@@ -278,7 +284,7 @@ async def test_list_active_plans(client):
     # Create an active plan and an inactive one (admin-audience)
     resp = await c.post(
         "/api/v1/admin/billing/plans/",
-        json={"name": "Active Plan", "slug": "active-plan", "monthly_fee_cents": 3000, "token_quota": 200000},
+        json={"name": "Active Plan", "slug": "active-plan", "monthly_fee_cents": 3000, "token_quota_5h": 200000, "token_quota_weekly": 800000},
         headers={"Authorization": f"Bearer {admin_token}"},
     )
     assert resp.status_code == 201
@@ -286,7 +292,7 @@ async def test_list_active_plans(client):
 
     resp = await c.post(
         "/api/v1/admin/billing/plans/",
-        json={"name": "Inactive Plan", "slug": "inactive-plan", "monthly_fee_cents": 5000, "token_quota": 300000},
+        json={"name": "Inactive Plan", "slug": "inactive-plan", "monthly_fee_cents": 5000, "token_quota_5h": 300000, "token_quota_weekly": 1200000},
         headers={"Authorization": f"Bearer {admin_token}"},
     )
     assert resp.status_code == 201
@@ -318,7 +324,8 @@ async def test_create_plan_with_limits(client):
             "name": "Limits Plan",
             "slug": "limits-plan",
             "monthly_fee_cents": 4900,
-            "token_quota": 200000,
+            "token_quota_5h": 200000,
+            "token_quota_weekly": 800000,
             "max_projects": 10,
             "max_output_projects": 50,
             "max_storage_gb": 25,
@@ -344,7 +351,8 @@ async def test_create_plan_limits_defaults(client):
             "name": "Defaults Plan",
             "slug": "defaults-plan",
             "monthly_fee_cents": 1900,
-            "token_quota": 100000,
+            "token_quota_5h": 100000,
+            "token_quota_weekly": 400000,
         },
         headers={"Authorization": f"Bearer {token}"},
     )
@@ -368,7 +376,8 @@ async def test_update_plan_limits(client):
             "name": "Update Limits Plan",
             "slug": "update-limits-plan",
             "monthly_fee_cents": 7900,
-            "token_quota": 300000,
+            "token_quota_5h": 300000,
+            "token_quota_weekly": 1200000,
         },
         headers={"Authorization": f"Bearer {token}"},
     )
@@ -839,7 +848,7 @@ async def test_free_tier_blocked_at_quota(client):
                 select(Plan).where(Plan.monthly_fee_cents == 0, Plan.is_active.is_(True))
             )
         ).scalar_one()
-        free_plan_quota = free_plan.token_quota
+        free_plan_quota = free_plan.token_quota_5h
 
     token, _ = await _signup_verify_login(c, redis, "quota_test@test.com")
     tenant_id = await _create_workspace(c, token, "Quota Test")
@@ -875,7 +884,7 @@ async def test_free_tier_blocked_at_quota(client):
 
         # Confirm preconditions
         assert plan.monthly_fee_cents == 0, "must be free tier"
-        assert sub.tokens_used_this_period >= plan.token_quota, "must be at quota"
+        assert sub.tokens_used_this_period >= plan.token_quota_5h, "must be at quota"
 
         # The enforcement path MUST raise QuotaExceededError for free tier at quota
         with pytest.raises(QuotaExceededError):

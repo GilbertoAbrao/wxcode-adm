@@ -86,12 +86,13 @@ def _enforce_token_quota(plan: Plan, subscription: TenantSubscription) -> None:
         QuotaExceededError: if free-tier tenant is at or over token quota.
     """
     # Only enforce on free tier (monthly_fee_cents == 0) with a defined quota
-    if plan.monthly_fee_cents == 0 and plan.token_quota > 0:
-        if subscription.tokens_used_this_period >= plan.token_quota:
+    # Use token_quota_5h as the enforcement field for the shorter time window
+    if plan.monthly_fee_cents == 0 and plan.token_quota_5h > 0:
+        if subscription.tokens_used_this_period >= plan.token_quota_5h:
             raise QuotaExceededError(
                 error_code="TOKEN_QUOTA_EXCEEDED",
                 message=(
-                    f"Free plan token quota ({plan.token_quota}) exhausted. "
+                    f"Free plan token quota ({plan.token_quota_5h}) exhausted. "
                     "Upgrade to continue."
                 ),
             )
@@ -184,18 +185,18 @@ async def check_token_quota(
     # Call private helper — raises QuotaExceededError for free tier at quota
     _enforce_token_quota(plan, subscription)
 
-    # Calculate usage percentage for warning headers
-    if plan.token_quota > 0:
-        usage_pct = subscription.tokens_used_this_period / plan.token_quota
+    # Calculate usage percentage for warning headers (using token_quota_5h)
+    if plan.token_quota_5h > 0:
+        usage_pct = subscription.tokens_used_this_period / plan.token_quota_5h
         if usage_pct >= 1.0:
             response.headers["X-Quota-Warning"] = "QUOTA_REACHED"
             response.headers["X-Quota-Usage"] = (
-                f"{subscription.tokens_used_this_period}/{plan.token_quota}"
+                f"{subscription.tokens_used_this_period}/{plan.token_quota_5h}"
             )
         elif usage_pct >= 0.8:
             response.headers["X-Quota-Warning"] = "QUOTA_WARNING_80PCT"
             response.headers["X-Quota-Usage"] = (
-                f"{subscription.tokens_used_this_period}/{plan.token_quota}"
+                f"{subscription.tokens_used_this_period}/{plan.token_quota_5h}"
             )
 
     return tenant, membership, subscription

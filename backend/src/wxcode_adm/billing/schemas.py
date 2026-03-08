@@ -20,7 +20,8 @@ class CreatePlanRequest(BaseModel):
     name: str = Field(min_length=2, max_length=100)
     slug: str = Field(min_length=2, max_length=100, pattern=r"^[a-z0-9][a-z0-9-]*$")
     monthly_fee_cents: int = Field(ge=0)
-    token_quota: int = Field(ge=0)
+    token_quota_5h: int = Field(ge=0)
+    token_quota_weekly: int = Field(ge=0)
     overage_rate_cents_per_token: int = Field(ge=0, default=0)
     member_cap: int = Field(default=1)  # -1 = unlimited
     max_projects: int = Field(ge=1, default=5)
@@ -33,7 +34,8 @@ class UpdatePlanRequest(BaseModel):
 
     name: Optional[str] = Field(default=None, min_length=2, max_length=100)
     monthly_fee_cents: Optional[int] = Field(default=None, ge=0)
-    token_quota: Optional[int] = Field(default=None, ge=0)
+    token_quota_5h: Optional[int] = Field(default=None, ge=0)
+    token_quota_weekly: Optional[int] = Field(default=None, ge=0)
     overage_rate_cents_per_token: Optional[int] = Field(default=None, ge=0)
     member_cap: Optional[int] = None
     max_projects: Optional[int] = Field(default=None, ge=1)
@@ -51,7 +53,8 @@ class PlanResponse(BaseModel):
     name: str
     slug: str
     monthly_fee_cents: int
-    token_quota: int
+    token_quota_5h: int
+    token_quota_weekly: int
     overage_rate_cents_per_token: int
     member_cap: int
     max_projects: int

@@ -397,7 +397,8 @@ async def get_tenant_detail(
         "neo4j_enabled": tenant.neo4j_enabled,
         "claude_default_model": tenant.claude_default_model,
         "claude_max_concurrent_sessions": tenant.claude_max_concurrent_sessions,
-        "claude_monthly_token_budget": tenant.claude_monthly_token_budget,
+        "claude_5h_token_budget": tenant.claude_5h_token_budget,
+        "claude_weekly_token_budget": tenant.claude_weekly_token_budget,
         "has_claude_token": tenant.claude_oauth_token is not None,
     }
 
@@ -1080,21 +1081,23 @@ async def update_claude_config(
     tenant_id: uuid.UUID,
     claude_default_model: str | None,
     claude_max_concurrent_sessions: int | None,
-    claude_monthly_token_budget: int | None,
+    claude_5h_token_budget: int | None,
+    claude_weekly_token_budget: int | None,
     actor_id: uuid.UUID,
 ) -> Tenant:
     """
     Update Claude configuration fields on a tenant.
 
-    Only non-None params are applied. Special case: if claude_monthly_token_budget
-    is 0, the field is set to None in the DB (meaning unlimited).
+    Only non-None params are applied. Special case: if claude_5h_token_budget or
+    claude_weekly_token_budget is 0, the field is set to None in the DB (unlimited).
 
     Args:
         db: async database session
         tenant_id: the tenant to update
         claude_default_model: optional new model string (e.g. "sonnet", "opus")
         claude_max_concurrent_sessions: optional new max sessions (1-100)
-        claude_monthly_token_budget: optional new budget (0 = unlimited = DB NULL)
+        claude_5h_token_budget: optional new 5-hour window budget (0 = unlimited = DB NULL)
+        claude_weekly_token_budget: optional new weekly window budget (0 = unlimited = DB NULL)
         actor_id: the admin user performing the action
 
     Returns:
@@ -1118,11 +1121,17 @@ async def update_claude_config(
         tenant.claude_max_concurrent_sessions = claude_max_concurrent_sessions
         changes["claude_max_concurrent_sessions"] = claude_max_concurrent_sessions
 
-    if claude_monthly_token_budget is not None:
+    if claude_5h_token_budget is not None:
         # 0 = unlimited, stored as NULL in DB
-        db_value = None if claude_monthly_token_budget == 0 else claude_monthly_token_budget
-        tenant.claude_monthly_token_budget = db_value
-        changes["claude_monthly_token_budget"] = db_value
+        db_value = None if claude_5h_token_budget == 0 else claude_5h_token_budget
+        tenant.claude_5h_token_budget = db_value
+        changes["claude_5h_token_budget"] = db_value
+
+    if claude_weekly_token_budget is not None:
+        # 0 = unlimited, stored as NULL in DB
+        db_value = None if claude_weekly_token_budget == 0 else claude_weekly_token_budget
+        tenant.claude_weekly_token_budget = db_value
+        changes["claude_weekly_token_budget"] = db_value
 
     await write_audit(
         db,
