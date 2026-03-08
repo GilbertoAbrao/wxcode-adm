@@ -1,10 +1,12 @@
 /**
- * In-memory admin token storage — completely isolated from tenant user auth.
+ * Admin token storage — completely isolated from tenant user auth.
  *
- * Token strategy: store access_token and refresh_token in module-scoped
- * variables (NOT localStorage — XSS-safe). These variables are separate from
- * the user auth store in auth.ts — admin login does NOT affect user login
- * state and vice versa.
+ * Token strategy:
+ * - Access token: stored in module-scoped variable only (short-lived, in-memory).
+ * - Refresh token: stored in both module-scoped variable AND localStorage so that
+ *   session survives page refresh. On mount, AdminAuthProvider calls
+ *   refreshAdminTokens() which reads from localStorage if the in-memory token
+ *   is null — this restores the session without requiring re-login.
  *
  * Admin tokens use a separate "admin" audience, issued by POST /api/v1/admin/login.
  */
@@ -13,7 +15,14 @@ const API_BASE_INTERNAL =
   process.env.NEXT_PUBLIC_API_URL || "http://localhost:8040";
 
 // ---------------------------------------------------------------------------
-// Module-scoped admin token store (in-memory, XSS-safe, isolated from user store)
+// localStorage keys
+// ---------------------------------------------------------------------------
+
+const ADMIN_REFRESH_KEY = "wxk_admin_refresh";
+const ADMIN_EMAIL_KEY = "wxk_admin_email";
+
+// ---------------------------------------------------------------------------
+// Module-scoped admin token store (in-memory, isolated from user store)
 // ---------------------------------------------------------------------------
 
 let _adminAccessToken: string | null = null;
@@ -34,15 +43,39 @@ export function getAdminRefreshToken(): string | null {
 export function setAdminTokens(access: string, refresh: string): void {
   _adminAccessToken = access;
   _adminRefreshToken = refresh;
+  if (typeof window !== "undefined") {
+    localStorage.setItem(ADMIN_REFRESH_KEY, refresh);
+  }
 }
 
 export function clearAdminTokens(): void {
   _adminAccessToken = null;
   _adminRefreshToken = null;
+  if (typeof window !== "undefined") {
+    localStorage.removeItem(ADMIN_REFRESH_KEY);
+    localStorage.removeItem(ADMIN_EMAIL_KEY);
+  }
 }
 
 export function isAdminAuthenticated(): boolean {
   return _adminAccessToken !== null;
+}
+
+// ---------------------------------------------------------------------------
+// Admin email persistence (for session restore display)
+// ---------------------------------------------------------------------------
+
+export function setAdminEmail(email: string): void {
+  if (typeof window !== "undefined") {
+    localStorage.setItem(ADMIN_EMAIL_KEY, email);
+  }
+}
+
+export function getStoredAdminEmail(): string | null {
+  if (typeof window !== "undefined") {
+    return localStorage.getItem(ADMIN_EMAIL_KEY);
+  }
+  return null;
 }
 
 // ---------------------------------------------------------------------------
@@ -55,7 +88,10 @@ export function isAdminAuthenticated(): boolean {
  * Completely separate from the user refreshTokens() function in auth.ts.
  */
 export async function refreshAdminTokens(): Promise<boolean> {
-  const currentRefreshToken = _adminRefreshToken;
+  let currentRefreshToken = _adminRefreshToken;
+  if (!currentRefreshToken && typeof window !== "undefined") {
+    currentRefreshToken = localStorage.getItem(ADMIN_REFRESH_KEY);
+  }
   if (!currentRefreshToken) {
     return false;
   }

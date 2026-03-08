@@ -28,6 +28,9 @@ import {
   setAdminTokens,
   clearAdminTokens,
   getAdminRefreshToken,
+  refreshAdminTokens,
+  setAdminEmail as persistAdminEmail,
+  getStoredAdminEmail,
 } from "@/lib/admin-auth";
 import { adminApiClient } from "@/lib/admin-api-client";
 
@@ -77,10 +80,33 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
   const [adminEmail, setAdminEmail] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
 
-  // On mount: check if admin tokens are in memory (in-memory session restore)
+  // On mount: attempt session restore from localStorage via refreshAdminTokens()
   useEffect(() => {
-    // No /users/me equivalent for admin — just check token presence
-    setIsLoading(false);
+    let cancelled = false;
+
+    async function restoreSession() {
+      // If already authenticated in memory, nothing to do
+      if (isAdminAuthenticated()) {
+        const storedEmail = getStoredAdminEmail();
+        if (storedEmail) setAdminEmail(storedEmail);
+        setIsLoading(false);
+        return;
+      }
+
+      // Try to restore from localStorage via refresh
+      const restored = await refreshAdminTokens();
+      if (!cancelled) {
+        if (restored) {
+          const storedEmail = getStoredAdminEmail();
+          if (storedEmail) setAdminEmail(storedEmail);
+        }
+        setIsLoading(false);
+      }
+    }
+
+    restoreSession();
+
+    return () => { cancelled = true; };
   }, []);
 
   // Route protection: redirect unauthenticated admins from protected admin routes
@@ -99,9 +125,10 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, [isLoading, pathname, router]);
 
-  // Login: store admin tokens and email in state
+  // Login: store admin tokens and email in state + persist to localStorage
   const login = useCallback((tokens: AdminTokens, email: string) => {
     setAdminTokens(tokens.access_token, tokens.refresh_token);
+    persistAdminEmail(email);
     setAdminEmail(email);
   }, []);
 
