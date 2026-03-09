@@ -98,6 +98,9 @@ Decisions are logged in PROJECT.md Key Decisions table.
 - [Phase 23]: token_quota fields in billing/page.tsx (tenant-facing) left untouched — out of scope for plan 23-05; different API endpoint and interface
 - [Phase 24]: integration/health returns 200 always with status field (not 503) — discovery endpoints should be reachable even when degraded
 - [Phase 24]: endpoints dict hardcoded in integration/health response — lets wxcode engine bootstrap without hardcoded paths
+- [Phase 24]: DynamicCORSMiddleware subclasses CORSMiddleware.is_allowed_origin() — minimal intrusion, checks static origins first then tenant wxcode_url cache
+- [Phase 24]: _tenant_origin_cache module-level set populated at lifespan startup — fast lookup for tenant custom domain CORS origins
+- [Phase 24]: CORS test fixture patches ALLOWED_ORIGINS to explicit list — .env wildcard breaks CORS rejection test assertions
 
 ### Roadmap Evolution
 
@@ -117,5 +120,5 @@ None.
 ## Session Continuity
 
 Last session: 2026-03-09
-Stopped at: Completed 24-02-PLAN.md (integration health endpoint + contract documentation)
+Stopped at: Completed 24-01-PLAN.md (CORS fix: DynamicCORSMiddleware + ALLOWED_ORIGINS + behavior tests)
 Resume file: None — all 2 plans in phase 24 now complete
