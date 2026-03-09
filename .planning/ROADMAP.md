@@ -44,7 +44,7 @@ Full details: `milestones/v2.0-ROADMAP.md`
 </details>
 
 <details>
-<summary>🔲 v3.0 WXCODE Engine Integration (Phases 20-25) — PLANNED</summary>
+<summary>🔲 v3.0 WXCODE Engine Integration (Phases 20-26) — PLANNED</summary>
 
 - [x] Phase 20: Crypto Service + Tenant Model Extension (2 plans) (completed 2026-03-07)
   - [ ] 20-01-PLAN.md — Fernet crypto service + encryption key config
@@ -70,9 +70,9 @@ Full details: `milestones/v2.0-ROADMAP.md`
   - [ ] 25-01-PLAN.md — Add plan_limits to wxcode-config endpoint + update integration contract
 
 - [ ] Phase 26: Billing UI Dual Quota Fix (1 plan) — **Gap Closure** (BREAK-01, FLOW-DISPLAY-01)
-  - Goal: Update tenant-facing billing UI and test fixtures to use dual quota fields (token_quota_5h/token_quota_weekly) after migration 010 removed token_quota
+  - Goal: Update tenant-facing billing UI to use dual quota fields (token_quota_5h/token_quota_weekly) after migration 010 removed token_quota
   Plans:
-  - [ ] 26-01-PLAN.md — Update BillingPlan interface, billing page, and conftest fixture to dual quota fields
+  - [ ] 26-01-PLAN.md — Update BillingPlan interface and billing page to dual quota display
 
 Full details: `milestones/v3.0-ROADMAP.md`
 
