@@ -5,14 +5,14 @@
 See: .planning/PROJECT.md (updated 2026-03-06)
 
 **Core value:** Controlar acesso seguro a plataforma WXCODE com identidade, permissoes por tenant e cobranca recorrente — sem executar nenhuma operacao do wxcode engine.
-**Current focus:** v3.0 WXCODE Engine Integration — planned, not yet started.
+**Current focus:** v3.0 WXCODE Engine Integration — Phase 24 complete.
 
 ## Current Position
 
-Phase: v3.0 Phase 23 (Admin UI Claude Management) — COMPLETE
-Plan: 71 plans complete (38 v1.0 + 20 v2.0 + 13 v3.0), Phase 23 done
-Status: v3.0 IN PROGRESS — Phase 23 COMPLETE (6 of 6 plans done)
-Last activity: 2026-03-08 — 23-06 WXCODE Provisioning config endpoint + UI section
+Phase: v3.0 Phase 24 (CORS Fix + Integration Contract) — COMPLETE
+Plan: 73 plans complete (38 v1.0 + 20 v2.0 + 15 v3.0), Phase 24 done
+Status: v3.0 IN PROGRESS — Phase 24 COMPLETE (2 of 2 plans done)
+Last activity: 2026-03-09 — 24-02 Integration health endpoint + contract documentation
 
 Progress: [████████████████████████████████] 100% (v1.0+v2.0) + v3.0 started
 
@@ -31,9 +31,9 @@ Progress: [███████████████████████
 - Timeline: 3 days (2026-03-04 → 2026-03-06)
 
 **Velocity (v3.0):**
-- Plans completed: 14 (20-01, 20-02, 21-01, 22-01, 22-02, 23-01, 23-02, 23-03, 23-04, 23-05, 23-06 + gap closure plans including 23-03 backend re-do)
+- Plans completed: 16 (20-01, 20-02, 21-01, 22-01, 22-02, 23-01, 23-02, 23-03, 23-04, 23-05, 23-06 + gap closure plans including 23-03 backend re-do + 24-01, 24-02)
 - Average duration: 2-11 min
-- Phase 20 complete, Phase 21 complete, Phase 22 complete, Phase 23 complete (6 of 6 + gap closures)
+- Phase 20 complete, Phase 21 complete, Phase 22 complete, Phase 23 complete (6 of 6 + gap closures), Phase 24 complete (2 of 2)
 
 **Combined:**
 - 66+ plans executed across 23 phases
@@ -96,6 +96,8 @@ Decisions are logged in PROJECT.md Key Decisions table.
 - [Phase 23-03]: token_quota_5h used as enforcement field in _enforce_token_quota (tighter 5h window = primary constraint)
 - [Phase 23-03]: Data migration copies existing values to BOTH new columns to preserve prior data in migration 010
 - [Phase 23]: token_quota fields in billing/page.tsx (tenant-facing) left untouched — out of scope for plan 23-05; different API endpoint and interface
+- [Phase 24]: integration/health returns 200 always with status field (not 503) — discovery endpoints should be reachable even when degraded
+- [Phase 24]: endpoints dict hardcoded in integration/health response — lets wxcode engine bootstrap without hardcoded paths
 
 ### Roadmap Evolution
 
@@ -114,6 +116,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-08
-Stopped at: Completed 23-05-PLAN.md (frontend dual budget/quota fields: hook interfaces + tenant detail + plans page)
-Resume file: None — all 6 plans in phase 23 now complete
+Last session: 2026-03-09
+Stopped at: Completed 24-02-PLAN.md (integration health endpoint + contract documentation)
+Resume file: None — all 2 plans in phase 24 now complete
