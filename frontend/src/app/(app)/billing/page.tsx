@@ -134,10 +134,15 @@ function PlanCard({
         ? `Up to ${plan.member_cap} members`
         : "1 member";
 
-  const tokenLabel =
-    plan.token_quota > 0
-      ? `${plan.token_quota.toLocaleString()} tokens/month`
-      : "No token quota";
+  const quota5hLabel =
+    plan.token_quota_5h > 0
+      ? `${plan.token_quota_5h.toLocaleString()} tokens`
+      : "Unlimited";
+
+  const quotaWeeklyLabel =
+    plan.token_quota_weekly > 0
+      ? `${plan.token_quota_weekly.toLocaleString()} tokens`
+      : "Unlimited";
 
   const isThisCardLoading = checkoutPlanId === plan.id;
   const anyCheckoutInProgress = checkoutPlanId !== null;
@@ -172,7 +177,11 @@ function PlanCard({
         </li>
         <li className="flex items-center gap-1.5">
           <Zap className="h-3.5 w-3.5 shrink-0" />
-          {tokenLabel}
+          5h: {quota5hLabel}
+        </li>
+        <li className="flex items-center gap-1.5">
+          <Zap className="h-3.5 w-3.5 shrink-0" />
+          Weekly: {quotaWeeklyLabel}
         </li>
         {overageLabel && (
           <li className="flex items-center gap-1.5">
@@ -409,10 +418,8 @@ function BillingPageContent() {
   // ---------------------------------------------------------------------------
 
   const badge = statusBadge(subscription?.status ?? "free");
-  const tokenQuota = subscription?.plan?.token_quota ?? 0;
-  const tokensUsed = subscription?.tokens_used_this_period ?? 0;
-  const usagePercent =
-    tokenQuota > 0 ? Math.min(100, (tokensUsed / tokenQuota) * 100) : 0;
+  const quota5h = subscription?.plan?.token_quota_5h ?? 0;
+  const quotaWeekly = subscription?.plan?.token_quota_weekly ?? 0;
 
   const checkoutErrorMessage = getCheckoutErrorMessage();
   const portalErrorMessage = getPortalErrorMessage();
@@ -509,31 +516,21 @@ function BillingPageContent() {
               : "No renewal date"}
           </p>
 
-          {/* Token usage */}
-          {tokenQuota > 0 ? (
-            <div className="flex flex-col gap-1.5">
-              <p className="text-sm text-zinc-400">
-                <span className="text-foreground font-medium">
-                  {tokensUsed.toLocaleString()}
-                </span>{" "}
-                /{" "}
-                <span className="text-foreground font-medium">
-                  {tokenQuota.toLocaleString()}
-                </span>{" "}
-                tokens used this period
-              </p>
-              <div className="h-2 w-full rounded-full bg-zinc-800 overflow-hidden">
-                <div
-                  className="h-full bg-cyan-400 rounded-full transition-all"
-                  style={{ width: `${usagePercent}%` }}
-                />
-              </div>
-            </div>
-          ) : (
+          {/* Token quotas */}
+          <div className="flex flex-col gap-1">
             <p className="text-sm text-zinc-400">
-              Token usage: <span className="text-foreground">Unlimited</span>
+              5h quota:{" "}
+              <span className="text-foreground font-medium">
+                {quota5h > 0 ? quota5h.toLocaleString() + " tokens" : "Unlimited"}
+              </span>
             </p>
-          )}
+            <p className="text-sm text-zinc-400">
+              Weekly quota:{" "}
+              <span className="text-foreground font-medium">
+                {quotaWeekly > 0 ? quotaWeekly.toLocaleString() + " tokens" : "Unlimited"}
+              </span>
+            </p>
+          </div>
 
           {/* Manage Billing button — billing_access users only, for paid plans */}
           {hasBillingAccess &&
