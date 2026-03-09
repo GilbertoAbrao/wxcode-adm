@@ -6,7 +6,7 @@ Responsibilities:
 - Lifespan: verifies PostgreSQL and Redis connectivity on startup
 - Lifespan: installs tenant isolation guard on session factory
 - Lifespan: graceful shutdown (disposes engine, closes Redis pool)
-- CORS middleware with configured allowed origins
+- CORS middleware with configured allowed origins (static + dynamic tenant wxcode_urls)
 - AppError exception handler that translates domain errors to JSON responses
 - Module-level app instance for uvicorn: `uvicorn wxcode_adm.main:app`
 
@@ -21,7 +21,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
-from sqlalchemy import text
+from sqlalchemy import select, text
 
 from wxcode_adm.common.exceptions import AppError
 from wxcode_adm.common.redis_client import redis_client
@@ -30,6 +30,49 @@ from wxcode_adm.db.engine import engine, async_session_maker
 from wxcode_adm.db.tenant import install_tenant_guard
 
 logger = logging.getLogger(__name__)
+
+# ---------------------------------------------------------------------------
+# Dynamic CORS: tenant wxcode_url origin cache
+# ---------------------------------------------------------------------------
+
+# Module-level cache of tenant wxcode_url values.
+# Populated at lifespan startup from the DB. Used by DynamicCORSMiddleware
+# to allow CORS requests from per-tenant custom domains at runtime.
+_tenant_origin_cache: set[str] = set()
+
+
+def _build_cors_origins() -> list[str]:
+    """
+    Build the static CORS origins list from settings.
+
+    Starts with ALLOWED_ORIGINS and adds FRONTEND_URL as a safety net
+    in case it was not included in the explicit list.
+    """
+    origins = list(settings.ALLOWED_ORIGINS)
+    if settings.FRONTEND_URL not in origins:
+        origins.append(settings.FRONTEND_URL)
+    return origins
+
+
+class DynamicCORSMiddleware(CORSMiddleware):
+    """
+    CORS middleware that checks static origins plus tenant wxcode_urls from DB cache.
+
+    Extends CORSMiddleware to add a second-pass origin check against
+    _tenant_origin_cache, which is populated at lifespan startup with
+    all non-null Tenant.wxcode_url values.
+    """
+
+    def __init__(self, app, tenant_origins_loader, **kwargs):
+        super().__init__(app, **kwargs)
+        self._tenant_origins_loader = tenant_origins_loader
+
+    def is_allowed_origin(self, origin: str) -> bool:
+        # Check static origins first (CORSMiddleware default behavior)
+        if super().is_allowed_origin(origin):
+            return True
+        # Check dynamic tenant wxcode_url origins
+        return origin in self._tenant_origins_loader()
 
 
 @asynccontextmanager
@@ -68,6 +111,16 @@ async def lifespan(app: FastAPI):
     # 4. Seed super-admin user if not exists
     from wxcode_adm.auth.seed import seed_super_admin  # noqa: PLC0415
     await seed_super_admin(async_session_maker, settings)
+
+    # 5. Load tenant wxcode_url values into CORS origin cache
+    logger.info("Loading tenant wxcode_url origins into CORS cache...")
+    from wxcode_adm.tenants.models import Tenant  # noqa: PLC0415
+    async with async_session_maker() as session:
+        result = await session.execute(
+            select(Tenant.wxcode_url).where(Tenant.wxcode_url.isnot(None))
+        )
+        _tenant_origin_cache.update(row[0] for row in result.all())
+    logger.info("Tenant CORS origins loaded: %d entries.", len(_tenant_origin_cache))
 
     yield
 
@@ -125,9 +178,12 @@ def create_app() -> FastAPI:
     app.add_middleware(SessionMiddleware, secret_key=settings.SESSION_SECRET_KEY.get_secret_value())
 
     # --- CORS Middleware ---
+    # Production-safe CORS: uses explicit ALLOWED_ORIGINS from settings (no wildcard regex).
+    # DynamicCORSMiddleware additionally checks tenant wxcode_url values loaded at startup.
     app.add_middleware(
-        CORSMiddleware,
-        allow_origin_regex=r".*",
+        DynamicCORSMiddleware,
+        tenant_origins_loader=lambda: _tenant_origin_cache,
+        allow_origins=_build_cors_origins(),
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],
