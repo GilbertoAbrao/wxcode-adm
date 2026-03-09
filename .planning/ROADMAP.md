@@ -4,7 +4,7 @@
 
 - ✅ **v1.0 Backend API** — Phases 1-11 (shipped 2026-03-04)
 - ✅ **v2.0 Frontend UI** — Phases 12-19 (shipped 2026-03-06)
-- 🔲 **v3.0 WXCODE Engine Integration** — Phases 20-24 (planned)
+- 🔲 **v3.0 WXCODE Engine Integration** — Phases 20-25 (planned)
 
 ## Phases
 
@@ -44,7 +44,7 @@ Full details: `milestones/v2.0-ROADMAP.md`
 </details>
 
 <details>
-<summary>🔲 v3.0 WXCODE Engine Integration (Phases 20-24) — PLANNED</summary>
+<summary>🔲 v3.0 WXCODE Engine Integration (Phases 20-25) — PLANNED</summary>
 
 - [x] Phase 20: Crypto Service + Tenant Model Extension (2 plans) (completed 2026-03-07)
   - [ ] 20-01-PLAN.md — Fernet crypto service + encryption key config
@@ -64,6 +64,8 @@ Full details: `milestones/v2.0-ROADMAP.md`
 - [x] Phase 24: CORS Fix + Integration Contract (2 plans) (completed 2026-03-09)
   - [ ] 24-01-PLAN.md — CORS production fix + dynamic tenant wxcode_url origins + tests
   - [ ] 24-02-PLAN.md — Integration health endpoint + contract documentation + tests
+- [ ] Phase 25: wxcode-config Plan Limits (0 plans) — **Gap Closure** (MISSING-01, FLOW-BREAK-01)
+  - Goal: Expose plan limits (max_projects, max_output_projects, max_storage_gb, token_quota_5h, token_quota_weekly) in GET /tenants/{id}/wxcode-config via TenantSubscription → Plan join + update INTEGRATION-CONTRACT.md
 
 Full details: `milestones/v3.0-ROADMAP.md`
 
@@ -97,3 +99,4 @@ Full details: `milestones/v3.0-ROADMAP.md`
 | 22. Claude Provisioning API | v3.0 | 2/2 | Complete | 2026-03-07 |
 | 23. Admin UI — Claude Management | 6/6 | Complete    | 2026-03-08 | - |
 | 24. CORS Fix + Integration Contract | 2/2 | Complete    | 2026-03-09 | - |
+| 25. wxcode-config Plan Limits | v3.0 | 0/0 | Not started | - |
