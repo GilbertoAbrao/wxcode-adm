@@ -64,7 +64,7 @@ Full details: `milestones/v2.0-ROADMAP.md`
 - [x] Phase 24: CORS Fix + Integration Contract (2 plans) (completed 2026-03-09)
   - [ ] 24-01-PLAN.md — CORS production fix + dynamic tenant wxcode_url origins + tests
   - [ ] 24-02-PLAN.md — Integration health endpoint + contract documentation + tests
-- [ ] Phase 25: wxcode-config Plan Limits (1 plan) — **Gap Closure** (MISSING-01, FLOW-BREAK-01)
+- [x] Phase 25: wxcode-config Plan Limits (1 plan) — **Gap Closure** (MISSING-01, FLOW-BREAK-01) (completed 2026-03-09)
   - Goal: Expose plan limits (max_projects, max_output_projects, max_storage_gb, token_quota_5h, token_quota_weekly) in GET /tenants/{id}/wxcode-config via TenantSubscription → Plan join + update INTEGRATION-CONTRACT.md
   Plans:
   - [ ] 25-01-PLAN.md — Add plan_limits to wxcode-config endpoint + update integration contract
@@ -101,4 +101,4 @@ Full details: `milestones/v3.0-ROADMAP.md`
 | 22. Claude Provisioning API | v3.0 | 2/2 | Complete | 2026-03-07 |
 | 23. Admin UI — Claude Management | v3.0 | 6/6 | Complete | 2026-03-08 |
 | 24. CORS Fix + Integration Contract | v3.0 | 2/2 | Complete | 2026-03-09 |
-| 25. wxcode-config Plan Limits | v3.0 | 0/1 | Not started | - |
+| 25. wxcode-config Plan Limits | 1/1 | Complete   | 2026-03-09 | - |
