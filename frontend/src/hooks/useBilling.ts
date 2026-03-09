@@ -24,7 +24,8 @@ export interface BillingPlan {
   name: string;
   slug: string;
   monthly_fee_cents: number;
-  token_quota: number;
+  token_quota_5h: number;
+  token_quota_weekly: number;
   overage_rate_cents_per_token: number;
   member_cap: number;
   is_active: boolean;
