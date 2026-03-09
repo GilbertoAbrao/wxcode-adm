@@ -96,4 +96,4 @@ Full details: `milestones/v3.0-ROADMAP.md`
 | 21. Plan Limits Extension | v3.0 | 1/1 | Complete | 2026-03-07 |
 | 22. Claude Provisioning API | v3.0 | 2/2 | Complete | 2026-03-07 |
 | 23. Admin UI — Claude Management | 6/6 | Complete    | 2026-03-08 | - |
-| 24. CORS Fix + Integration Contract | 2/2 | Complete   | 2026-03-09 | - |
+| 24. CORS Fix + Integration Contract | 2/2 | Complete    | 2026-03-09 | - |
