@@ -551,6 +551,7 @@ async def test_wxcode_config_developer_access(client, test_db, monkeypatch):
     assert "neo4j_enabled" in data
     assert "claude_default_model" in data
     assert "max_concurrent_sessions" in data
+    assert "plan_limits" in data
 
     # Values match what we set
     assert data["database_name"] == "wxcode_t_owner_test"
@@ -647,6 +648,99 @@ async def test_wxcode_config_tenant_mismatch(client, test_db, monkeypatch):
     )
     # Should be 404 — mismatch protection
     assert r.status_code == 404, r.text
+
+
+@pytest.mark.asyncio
+async def test_wxcode_config_plan_limits_with_subscription(client, test_db, monkeypatch):
+    """
+    wxcode-config returns plan_limits when tenant has a subscription.
+    Workspace creation triggers bootstrap_free_subscription which creates a
+    TenantSubscription linked to the Free plan seeded in conftest.
+    """
+    _patch_crypto_key(monkeypatch)
+    c, redis, app, test_db = client
+
+    # Sign up and create a workspace (bootstrap_free_subscription is called)
+    access_token, _ = await _signup_verify_login(c, redis, "wxcode_plan_limits_owner@test.com")
+
+    r = await c.post(
+        "/api/v1/onboarding/workspace",
+        json={"name": "Plan Limits Workspace"},
+        headers={"Authorization": f"Bearer {access_token}"},
+    )
+    assert r.status_code in (200, 201), r.text
+    tenant_id = r.json()["tenant"]["id"]
+
+    # GET wxcode-config
+    r = await c.get(
+        f"/api/v1/tenants/{tenant_id}/wxcode-config",
+        headers={
+            "Authorization": f"Bearer {access_token}",
+            "X-Tenant-ID": tenant_id,
+        },
+    )
+    assert r.status_code == 200, r.text
+    data = r.json()
+
+    # plan_limits should be non-None (Free plan was bootstrapped)
+    assert data["plan_limits"] is not None
+
+    # Verify all 5 plan limit fields match Free plan seeded in conftest
+    plan_limits = data["plan_limits"]
+    assert plan_limits["max_projects"] == 5
+    assert plan_limits["max_output_projects"] == 20
+    assert plan_limits["max_storage_gb"] == 10
+    assert plan_limits["token_quota_5h"] == 10000
+    assert plan_limits["token_quota_weekly"] == 50000
+
+
+@pytest.mark.asyncio
+async def test_wxcode_config_plan_limits_no_subscription(client, test_db, monkeypatch):
+    """
+    wxcode-config returns plan_limits=null when tenant has no subscription.
+    Tenant is created directly in DB without going through onboarding
+    (no bootstrap_free_subscription called).
+    """
+    _patch_crypto_key(monkeypatch)
+    c, redis, app, test_db = client
+
+    # Create a tenant directly in DB (no subscription)
+    tenant_id = await _create_tenant_in_db(
+        test_db,
+        name="No Subscription Corp",
+        slug="no-subscription-corp",
+        status="pending_setup",
+        database_name="wxcode_t_no_sub",
+    )
+
+    # Sign up a user and add them as OWNER directly in DB
+    owner_token, _ = await _signup_verify_login(c, redis, "wxcode_no_sub_owner@test.com")
+
+    async with test_db() as session:
+        result = await session.execute(
+            select(User).where(User.email == "wxcode_no_sub_owner@test.com")
+        )
+        owner_user = result.scalar_one()
+        membership = TenantMembership(
+            tenant_id=tenant_id,
+            user_id=owner_user.id,
+            role=MemberRole.OWNER,
+        )
+        session.add(membership)
+        await session.commit()
+
+    # GET wxcode-config — plan_limits should be null (no subscription)
+    r = await c.get(
+        f"/api/v1/tenants/{tenant_id}/wxcode-config",
+        headers={
+            "Authorization": f"Bearer {owner_token}",
+            "X-Tenant-ID": str(tenant_id),
+        },
+    )
+    assert r.status_code == 200, r.text
+    data = r.json()
+
+    assert data["plan_limits"] is None
 
 
 # ---------------------------------------------------------------------------

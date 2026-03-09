@@ -38,6 +38,7 @@ from sqlalchemy.orm import selectinload
 from wxcode_adm.audit.service import write_audit
 from wxcode_adm.auth.dependencies import require_verified
 from wxcode_adm.auth.models import User
+from wxcode_adm.billing.models import TenantSubscription
 from wxcode_adm.common.exceptions import NotFoundError
 from wxcode_adm.dependencies import get_redis, get_session
 from wxcode_adm.tenants import service
@@ -736,6 +737,23 @@ async def get_wxcode_config(
             message="Tenant ID does not match current tenant context",
         )
 
+    # Load tenant's subscription + plan (plan is eagerly loaded via lazy="joined")
+    sub_result = await db.execute(
+        select(TenantSubscription).where(TenantSubscription.tenant_id == tenant.id)
+    )
+    subscription = sub_result.scalar_one_or_none()
+
+    plan_limits = None
+    if subscription is not None and subscription.plan is not None:
+        plan = subscription.plan
+        plan_limits = {
+            "max_projects": plan.max_projects,
+            "max_output_projects": plan.max_output_projects,
+            "max_storage_gb": plan.max_storage_gb,
+            "token_quota_5h": plan.token_quota_5h,
+            "token_quota_weekly": plan.token_quota_weekly,
+        }
+
     return {
         "tenant_id": str(tenant.id),
         "database_name": tenant.database_name,
@@ -743,6 +761,7 @@ async def get_wxcode_config(
         "neo4j_enabled": tenant.neo4j_enabled,
         "claude_default_model": tenant.claude_default_model,
         "max_concurrent_sessions": tenant.claude_max_concurrent_sessions,
+        "plan_limits": plan_limits,
     }
 
 
