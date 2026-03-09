@@ -101,4 +101,4 @@ Full details: `milestones/v3.0-ROADMAP.md`
 | 22. Claude Provisioning API | v3.0 | 2/2 | Complete | 2026-03-07 |
 | 23. Admin UI — Claude Management | v3.0 | 6/6 | Complete | 2026-03-08 |
 | 24. CORS Fix + Integration Contract | v3.0 | 2/2 | Complete | 2026-03-09 |
-| 25. wxcode-config Plan Limits | 1/1 | Complete   | 2026-03-09 | - |
+| 25. wxcode-config Plan Limits | 1/1 | Complete    | 2026-03-09 | - |
