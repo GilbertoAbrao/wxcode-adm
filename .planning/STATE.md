@@ -2,19 +2,19 @@
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-03-06)
+See: .planning/PROJECT.md (updated 2026-03-09)
 
 **Core value:** Controlar acesso seguro a plataforma WXCODE com identidade, permissoes por tenant e cobranca recorrente — sem executar nenhuma operacao do wxcode engine.
-**Current focus:** v3.0 WXCODE Engine Integration — Phase 26 complete.
+**Current focus:** Planning next milestone.
 
 ## Current Position
 
-Phase: v3.0 Phase 26 (Billing UI Dual Quota Fix) — COMPLETE
-Plan: 75 plans complete (38 v1.0 + 20 v2.0 + 17 v3.0), Phase 26 done
-Status: v3.0 IN PROGRESS — Phase 26 COMPLETE (1 of 1 plans done)
-Last activity: 2026-03-09 — 26-01 Billing UI dual quota fix (BREAK-01, FLOW-DISPLAY-01 closed)
+Phase: v3.0 complete — all 26 phases shipped
+Plan: 75 plans complete (38 v1.0 + 20 v2.0 + 17 v3.0)
+Status: v3.0 SHIPPED — milestone archived
+Last activity: 2026-03-09 — v3.0 milestone completed and archived
 
-Progress: [████████████████████████████████] 100% (v1.0+v2.0) + v3.0 started
+Progress: [████████████████████████████████] 100% (v1.0 + v2.0 + v3.0)
 
 ## Performance Metrics
 
@@ -31,78 +31,22 @@ Progress: [███████████████████████
 - Timeline: 3 days (2026-03-04 → 2026-03-06)
 
 **Velocity (v3.0):**
-- Plans completed: 18 (20-01, 20-02, 21-01, 22-01, 22-02, 23-01, 23-02, 23-03, 23-04, 23-05, 23-06 + gap closure plans including 23-03 backend re-do + 24-01, 24-02, 25-01, 26-01)
+- Total plans completed: 17
 - Average duration: 1-11 min
-- Phase 20 complete, Phase 21 complete, Phase 22 complete, Phase 23 complete (6 of 6 + gap closures), Phase 24 complete (2 of 2), Phase 25 complete (1 of 1), Phase 26 complete (1 of 1)
+- Timeline: 3 days (2026-03-07 → 2026-03-09)
 
 **Combined:**
-- 66+ plans executed across 23 phases
-- Backend: ~20,700 LOC Python, 175 tests passing (+14 from dual quota field tests)
-- Frontend: ~10,765 LOC TypeScript/React, 53 source files
-- Timeline: 14 days total (2026-02-22 → 2026-03-08)
+- 75 plans executed across 26 phases (3 milestones)
+- Backend: 13,710 LOC Python + 7,624 LOC tests (192 tests)
+- Frontend: 11,004 LOC TypeScript/React
+- Timeline: 16 days total (2026-02-22 → 2026-03-09)
 
 ## Accumulated Context
 
 ### Decisions
 
 Decisions are logged in PROJECT.md Key Decisions table.
-
-**20-01 (Crypto Service):**
-- Lazy _get_fernet() helper reads key per call — enables test monkeypatching without module-level state
-- SHA-256 passphrase derivation — any string works as WXCODE_ENCRYPTION_KEY, no Fernet format requirement for dev
-- Dev default "change-me-in-production" — obvious sentinel, not a hardcoded fake Fernet key
-
-**20-02 (Tenant Model Extension):**
-- Plain String (not enum) for status field — consistent with MemberRole native_enum=False pattern, avoids PostgreSQL CREATE TYPE issues
-- String(2048) for claude_oauth_token — Fernet-encrypted tokens are longer than plaintext OAuth tokens
-- claude_monthly_token_budget nullable (null = unlimited) — avoids sentinel integer value ambiguity
-- server_default on non-nullable migration columns — existing rows get defaults without data migration
-
-**21-01 (Plan Limits Extension):**
-- Limit fields not wired into Stripe re-sync — wxcode-only operational limits, not billing amounts
-- ge=1 validation on limit fields — zero limits are operationally invalid
-- Defaults consistent between model default= and migration server_default= (5, 20, 10)
-
-**22-01 (Claude Provisioning API):**
-- Budget=0 in API means unlimited (NULL in DB); None means "no change" — avoids ambiguity
-- Claude OAuth token value never written to logs or audit details — only reason and tenant_id recorded
-- AdminActionRequest reused for DELETE /claude-token body — shared semantics for reason field
-
-**22-02 (wxcode-config endpoint + integration tests):**
-- tenant-mismatch-404: wxcode-config validates path tenant_id vs X-Tenant-ID to prevent cross-tenant reads (404, not 403)
-- max_concurrent_sessions: no 'claude_' prefix in wxcode-config response, matching ROADMAP spec
-- httpx-delete-body: Use c.request('DELETE', url, content=json.dumps(...)) for DELETE with body in tests
-
-**23-01 (Admin UI WXCODE Integration — hooks + tenant detail page):**
-- wxcodeStatusBadge as separate function from statusBadge — handles wxcode lifecycle (pending_setup/active/suspended/cancelled) vs legacy is_suspended/is_deleted booleans
-- Token entry uses type=password for shoulder-surfing prevention; has_claude_token display always shows masked ****-****-****
-- Config form sends partial PATCH — only non-empty fields included; 0 for budget maps to unlimited (NULL in DB)
-
-**23-02 (Plans management page + nav links):**
-- Array response for plans (not paginated) — backend returns PlanResponse[] directly, no wrapper object
-- Partial PATCH compares edit field strings vs original plan string values — only sends changed fields
-- Plans nav link placed between Tenants and Users — logical hierarchy Dashboard > Tenants > Plans > Users > Audit Logs
-
-**23-04 (Admin session persistence + plan inactivate/delete):**
-- Refresh token only in localStorage (not access token) — access token short-lived, stays in memory for XSS safety
-- Async session restore on mount — isLoading=true until refreshAdminTokens resolves, preventing redirect flash to /admin/login
-- PLAN_IN_USE guard counts all TenantSubscription references (not filtered by status) — prevents orphaned subscription records
-
-**23-06 (WXCODE Provisioning config — gap closure):**
-- WxcodeConfigUpdateRequest uses at-least-one-field model_validator — consistent with ClaudeConfigUpdateRequest pattern
-- WXCODE Provisioning section visible only for pending_setup tenants — prevents confusing display in other states
-- database_name displays amber "Not configured" warning when null — direct visual cue that activation will fail
-- neo4j_enabled uses string state with "no change" option — prevents accidental boolean overwrites
-- [Phase 23-03]: token_quota_5h used as enforcement field in _enforce_token_quota (tighter 5h window = primary constraint)
-- [Phase 23-03]: Data migration copies existing values to BOTH new columns to preserve prior data in migration 010
-- [Phase 23]: token_quota fields in billing/page.tsx (tenant-facing) left untouched — out of scope for plan 23-05; different API endpoint and interface
-- [Phase 24]: integration/health returns 200 always with status field (not 503) — discovery endpoints should be reachable even when degraded
-- [Phase 24]: endpoints dict hardcoded in integration/health response — lets wxcode engine bootstrap without hardcoded paths
-- [Phase 24]: DynamicCORSMiddleware subclasses CORSMiddleware.is_allowed_origin() — minimal intrusion, checks static origins first then tenant wxcode_url cache
-- [Phase 24]: _tenant_origin_cache module-level set populated at lifespan startup — fast lookup for tenant custom domain CORS origins
-- [Phase 24]: CORS test fixture patches ALLOWED_ORIGINS to explicit list — .env wildcard breaks CORS rejection test assertions
-- [Phase 25]: plan_limits=null when no subscription — wxcode engine must handle null gracefully for unsubscribed tenants
-- [Phase 26]: Both quota lines always visible in plan cards regardless of value; 0 renders as Unlimited. Current Plan section uses text-only quota display (no usage bar).
+Detailed per-phase decisions archived in milestone ROADMAP files.
 
 ### Roadmap Evolution
 
@@ -110,6 +54,8 @@ Decisions are logged in PROJECT.md Key Decisions table.
 - Phase 11 inserted: Billing integration fixes (gap closure from v1.0 audit — INT-01, INT-02)
 - Phase 18 added: Super-Admin Enhanced (MRR dashboard, audit log, tenant detail, force reset)
 - Phase 19 added: UI Polish and Tech Debt Cleanup (gap closure from v2.0 audit)
+- Phase 25 added: wxcode-config Plan Limits (gap closure — MISSING-01, FLOW-BREAK-01)
+- Phase 26 added: Billing UI Dual Quota Fix (gap closure — BREAK-01, FLOW-DISPLAY-01)
 
 ### Pending Todos
 
@@ -122,5 +68,5 @@ None.
 ## Session Continuity
 
 Last session: 2026-03-09
-Stopped at: Completed 26-01-PLAN.md (billing UI dual quota fix — BREAK-01, FLOW-DISPLAY-01 closed)
-Resume file: None — all 1 plans in phase 26 now complete
+Stopped at: v3.0 milestone archived, tag created
+Resume file: None — start next milestone with `/gsd:new-milestone`

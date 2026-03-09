@@ -45,3 +45,28 @@
 
 ---
 
+
+## v3.0 WXCODE Engine Integration (Shipped: 2026-03-09)
+
+**Phases:** 20-26 (7 complete)
+**Plans:** 15 executed
+**Backend:** 13,710 LOC Python + 7,624 LOC tests (192 tests)
+**Frontend:** 11,004 LOC TypeScript/React
+**Timeline:** 3 days (2026-03-07 → 2026-03-09)
+
+**Key accomplishments:**
+1. Fernet AES encryption service for Claude OAuth tokens at rest with SHA-256 passphrase derivation
+2. Tenant model extension with status lifecycle (pending_setup/active/suspended/cancelled), database_name, and Claude config fields
+3. Plan operational limits: max_projects, max_output_projects, max_storage_gb, dual token quotas (5h + weekly rolling windows)
+4. Admin provisioning API: Claude token set/revoke, config PATCH, wxcode-config PATCH, tenant activation with full audit logging
+5. Admin UI: WXCODE integration section in tenant detail, plans page with limits, session persistence, wxcode provisioning config
+6. Production CORS: DynamicCORSMiddleware with static origins + per-tenant wxcode_url cache
+7. Integration contract documented (INTEGRATION-CONTRACT.md v0.2.0) + wxcode-config endpoint with plan_limits for engine bootstrap
+
+**Tech debt:**
+- 4 human verification items pending browser testing (activation flow, session persistence, plan toggle/delete, dual budget/quota)
+- Production deployment requires ALLOWED_ORIGINS set to explicit domain list
+- `decrypt_value` exported but not called in production (by design — token exchange is documented mechanism)
+
+---
+

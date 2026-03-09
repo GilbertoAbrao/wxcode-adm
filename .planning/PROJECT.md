@@ -2,7 +2,7 @@
 
 ## What This Is
 
-Camada SaaS do WXCODE — o porteiro da plataforma. Backend API (FastAPI) + Frontend UI (Next.js) completos. Gerencia autenticacao, identidade, multi-tenancy, billing e administracao da plataforma. O usuario faz sign-up/sign-in no wxcode-adm, recebe um JWT auto-contido, e e redirecionado para o wxcode (app principal). O wxcode-adm reaparece quando o usuario acessa "My Account" ou "Settings" dentro do wxcode. Inclui portal super-admin com dashboard MRR, audit log, e gestao de tenants/usuarios.
+Camada SaaS do WXCODE — o porteiro da plataforma. Backend API (FastAPI) + Frontend UI (Next.js) completos. Gerencia autenticacao, identidade, multi-tenancy, billing, administracao e integracao com o wxcode engine. O usuario faz sign-up/sign-in no wxcode-adm, recebe um JWT auto-contido, e e redirecionado para o wxcode (app principal). O wxcode-adm reaparece quando o usuario acessa "My Account" ou "Settings" dentro do wxcode. Inclui portal super-admin com dashboard MRR, audit log, gestao de tenants/usuarios, provisioning de tokens Claude e limites operacionais por plano.
 
 ## Core Value
 
@@ -47,6 +47,18 @@ Controlar acesso seguro a plataforma WXCODE com identidade, permissoes por tenan
 - ✓ UI super-admin: dashboard MRR com graficos Recharts — v2.0
 - ✓ UI super-admin: audit log viewer, tenant detail, force password reset — v2.0
 
+<!-- Shipped in v3.0 — wxcode engine integration -->
+
+- ✓ Fernet encryption service para tokens Claude (AES at rest) — v3.0
+- ✓ Tenant model extension: status lifecycle, database_name, Claude config fields — v3.0
+- ✓ Plan operational limits: max_projects, max_output_projects, max_storage_gb, token quotas (5h + weekly) — v3.0
+- ✓ Admin provisioning API: Claude token set/revoke, config PATCH, wxcode-config PATCH, tenant activation — v3.0
+- ✓ Admin UI: WXCODE integration section em tenant detail, plans page com limites, session persistence — v3.0
+- ✓ Production CORS: DynamicCORSMiddleware com origins per-tenant — v3.0
+- ✓ Integration contract documentado (INTEGRATION-CONTRACT.md v0.2.0) — v3.0
+- ✓ wxcode-config endpoint com plan_limits para o engine — v3.0
+- ✓ Audit log para todas as operacoes de provisioning — v3.0
+
 ### Active
 
 <!-- Next milestone — pending definition -->
@@ -74,9 +86,11 @@ Controlar acesso seguro a plataforma WXCODE com identidade, permissoes por tenan
 - Frontend do wxcode-adm (Next.js 16, port 3040) e separado do frontend do wxcode (port 3052) e do backend (port 8040)
 - Super-admin da plataforma (Gilberto) gerencia planos, tenants, usuarios, metricas e configuracoes
 - Tenants podem convidar usuarios, que ficam vinculados exclusivamente ao tenant que convidou
-- **Shipped:** Backend API (v1.0, 19,837 LOC Python, 148 tests) + Frontend UI (v2.0, 9,174 LOC TypeScript/React)
+- **Shipped:** Backend API (v1.0) + Frontend UI (v2.0) + WXCODE Engine Integration (v3.0)
+- **Codebase:** Backend 13,710 LOC Python + 7,624 LOC tests (192 tests) | Frontend 11,004 LOC TypeScript/React
 - **Tech stack:** FastAPI + SQLAlchemy 2.0 + PostgreSQL + Redis (backend) | Next.js 16 + React 19 + Tailwind v4 + shadcn/ui + TanStack Query (frontend)
-- **Migrations:** Alembic chain `None → 001 → ... → 007` (7 migrations)
+- **Migrations:** Alembic chain `None → 001 → ... → 010` (10 migrations)
+- **Integration:** wxcode engine reads tenant config via `GET /tenants/{id}/wxcode-config` (JWT + DEVELOPER role)
 
 ## Constraints
 
@@ -99,11 +113,17 @@ Controlar acesso seguro a plataforma WXCODE com identidade, permissoes por tenan
 | Usuario isolado a um tenant | Simplicidade, sem complexidade de multi-tenant switching | ✓ Good — cross-tenant isolation test suite confirms zero leakage |
 | PostgreSQL + SQLAlchemy (nao MongoDB) | wxcode-adm e SaaS admin com schema relacional; wxcode usa MongoDB por tenant | ✓ Good — relational schema fits SaaS admin perfectly |
 | Monorepo backend + frontend | Um repo, deploy independente, backend em /backend, frontend em /frontend | ✓ Good — single repo, clear separation |
-| Alembic para migrations | Schema versionado, auto-generate | ✓ Good — 7 linear migrations, no gaps |
+| Alembic para migrations | Schema versionado, auto-generate | ✓ Good — 10 linear migrations, no gaps |
 | In-memory JWT tokens (frontend) | XSS-safe, tokens lost on reload (user re-logs), SPA redirects to wxcode after login | ✓ Good — acceptable for redirect-based flow |
 | Obsidian Studio dark theme | Visual consistency with wxcode frontend | ✓ Good — ported from wxcode, 6 custom components |
 | Admin JWT audience isolation | Admin tokens (aud=wxcode-adm-admin) separate from user tokens | ✓ Good — prevents regular users from accessing admin endpoints |
 | Custom sidebar (not shadcn Sidebar) | shadcn Sidebar too complex for simple admin nav | ✓ Good — simpler, maintainable |
+| Fernet AES for Claude tokens | Encrypt OAuth tokens at rest; SHA-256 passphrase derivation from any string | ✓ Good — encrypt_value/decrypt_value, dev sentinel key works |
+| Plain String for tenant status | Consistent with MemberRole native_enum=False, avoids PostgreSQL CREATE TYPE | ✓ Good — pending_setup/active/suspended/cancelled lifecycle works |
+| Plan limits not wired to Stripe | wxcode-only operational limits (projects, storage, tokens), not billing amounts | ✓ Good — decouples engine limits from payment amounts |
+| DynamicCORSMiddleware | Subclass CORSMiddleware.is_allowed_origin(); checks static origins + tenant wxcode_url cache | ✓ Good — production-safe, dev wildcard still works |
+| Dual token quota (5h + weekly) | Split single token_quota into rolling windows for tighter enforcement | ✓ Good — migration 010 with data preservation, both fields in all UIs |
+| wxcode-config endpoint | Engine reads tenant config via JWT + DEVELOPER role; plan_limits via TenantSubscription → Plan join | ✓ Good — single endpoint for all engine bootstrap data |
 
 ---
-*Last updated: 2026-03-06 after v1.0 + v2.0 milestones completed*
+*Last updated: 2026-03-09 after v3.0 milestone completed*

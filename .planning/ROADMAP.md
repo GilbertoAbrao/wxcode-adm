@@ -4,7 +4,7 @@
 
 - ✅ **v1.0 Backend API** — Phases 1-11 (shipped 2026-03-04)
 - ✅ **v2.0 Frontend UI** — Phases 12-19 (shipped 2026-03-06)
-- 🔲 **v3.0 WXCODE Engine Integration** — Phases 20-26 (planned)
+- ✅ **v3.0 WXCODE Engine Integration** — Phases 20-26 (shipped 2026-03-09)
 
 ## Phases
 
@@ -44,35 +44,15 @@ Full details: `milestones/v2.0-ROADMAP.md`
 </details>
 
 <details>
-<summary>🔲 v3.0 WXCODE Engine Integration (Phases 20-26) — PLANNED</summary>
+<summary>✅ v3.0 WXCODE Engine Integration (Phases 20-26) — SHIPPED 2026-03-09</summary>
 
-- [x] Phase 20: Crypto Service + Tenant Model Extension (2 plans) (completed 2026-03-07)
-  - [ ] 20-01-PLAN.md — Fernet crypto service + encryption key config
-  - [ ] 20-02-PLAN.md — Tenant model extension + migration 008 + tests
-- [x] Phase 21: Plan Limits Extension (1 plan) (completed 2026-03-07)
-  - [ ] 21-01-PLAN.md — Plan model limits + migration 009 + schemas + tests
-- [x] Phase 22: Claude Provisioning API (2 plans) (completed 2026-03-07)
-  - [ ] 22-01-PLAN.md — Admin provisioning endpoints (schemas + service + 4 admin routes)
-  - [ ] 22-02-PLAN.md — wxcode-config endpoint + integration tests
-- [x] Phase 23: Admin UI — Claude Management (6 plans) (UAT gap closure in progress) (completed 2026-03-08)
-  - [x] 23-01-PLAN.md — API hooks + tenant detail WXCODE Integration section
-  - [x] 23-02-PLAN.md — Plan management page with wxcode limits + admin nav update
-  - [ ] 23-03-PLAN.md — Backend: split budget/quota to dual 5h + weekly fields
-  - [ ] 23-04-PLAN.md — Session persistence + plan inactivate/delete fixes
-  - [ ] 23-05-PLAN.md — Frontend: dual budget/quota fields in hooks + UI pages
-  - [ ] 23-06-PLAN.md — WXCODE provisioning endpoint + tenant detail UI section
-- [x] Phase 24: CORS Fix + Integration Contract (2 plans) (completed 2026-03-09)
-  - [ ] 24-01-PLAN.md — CORS production fix + dynamic tenant wxcode_url origins + tests
-  - [ ] 24-02-PLAN.md — Integration health endpoint + contract documentation + tests
-- [x] Phase 25: wxcode-config Plan Limits (1 plan) — **Gap Closure** (MISSING-01, FLOW-BREAK-01) (completed 2026-03-09)
-  - Goal: Expose plan limits (max_projects, max_output_projects, max_storage_gb, token_quota_5h, token_quota_weekly) in GET /tenants/{id}/wxcode-config via TenantSubscription → Plan join + update INTEGRATION-CONTRACT.md
-  Plans:
-  - [ ] 25-01-PLAN.md — Add plan_limits to wxcode-config endpoint + update integration contract
-
-- [x] Phase 26: Billing UI Dual Quota Fix (1 plan) — **Gap Closure** (BREAK-01, FLOW-DISPLAY-01) (completed 2026-03-09)
-  - Goal: Update tenant-facing billing UI to use dual quota fields (token_quota_5h/token_quota_weekly) after migration 010 removed token_quota
-  Plans:
-  - [ ] 26-01-PLAN.md — Update BillingPlan interface and billing page to dual quota display
+- [x] Phase 20: Crypto Service + Tenant Model Extension (2/2 plans) — completed 2026-03-07
+- [x] Phase 21: Plan Limits Extension (1/1 plan) — completed 2026-03-07
+- [x] Phase 22: Claude Provisioning API (2/2 plans) — completed 2026-03-07
+- [x] Phase 23: Admin UI — Claude Management (6/6 plans) — completed 2026-03-08
+- [x] Phase 24: CORS Fix + Integration Contract (2/2 plans) — completed 2026-03-09
+- [x] Phase 25: wxcode-config Plan Limits (1/1 plan) — completed 2026-03-09
+- [x] Phase 26: Billing UI Dual Quota Fix (1/1 plan) — completed 2026-03-09
 
 Full details: `milestones/v3.0-ROADMAP.md`
 
@@ -107,4 +87,4 @@ Full details: `milestones/v3.0-ROADMAP.md`
 | 23. Admin UI — Claude Management | v3.0 | 6/6 | Complete | 2026-03-08 |
 | 24. CORS Fix + Integration Contract | v3.0 | 2/2 | Complete | 2026-03-09 |
 | 25. wxcode-config Plan Limits | v3.0 | 1/1 | Complete | 2026-03-09 |
-| 26. Billing UI Dual Quota Fix | 1/1 | Complete    | 2026-03-09 | - |
+| 26. Billing UI Dual Quota Fix | v3.0 | 1/1 | Complete | 2026-03-09 |
