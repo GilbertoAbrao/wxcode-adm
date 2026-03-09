@@ -107,4 +107,4 @@ Full details: `milestones/v3.0-ROADMAP.md`
 | 23. Admin UI — Claude Management | v3.0 | 6/6 | Complete | 2026-03-08 |
 | 24. CORS Fix + Integration Contract | v3.0 | 2/2 | Complete | 2026-03-09 |
 | 25. wxcode-config Plan Limits | v3.0 | 1/1 | Complete | 2026-03-09 |
-| 26. Billing UI Dual Quota Fix | 1/1 | Complete   | 2026-03-09 | - |
+| 26. Billing UI Dual Quota Fix | 1/1 | Complete    | 2026-03-09 | - |
