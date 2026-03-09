@@ -5,14 +5,14 @@
 See: .planning/PROJECT.md (updated 2026-03-06)
 
 **Core value:** Controlar acesso seguro a plataforma WXCODE com identidade, permissoes por tenant e cobranca recorrente — sem executar nenhuma operacao do wxcode engine.
-**Current focus:** v3.0 WXCODE Engine Integration — Phase 25 complete.
+**Current focus:** v3.0 WXCODE Engine Integration — Phase 26 complete.
 
 ## Current Position
 
-Phase: v3.0 Phase 25 (wxcode-config Plan Limits) — COMPLETE
-Plan: 74 plans complete (38 v1.0 + 20 v2.0 + 16 v3.0), Phase 25 done
-Status: v3.0 IN PROGRESS — Phase 25 COMPLETE (1 of 1 plans done)
-Last activity: 2026-03-09 — 25-01 Plan limits in wxcode-config + INTEGRATION-CONTRACT.md v0.2.0
+Phase: v3.0 Phase 26 (Billing UI Dual Quota Fix) — COMPLETE
+Plan: 75 plans complete (38 v1.0 + 20 v2.0 + 17 v3.0), Phase 26 done
+Status: v3.0 IN PROGRESS — Phase 26 COMPLETE (1 of 1 plans done)
+Last activity: 2026-03-09 — 26-01 Billing UI dual quota fix (BREAK-01, FLOW-DISPLAY-01 closed)
 
 Progress: [████████████████████████████████] 100% (v1.0+v2.0) + v3.0 started
 
@@ -31,9 +31,9 @@ Progress: [███████████████████████
 - Timeline: 3 days (2026-03-04 → 2026-03-06)
 
 **Velocity (v3.0):**
-- Plans completed: 17 (20-01, 20-02, 21-01, 22-01, 22-02, 23-01, 23-02, 23-03, 23-04, 23-05, 23-06 + gap closure plans including 23-03 backend re-do + 24-01, 24-02, 25-01)
+- Plans completed: 18 (20-01, 20-02, 21-01, 22-01, 22-02, 23-01, 23-02, 23-03, 23-04, 23-05, 23-06 + gap closure plans including 23-03 backend re-do + 24-01, 24-02, 25-01, 26-01)
 - Average duration: 1-11 min
-- Phase 20 complete, Phase 21 complete, Phase 22 complete, Phase 23 complete (6 of 6 + gap closures), Phase 24 complete (2 of 2), Phase 25 complete (1 of 1)
+- Phase 20 complete, Phase 21 complete, Phase 22 complete, Phase 23 complete (6 of 6 + gap closures), Phase 24 complete (2 of 2), Phase 25 complete (1 of 1), Phase 26 complete (1 of 1)
 
 **Combined:**
 - 66+ plans executed across 23 phases
@@ -102,6 +102,7 @@ Decisions are logged in PROJECT.md Key Decisions table.
 - [Phase 24]: _tenant_origin_cache module-level set populated at lifespan startup — fast lookup for tenant custom domain CORS origins
 - [Phase 24]: CORS test fixture patches ALLOWED_ORIGINS to explicit list — .env wildcard breaks CORS rejection test assertions
 - [Phase 25]: plan_limits=null when no subscription — wxcode engine must handle null gracefully for unsubscribed tenants
+- [Phase 26]: Both quota lines always visible in plan cards regardless of value; 0 renders as Unlimited. Current Plan section uses text-only quota display (no usage bar).
 
 ### Roadmap Evolution
 
@@ -121,5 +122,5 @@ None.
 ## Session Continuity
 
 Last session: 2026-03-09
-Stopped at: Completed 25-01-PLAN.md (plan_limits in wxcode-config + INTEGRATION-CONTRACT.md v0.2.0)
-Resume file: None — all 1 plans in phase 25 now complete
+Stopped at: Completed 26-01-PLAN.md (billing UI dual quota fix — BREAK-01, FLOW-DISPLAY-01 closed)
+Resume file: None — all 1 plans in phase 26 now complete

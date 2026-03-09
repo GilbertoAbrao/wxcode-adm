@@ -69,7 +69,7 @@ Full details: `milestones/v2.0-ROADMAP.md`
   Plans:
   - [ ] 25-01-PLAN.md — Add plan_limits to wxcode-config endpoint + update integration contract
 
-- [ ] Phase 26: Billing UI Dual Quota Fix (1 plan) — **Gap Closure** (BREAK-01, FLOW-DISPLAY-01)
+- [x] Phase 26: Billing UI Dual Quota Fix (1 plan) — **Gap Closure** (BREAK-01, FLOW-DISPLAY-01) (completed 2026-03-09)
   - Goal: Update tenant-facing billing UI to use dual quota fields (token_quota_5h/token_quota_weekly) after migration 010 removed token_quota
   Plans:
   - [ ] 26-01-PLAN.md — Update BillingPlan interface and billing page to dual quota display
@@ -107,4 +107,4 @@ Full details: `milestones/v3.0-ROADMAP.md`
 | 23. Admin UI — Claude Management | v3.0 | 6/6 | Complete | 2026-03-08 |
 | 24. CORS Fix + Integration Contract | v3.0 | 2/2 | Complete | 2026-03-09 |
 | 25. wxcode-config Plan Limits | v3.0 | 1/1 | Complete | 2026-03-09 |
-| 26. Billing UI Dual Quota Fix | v3.0 | 0/1 | Pending | - |
+| 26. Billing UI Dual Quota Fix | 1/1 | Complete   | 2026-03-09 | - |
