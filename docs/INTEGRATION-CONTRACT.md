@@ -2,7 +2,7 @@
 
 > **Audience:** wxcode engine developers integrating with wxcode-adm.
 >
-> **Version:** 0.1.0 — Updated 2026-03-09
+> **Version:** 0.2.0 — Updated 2026-03-09
 
 ---
 
@@ -116,18 +116,31 @@ X-Tenant-ID: <tenant_id>
   "default_target_stack": "python",
   "neo4j_enabled": false,
   "claude_default_model": "claude-opus-4-6",
-  "max_concurrent_sessions": 5
+  "max_concurrent_sessions": 5,
+  "plan_limits": {
+    "max_projects": 5,
+    "max_output_projects": 20,
+    "max_storage_gb": 10,
+    "token_quota_5h": 10000,
+    "token_quota_weekly": 50000
+  }
 }
 ```
 
-| Field                    | Type            | Description                                           |
-| ------------------------ | --------------- | ----------------------------------------------------- |
-| `tenant_id`              | string (UUID)   | Tenant identifier                                     |
-| `database_name`          | string or null  | Target database name; null = not yet provisioned      |
-| `default_target_stack`   | string or null  | Default execution stack (e.g., `"python"`, `"node"`)  |
-| `neo4j_enabled`          | boolean         | Whether Neo4j is enabled for this tenant              |
-| `claude_default_model`   | string or null  | Default Claude model slug                             |
-| `max_concurrent_sessions`| integer         | Maximum concurrent wxcode sessions allowed            |
+| Field                              | Type            | Description                                                               |
+| ---------------------------------- | --------------- | ------------------------------------------------------------------------- |
+| `tenant_id`                        | string (UUID)   | Tenant identifier                                                         |
+| `database_name`                    | string or null  | Target database name; null = not yet provisioned                          |
+| `default_target_stack`             | string or null  | Default execution stack (e.g., `"python"`, `"node"`)                     |
+| `neo4j_enabled`                    | boolean         | Whether Neo4j is enabled for this tenant                                  |
+| `claude_default_model`             | string or null  | Default Claude model slug                                                 |
+| `max_concurrent_sessions`          | integer         | Maximum concurrent wxcode sessions allowed                                |
+| `plan_limits`                      | object or null  | Operational limits from the tenant's billing plan; null if no subscription |
+| `plan_limits.max_projects`         | integer         | Maximum importable projects (KBs)                                        |
+| `plan_limits.max_output_projects`  | integer         | Maximum conversion output projects                                       |
+| `plan_limits.max_storage_gb`       | integer         | Maximum workspace storage in GB                                          |
+| `plan_limits.token_quota_5h`       | integer         | Token quota per 5-hour window                                            |
+| `plan_limits.token_quota_weekly`   | integer         | Token quota per weekly window                                            |
 
 **NOT returned:** `claude_oauth_token` — the encrypted OAuth token never leaves wxcode-adm.
 
