@@ -32,7 +32,7 @@ The JWKS endpoint MUST remain at domain root per RFC 5785 — external services
 
 from typing import Union
 
-from fastapi import APIRouter, Depends, Header, Request
+from fastapi import APIRouter, Depends, Header, Request, Response
 from fastapi.responses import JSONResponse
 from redis.asyncio import Redis
 from sqlalchemy import select
@@ -480,6 +480,7 @@ async def reset_password(
 @limiter.limit(settings.RATE_LIMIT_AUTH)
 async def wxcode_exchange(
     request: Request,
+    response: Response,
     body: WxcodeExchangeRequest,
     db: AsyncSession = Depends(get_session),
     redis: Redis = Depends(get_redis),
