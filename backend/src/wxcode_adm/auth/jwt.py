@@ -6,11 +6,14 @@ Tokens are signed with the RSA private key stored in settings and can be
 verified by external services using the public key served at /.well-known/jwks.json.
 
 Token structure:
-    sub   — user ID (UUID string)
-    iat   — issued-at timestamp
-    exp   — expiry timestamp
-    jti   — unique token identifier (UUID, for replay detection)
-    kid   — key ID (in JWT header, matches JWKS kid)
+    sub       — user ID (UUID string)
+    aud       — "wxcode-adm" for regular tokens
+    tenant_id — current tenant UUID when available
+    role      — current tenant role when available
+    iat       — issued-at timestamp
+    exp       — expiry timestamp
+    jti       — unique token identifier (UUID, for replay detection)
+    kid       — key ID (in JWT header, matches JWKS kid)
 """
 
 import uuid
@@ -36,6 +39,7 @@ def create_access_token(user_id: str, extra_claims: dict | None = None) -> str:
     now = datetime.now(timezone.utc)
     payload: dict = {
         "sub": user_id,
+        "aud": "wxcode-adm",
         "iat": now,
         "exp": now + timedelta(hours=settings.ACCESS_TOKEN_TTL_HOURS),
         "jti": str(uuid.uuid4()),
@@ -72,6 +76,7 @@ def decode_access_token(token: str) -> dict:
             token,
             settings.JWT_PUBLIC_KEY.get_secret_value(),
             algorithms=["RS256"],
+            audience="wxcode-adm",
         )
     except jwt.ExpiredSignatureError:
         raise TokenExpiredError()

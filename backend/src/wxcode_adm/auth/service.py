@@ -619,8 +619,15 @@ async def refresh(
     db.add(new_rt)
     await db.flush()  # Assigns new_rt.id for UserSession FK update
 
-    # Issue new access token
-    access_token = create_access_token(str(user_id))
+    user = await db.get(User, user_id)
+    if user is None:
+        raise InvalidTokenError()
+
+    # Issue new access token with the current tenant context when available.
+    access_token = create_access_token(
+        str(user_id),
+        extra_claims=await _build_regular_access_claims(db, user),
+    )
     new_jti = decode_access_token(access_token)["jti"]
 
     # Update the UserSession: update refresh_token_id FK and access_token_jti
@@ -907,8 +914,11 @@ async def _issue_tokens(
         await _write_shadow_keys_bulk(redis, old_tokens, str(user.id))
     await db.execute(delete(RefreshToken).where(RefreshToken.user_id == user.id))
 
-    # Issue new tokens
-    access_token = create_access_token(str(user.id))
+    # Issue new tokens with the current tenant context when available.
+    access_token = create_access_token(
+        str(user.id),
+        extra_claims=await _build_regular_access_claims(db, user),
+    )
     refresh_token_str = secrets.token_urlsafe(32)
     rt = RefreshToken(
         token=refresh_token_str,
@@ -937,6 +947,46 @@ async def _issue_tokens(
     db.add(session_record)
 
     return TokenResponse(access_token=access_token, refresh_token=refresh_token_str)
+
+
+async def _build_regular_access_claims(
+    db: AsyncSession,
+    user: User,
+) -> dict:
+    """Build regular access-token claims for the current tenant context.
+
+    Tokens always carry aud="wxcode-adm". When the user has a preferred tenant
+    membership, the token also carries tenant_id and role so the wxcode engine
+    can resolve tenant context without the legacy membership endpoint.
+    """
+    claims: dict[str, str] = {"aud": "wxcode-adm"}
+
+    from wxcode_adm.tenants.models import TenantMembership  # noqa: PLC0415
+
+    membership = None
+    if user.last_used_tenant_id is not None:
+        membership_result = await db.execute(
+            select(TenantMembership).where(
+                TenantMembership.user_id == user.id,
+                TenantMembership.tenant_id == user.last_used_tenant_id,
+            )
+        )
+        membership = membership_result.scalar_one_or_none()
+
+    if membership is None:
+        membership_result = await db.execute(
+            select(TenantMembership)
+            .where(TenantMembership.user_id == user.id)
+            .order_by(TenantMembership.created_at.desc())
+            .limit(1)
+        )
+        membership = membership_result.scalar_one_or_none()
+
+    if membership is not None:
+        claims["tenant_id"] = str(membership.tenant_id)
+        claims["role"] = membership.role.value
+
+    return claims
 
 
 # ---------------------------------------------------------------------------

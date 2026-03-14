@@ -54,8 +54,8 @@ services:
     build:
       context: ./backend
     command: >
-      sh -c "alembic upgrade head &&
-             uvicorn wxcode_adm.main:app --host 0.0.0.0 --port 8060 --reload"
+      sh -c "PYTHONPATH=src alembic upgrade head &&
+             PYTHONPATH=src uvicorn wxcode_adm.main:app --host 0.0.0.0 --port 8060 --reload"
     ports:
       - "8060:8060"
     env_file:
@@ -81,7 +81,7 @@ services:
   worker:
     build:
       context: ./backend
-    command: arq wxcode_adm.tasks.worker.WorkerSettings
+    command: sh -c "PYTHONPATH=src arq wxcode_adm.tasks.worker.WorkerSettings"
     env_file:
       - ./backend/.env
     environment:
